@@ -802,7 +802,7 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
 	vector<double> data_points;
 	vector<double> ghost_points;
 	bool sort_in_u, sort_in_u_ghost;
-	double maxerr, averr, accerr;
+	//double maxerr, averr, accerr;
 	int nmbout;
 
 	if (it2 != emap_.end())
@@ -817,8 +817,11 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
 	    it2->second->getOutsidePoints(data_points, d, sort_in_u);
 	    it2->second->getOutsideGhostPoints(ghost_points, d, 
 					       sort_in_u_ghost);
-	    it2->second->getAccuracyInfo(averr, maxerr, nmbout);
-	    it2->second->getAccumulatedError();
+	    // it2->second->getAccuracyInfo(averr, maxerr, nmbout);
+	    // accerr = it2->second->getAccumulatedError();
+
+	    // Update accuracy statistices in element
+	    it2->second->updateAccuracyInfo();
 
 	    // Update supported LRBsplines
 	    for (size_t kb=0; kb<bsplines_affected.size(); ++kb)
@@ -862,8 +865,10 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
 	    if (ghost_points.size() > 0)
 	      elem->addGhostPoints(ghost_points.begin(), ghost_points.end(),
 				   sort_in_u_ghost);
-	    elem->setAccuracyInfo(accerr, averr, maxerr, nmbout);  // Not exact info as the
+	    //elem->setAccuracyInfo(accerr, averr, maxerr, nmbout);  // Not exact info as the
 	    // element has been split
+	    elem->updateAccuracyInfo();  // Accuracy statistic in element
+
 	    emap_.insert(std::make_pair(key, std::move(elem)));
 	    //auto it3 = emap_.find(key);
 
@@ -1777,6 +1782,7 @@ double LRSplineSurface::endparam_v() const
      // sub surface to avoid LR B-splines partly overlapping the sub domain
      // @@@ VSK. Could the extension be smaller than prescribed here?
      vector<Refinement2D> refs(4);
+     //vector<Refinement2D> refs;
 #if 0 // Old version, we need to consider the support of all the basis
       // functions.
      double umin = mesh_.kval(XFIXED, std::max(ix1 - deg1, 0));
@@ -1789,6 +1795,30 @@ double LRSplineSurface::endparam_v() const
      double vmin = mesh_.kval(YFIXED, vmin_ind);
      double vmax = mesh_.kval(YFIXED, vmax_ind);
 #endif
+     // if (umin_ind > 0)
+     //   {
+     // 	 Refinement2D curr;
+     // 	 curr.setVal(from_upar, vmin, vmax, XFIXED, deg1+1);
+     // 	 refs.push_back(curr);
+     //   }
+     // if (umax_ind < nmb1-1)
+     //   {
+     // 	 Refinement2D curr;
+     // 	 curr.setVal(to_upar, vmin, vmax, XFIXED, deg1+1);
+     // 	 refs.push_back(curr);
+     //   }
+     // if (vmin_ind > 0)
+     //   {
+     // 	 Refinement2D curr;
+     // 	 curr.setVal(from_vpar, umin, umax, YFIXED, deg2+1);
+     // 	 refs.push_back(curr);
+     //   }
+     // if (vmax_ind < nmb2-1)
+     //   {
+     // 	 Refinement2D curr;
+     // 	 curr.setVal(to_vpar, umin, umax, YFIXED, deg2+1);
+     // 	 refs.push_back(curr);
+     //   }
      refs[0].setVal(from_upar, vmin, vmax, XFIXED, deg1+1);
      refs[1].setVal(to_upar, vmin, vmax, XFIXED, deg1+1);
      refs[2].setVal(from_vpar, umin, umax, YFIXED, deg2+1);
@@ -2388,6 +2418,10 @@ double LRSplineSurface::endparam_v() const
 	all_elements[ki]->setUmax(elem_umax_new);
 	all_elements[ki]->setVmin(elem_vmin_new);
 	all_elements[ki]->setVmax(elem_vmax_new);
+	all_elements[ki]->updateLSDataParDomain(elem_umin, elem_umax, 
+						elem_vmin, elem_vmax,
+						elem_umin_new, elem_umax_new, 
+						elem_vmin_new, elem_vmax_new);
 
 	// Make new key
 	ElemKey new_key;
