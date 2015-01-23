@@ -1010,20 +1010,27 @@ void LRSplineSurface::to3D()
   if (degree(XFIXED) == 0 || degree(YFIXED) == 0) 
     THROW("Cannot convert a 0-degree spline to 3D.");
 
-  if (false)
-    {
-      LRSplineUtils::insertParameterFunctions(this);
-    }
-  else
-    {
-      for (auto b = bsplines_.begin(); b != bsplines_.end(); ++b) {
-	Point xy = b->second->getGrevilleParameter();
-	const double z_gamma = b->second->coefTimesGamma()[0];
-	const double gamma = b->second->gamma();
-	b->second->coefTimesGamma() = Point(xy[0]*gamma, xy[1]*gamma, z_gamma);
-	//wcout << b.second.coefTimesGamma() << endl;
+  //LRSplineUtils::insertParameterFunctions(this);
+  for (auto b = bsplines_.begin(); b != bsplines_.end(); ++b) {
+    const double x = LRSplineUtils::compute_greville(b->second->kvec(XFIXED), 
+						     mesh().knotsBegin(XFIXED));
+    const double y = LRSplineUtils::compute_greville(b->second->kvec(YFIXED), 
+						      mesh().knotsBegin(YFIXED));
+    const double z_gamma = b->second->coefTimesGamma()[0];
+    const double gamma = b->second->gamma();
+    b->second->coefTimesGamma() = Point(x*gamma, y*gamma, z_gamma);
+//    b->second->coefTimesGamma() = Point(x, y, z_gamma);
+    //wcout << b.second.coefTimesGamma() << std::endl;
+    // int dim = b->second->coefTimesGamma().size();
+    // double z = z_gamma/gamma;
+    // std::cout << "z: " << z << std::endl;
   }
-    }
+  int dim = dimension();
+  // std::cout << "Global dim: " << dim << std::endl;
+  // if (rational())
+  // {
+  //     std::cout << "Rational!" << std::endl;
+  // }
 }
 
 
@@ -1826,7 +1833,7 @@ double LRSplineSurface::endparam_v() const
      
      // Perform refinement
      // @@sbr201301 Remove when stable.
-     bool multi_refine = false;
+     bool multi_refine = true; //false;
      if (multi_refine)
        {
 	 sf->refine(refs, true);
@@ -1839,7 +1846,7 @@ double LRSplineSurface::endparam_v() const
 #endif
 	 for (size_t ki = 0; ki < refs.size(); ++ki)
 	   {
-	     MESSAGE("ki = " << ki << "\n");
+	     //MESSAGE("ki = " << ki << "\n");
 	     sf->refine(refs[ki], true); // Second argument is 'true', which means that the mult is set to deg+1.
 	   }
        }

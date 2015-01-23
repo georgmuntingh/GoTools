@@ -21,12 +21,15 @@ ELSE(WIN32)
 ENDIF(WIN32)
 
 
-MACRO (QT4_WRAP_UI_GO outfiles outpath)
-  IF (${CMAKE_MAJOR_VERSION} GREATER 1 AND ${CMAKE_MINOR_VERSION} GREATER 7 AND ${CMAKE_PATCH_VERSION} GREATER 11)
-    QT4_EXTRACT_OPTIONS(ui_files ui_options ui_target ${ARGN})
-  ELSE() 
-    QT4_EXTRACT_OPTIONS(ui_files ui_options ${ARGN})
-  ENDIF()
+MACRO (QT4_WRAP_UI_GO outfiles )
+  QT4_EXTRACT_OPTIONS(ui_files ui_options ${ARGN})
+  SET(ui_files ${infiles} ${ui_files})
+#MACRO (QT4_WRAP_UI_GO outfiles outpath)
+#  IF (${CMAKE_MAJOR_VERSION} GREATER 1 AND ${CMAKE_MINOR_VERSION} GREATER 7 AND ${CMAKE_PATCH_VERSION} GREATER 11)
+#    QT4_EXTRACT_OPTIONS(ui_files ui_options ui_target ${ARGN})
+#  ELSE() 
+#    QT4_EXTRACT_OPTIONS(ui_files ui_options ${ARGN})
+#  ENDIF()
   FOREACH (it ${ui_files})
     GET_FILENAME_COMPONENT(outfile ${it} NAME_WE)
     GET_FILENAME_COMPONENT(infile ${it} ABSOLUTE)
@@ -35,7 +38,12 @@ MACRO (QT4_WRAP_UI_GO outfiles outpath)
     #MESSAGE(STATUS outfile: ${outfile})
     #MESSAGE(STATUS ui_options: ${ui_options})
     #MESSAGE(STATUS QT_UIC_EXECUTABLE: ${QT_UIC_EXECUTABLE})
-    #SET(outfile ${viewlib_BINARY_DIR}/${outpath}/ui_${outfile}.h) # Here we set output
+#MACRO (QT4_WRAP_UI_GO outfiles outpath)
+#  QT4_EXTRACT_OPTIONS(ui_files ui_options ui_target ${ARGN})
+#  FOREACH (it ${ui_files})
+#    GET_FILENAME_COMPONENT(outfile ${it} NAME_WE)
+#    GET_FILENAME_COMPONENT(infile ${it} ABSOLUTE)
+#    SET(outfile ${viewlib_BINARY_DIR}/${outpath}/ui_${outfile}.h) # Here we set output
     ADD_CUSTOM_COMMAND(OUTPUT ${outfile}
       COMMAND ${QT_UIC_EXECUTABLE}
       ARGS ${ui_options} -o ${outfile} ${infile}

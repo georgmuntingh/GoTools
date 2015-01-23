@@ -598,6 +598,8 @@ namespace Go
 
   bool rational() const;
 
+  void translate(const Point& vec);
+
   ElementMap::const_iterator elementsBegin() const { return emap_.begin();}
   ElementMap::const_iterator elementsEnd()   const { return emap_.end();}
 

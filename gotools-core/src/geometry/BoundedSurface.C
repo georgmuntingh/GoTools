@@ -137,7 +137,7 @@ BoundedSurface::BoundedSurface(shared_ptr<ParamSurface> surf,
 	    SplineDebugUtils::writeCvsOnSf(curves, space_epsilon, debug);
 	    double debug_val = 0.0;
 	}
-#endif NDEBUG
+#endif //NDEBUG
 
     boundary_loops_.push_back(
       shared_ptr<CurveLoop>(new CurveLoop(curves, space_epsilon)));
@@ -660,6 +660,9 @@ bool BoundedSurface::checkParCrvsAtSeam()
 BoundingBox BoundedSurface::boundingBox() const
 //===========================================================================
 {
+  if (box_.valid())
+    return box_;
+
   RectDomain dom = containingDomain();
   vector<shared_ptr<ParamSurface> > sub_sfs;
 
@@ -680,12 +683,14 @@ BoundingBox BoundedSurface::boundingBox() const
       }
       catch (...)
 	{
-	  return surface_->boundingBox();
+	  box_ = surface_->boundingBox();
+	  return box_;
 	}
     }
 
-  return (sub_sfs.size() == 1) ? sub_sfs[0]->boundingBox() : 
+  box_ = (sub_sfs.size() == 1) ? sub_sfs[0]->boundingBox() : 
     surface_->boundingBox();
+  return box_;
 }
 
 
@@ -1025,7 +1030,11 @@ BoundedSurface::subSurfaces(double from_upar,
 
     // First fetch the surrounding domain of the current parameter domain
     RectDomain domain = containingDomain();
-
+    //   // Fetch underlying surface
+      /*
+    shared_ptr<SplineSurface> under_sf = 
+	dynamic_pointer_cast<SplineSurface, ParamSurface>(surface_);
+      */
     shared_ptr<ParamSurface> under_sf =
 	surface_;
     if (under_sf.get() == NULL)
@@ -1489,6 +1498,7 @@ void BoundedSurface::turnOrientation()
     MESSAGE("Note: 'Turn orientation' is ambigous - did you \n"
 	    "mean 'swap parameter directions'? Continuing...");
 
+    box_.unset();
     surface_->turnOrientation();
     for (size_t ki=0; ki<boundary_loops_.size(); ki++) {
 	boundary_loops_[ki]->turnOrientation();
@@ -1534,6 +1544,8 @@ void BoundedSurface::turnOrientation()
 void BoundedSurface::reverseParameterDirection(bool direction_is_u)
 //===========================================================================
 {
+  box_.unset();
+
   RectDomain dom = surface_->containingDomain();
   double u1 = dom.umin();
   double u2 = dom.umax();
@@ -1603,6 +1615,8 @@ void BoundedSurface::reverseParameterDirection(bool direction_is_u)
 void BoundedSurface::makeBoundaryCurvesG1(double kink)
 //===========================================================================
 {
+  box_.unset();
+
     for (size_t ki = 0; ki < boundary_loops_.size(); ++ki) {
 	vector<shared_ptr<ParamCurve> > curves;
 	double space_epsilon = boundary_loops_[ki]->getSpaceEpsilon();
@@ -1626,6 +1640,8 @@ void BoundedSurface::removeSmallBoundaryCurves(double gap, double neighbour,
 					       double kink)
 //===========================================================================
 {
+  box_.unset();
+
     for (size_t ki = 0; ki < boundary_loops_.size(); ++ki) {
 	vector<shared_ptr<ParamCurve> > curves;
 
@@ -1703,6 +1719,7 @@ void BoundedSurface::removeSmallBoundaryCurves(double gap, double neighbour,
 void BoundedSurface::swapParameterDirection()
 //===========================================================================
 {
+  box_.unset();
 //     shared_ptr<SplineSurface> under_surf
 // 	= dynamic_pointer_cast<SplineSurface, ParamSurface>(surface_);
 //     ALWAYS_ERROR_IF(under_surf.get() == 0,
@@ -2043,6 +2060,8 @@ void
 BoundedSurface::turnLoopOrientation(int idx)
 //===========================================================================
 {
+  box_.unset();
+
     if (loop_fixed_.size() != boundary_loops_.size())
     {
 	loop_fixed_.resize(boundary_loops_.size());
@@ -2139,6 +2158,8 @@ void BoundedSurface::removeMismatchCurves(double max_tol_mult)
     if (valid_state_ > 0)
 	return;
 
+    box_.unset();
+
     bool analyze = false;
     int nmb_seg_samples = 20;//100;
     bool cvs_match;
@@ -2160,6 +2181,8 @@ bool BoundedSurface::fixInvalidSurface(double& max_loop_gap, double max_tol_mult
     if (valid_state_ == 1) {
 	return true; // Nothing to be done.
     }
+
+    box_.unset();
 
 #ifdef SBR_DBG
     std::cout << "Must fix invalid surface! valid_state_ = " <<
@@ -2219,6 +2242,8 @@ bool BoundedSurface::fixLoopGaps(double& max_loop_gap, bool analyze)
     if ((analyze == false) && ((int)fabs(double(valid_state_))%2 != 1))
 	return true; // Nothing to be done, the problem is something
 		     // else.
+
+    box_.unset();
 
     max_loop_gap = -1.0;
     // We check if the loops are valid.
@@ -2811,6 +2836,7 @@ Point BoundedSurface::getSurfaceParameter(int loop_idx, int cv_idx,
 bool BoundedSurface::simplifyBdLoops(double tol, double ang_tol, double& max_dist)
 //===========================================================================
 {
+  box_.unset();
 
   max_dist = 0;
   double dist;
