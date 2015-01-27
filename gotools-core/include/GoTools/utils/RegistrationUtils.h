@@ -74,18 +74,6 @@ namespace Go
     }
 
 
-    RegistrationInput()
-	: area_tolerance_sq_(0.01),
-	  max_newton_iterations_(10),
-	  newton_tolerance_(1e-08),
-	  calculate_tolerance_weights_(false),
-	  tolerance_weight_rotation_(1.0),
-	  tolerance_weight_translation_(1.0),
-	  tolerance_weight_rescale_(1.0),
-	  max_solve_iterations_(150),
-	  solve_tolerance_(1e-08)
-	  {}
-
     /// The lower limit of the square of the sine value of the smallest angle in a triangle,
     /// to accept the triangle as good enough for a raw registration
     double area_tolerance_sq_;
