@@ -51,7 +51,7 @@
 #include <iomanip>
 #include <fstream>
 
-#define DEBUG
+//#define DEBUG
 
 using std::vector;
 
@@ -80,6 +80,13 @@ LRSurfApprox::LRSurfApprox(vector<double>& points,
 
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
+
+  if (dim > 1)
+    {
+      initMBA_ = false;
+      useMBA_ = false;
+      toMBA_ = 10e4;  // A large number
+    }
 
   // Create an LR B-spline surface with the domain given by the 
   // parameter domain of the points. Only one element will be
@@ -112,6 +119,13 @@ LRSurfApprox::LRSurfApprox(shared_ptr<SplineSurface>& srf,
   make_ghost_points_ = false;
   usize_min_ = vsize_min_ = -1;
 
+  if (srf->dimension() > 1)
+    {
+      initMBA_ = false;
+      useMBA_ = false;
+      toMBA_ = 10e4;  // A large number
+    }
+
   // Create an LR B-spline surface based on the given spline surface
   makeInitSurf(srf);
 }
@@ -143,6 +157,12 @@ LRSurfApprox::LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
   coef_known_.assign(srf_->numBasisFunctions(), 0.0);  // Initially nothing is fixed
   usize_min_ = vsize_min_ = -1;
 
+  if (srf->dimension() > 1)
+    {
+      initMBA_ = false;
+      useMBA_ = false;
+      toMBA_ = 10e4;  // A large number
+    }
 }
 
 //==============================================================================
@@ -169,6 +189,13 @@ LRSurfApprox::LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
 
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
+
+  if (dim > 1)
+    {
+      initMBA_ = false;
+      useMBA_ = false;
+      toMBA_ = 10e4;  // A large number
+    }
 
   // Create an LR B-spline surface with unset coefficients and the domain
   // given by the parameter domain of the points. The size of the spline
@@ -201,6 +228,13 @@ LRSurfApprox::LRSurfApprox(int order_u, vector<double>& knots_u,
 
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
+
+  if (dim > 1)
+    {
+      initMBA_ = false;
+      useMBA_ = false;
+      toMBA_ = 10e4;  // A large number
+    }
 
   // Compute domain
   double domain[4]; //umin, umax, vmin, vmax;
@@ -273,6 +307,13 @@ LRSurfApprox::LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
 
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
+
+  if (dim > 1)
+    {
+      initMBA_ = false;
+      useMBA_ = false;
+      toMBA_ = 10e4;  // A large number
+    }
 
   // Create an LR B-spline surface with unset coefficients and the domain
   // given by the parameter domain of the points. The size of the spline
