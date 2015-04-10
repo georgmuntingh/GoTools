@@ -84,8 +84,7 @@ class LRSurfApprox
   /// \param repar Perform reparameterization during iterations
   LRSurfApprox(shared_ptr<SplineSurface>& srf,
 	       std::vector<double>& points, 
-	       double epsge, bool init_mba=false, 
-	       double mba_level = 0.0, bool closest_dist=true,
+	       double epsge, bool closest_dist=true,
 	       bool repar=false);
 
   /// Constructor given a parameterized point set and an initial LR B-spline surface
@@ -101,8 +100,7 @@ class LRSurfApprox
   /// \param repar Perform reparameterization during iterations
   LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
 	       std::vector<double>& points, 
-	       double epsge, bool init_mba=false, 
-	       double mba_level = 0.0, bool closest_dist=true,
+	       double epsge, bool closest_dist=true,
 	       bool repar=false, bool check_init_accuracy=false);
 
   /// Constructor given a parameterized point set and the size of an initial
@@ -374,8 +372,13 @@ class LRSurfApprox
     void performSmooth(LRSurfSmoothLS *LSapprox);
 
     void computeAccuracy(std::vector<Element2D*>& ghost_elems);
+    // The same as the above, but with OpenMP support (if flag is turned on).
+    void computeAccuracy_omp(std::vector<Element2D*>& ghost_elems);
     void computeAccuracyElement(std::vector<double>& points, int nmb, int del,
 				RectDomain& rd, const Element2D* elem);
+    // The same as the above, but with OpenMP support (if flag is turned on).
+    void computeAccuracyElement_omp(std::vector<double>& points, int nmb, int del,
+				    RectDomain& rd, const Element2D* elem);
     /// Refine surface
     int refineSurf();
     void refineSurf2();
@@ -419,7 +422,7 @@ class LRSurfApprox
 
     void constructInnerGhostPoints();
 
-    void updateGhostElems(std::vector<Element2D*>& elems);
+    void updateGhostElems(std::vector<Element2D*>& elems, bool enable_omp = false);
     void updateGhostPoints(std::vector<Element2D*>& elems);
 
     void addConstraintGhostPoints();
