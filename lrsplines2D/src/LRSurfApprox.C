@@ -1006,18 +1006,18 @@ void LRSurfApprox::computeAccuracy(vector<Element2D*>& ghost_elems)
       //double acc_prev = it->second->getAccumulatedError();
       it->second->getAccuracyInfo(av_prev, max_prev, nmb_out_prev);
 
-#ifdef DEBUG
-      of5 << "El nmb: " << elem.size() << ", div: " << (nmb_out_prev < 0);
-      of5 << ", prev max: " << max_prev;
-      of5 << ", prev average: " << acc_prev/nmb_pts << std::endl;
-      of5 << "nmb pts: " << nmb_pts << ", curr max: " << max_err;
-      of5 << ", curr average: " << acc_err/nmb_pts << ", av sgn: ";
-      of5 << acc_err_sgn/nmb_pts << std::endl << "av outside: " << av_err;
-      of5 << ", av out sgn: " << av_err_sgn;
-      of5 << ", nmb above: " << n_above;
-      of5 << ", nmb below: " << n_below << std::endl << std::endl;
-      elem.push_back(it->second.get());
-#endif
+// #ifdef DEBUG
+//       of5 << "El nmb: " << elem.size() << ", div: " << (nmb_out_prev < 0);
+//       of5 << ", prev max: " << max_prev;
+//       of5 << ", prev average: " << acc_prev/nmb_pts << std::endl;
+//       of5 << "nmb pts: " << nmb_pts << ", curr max: " << max_err;
+//       of5 << ", curr average: " << acc_err/nmb_pts << ", av sgn: ";
+//       of5 << acc_err_sgn/nmb_pts << std::endl << "av outside: " << av_err;
+//       of5 << ", av out sgn: " << av_err_sgn;
+//       of5 << ", nmb above: " << n_above;
+//       of5 << ", nmb below: " << n_below << std::endl << std::endl;
+//       elem.push_back(it->second.get());
+// #endif
 
       if (max_err > aepsge_ && max_prev > 0.0 && max_err > ghost_fac*max_prev &&
 	  nmb_ghost > 0.25*nmb_pts)

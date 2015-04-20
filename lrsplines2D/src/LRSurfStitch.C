@@ -200,6 +200,8 @@ void LRSurfStitch::consistentSplineSpaces(vector<shared_ptr<LRSplineSurface> >& 
       edges[3] = (kj != nmb_v-1);
       for (kr=0; kr<nmb_u; ++kr)
       {
+	if (!sfs[kj*nmb_u+kr].get())
+	  continue;
 	edges[0] = (kr != 0);
 	edges[1] = (kr != nmb_u-1);
 	tensorStructure(sfs[kj*nmb_u+kr], cont+1, edges);
