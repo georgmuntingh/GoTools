@@ -66,8 +66,9 @@ int main(int argc, char *argv[])
   double mindist = 0.0;
   double avdist = 0.0;
   int nmb;
+  vector<int> nmb_group;
   LRApproxApp::classifyCloudFromDist(data, sf1, limits, maxdist, mindist,
-				     avdist, nmb, level_points);
+				     avdist, nmb, level_points, nmb_group);
 
   // Write to file
   for (ki=0; ki<level_points.size(); ++ki)
