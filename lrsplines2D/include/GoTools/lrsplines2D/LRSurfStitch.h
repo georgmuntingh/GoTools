@@ -79,11 +79,19 @@ namespace Go
 		      int nmb_u, int nmb_v, double eps,
 		      int cont);
 
+    /// We calculate the max distance (cont = 0) / angle (cont = 1) between corresponding edges.
+    std::vector<double> analyzeContinuity(std::vector<shared_ptr<ParamSurface> >& sfs,
+					  int nmb_u, int nmb_v, int cont,
+					  int num_edge_samples = 100);
+
   private:
     void consistentSplineSpaces(std::vector<shared_ptr<LRSplineSurface> >& sfs,
 				int nmb_u, int nmb_v, double eps,
 				int cont);
 
+    // Make sure that the refinements along all edges have a full tensor product structure for
+    // the first 'element_width' elements.
+    // For corners additional knots are inserted.
     void tensorStructure(shared_ptr<LRSplineSurface> surf, int element_width,
 			 bool edges[4]);
 
@@ -123,13 +131,20 @@ namespace Go
 			     std::vector<double>& resvec);
 
     void defineRefinements(const Mesh2D& mesh, Direction2D dir,
-			   int edge, int ix, std::vector<double>& knot_vals, 
+			   int edge, int ix, const std::vector<double>& knot_vals, 
 			   int element_width,
 			   std::vector<LRSplineSurface::Refinement2D>& refs); 
 
     void extractBoundaryBsplines(shared_ptr<LRSplineSurface> surf,
 				 int edge,
 				 std::vector<std::vector<LRBSpline2D*> >& bsplines);
+
+    // Utility function for debugging.
+    // Compute distance, tangent and normal differences in input parameter points.
+    void surfaceDifference(const LRSplineSurface* sf1, const Point& param1,
+			   const LRSplineSurface* sf2, const Point& param2,
+//			   bool along_u_dir,
+			   double& sf_dist, double& tang1_ang, double& tang2_ang);
 
 };
 };

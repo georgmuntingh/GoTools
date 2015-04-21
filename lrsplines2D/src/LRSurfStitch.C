@@ -96,9 +96,12 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 //==============================================================================
 {
   // Ensure corresponding spline spaces along common boundaries
+  // We also make sure that the surfaces are full tensor product surfaces
+  // along adjacent edges (the first couple of element rows).
+  // Note that the surfaces (i.e. the coefs) are not altered.
   consistentSplineSpaces(sfs, nmb_u, nmb_v, eps, cont);
   
-  // Stitch surfaces along common edges.
+  // Stitch surfaces along common edges (by altering the coefs).
   // Assosiated corners will be handled first
   int kj, kr;
   int nmb_modified;
@@ -117,9 +120,9 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 	    corner_match1[0] = make_pair(sfs[kr-1], 1);
 	    corner_match1[1] = make_pair(sfs[kr], 0);
 	    if (cont == 0)
-	      nmb_modified = LRSurfStitch::averageCorner(corner_match1, eps);
+	      nmb_modified = averageCorner(corner_match1, eps);
 	    else
-	      nmb_modified = LRSurfStitch::makeCornerC1(corner_match1, eps);
+	      nmb_modified = makeCornerC1(corner_match1, eps);
 	    std::cout << "Nmb surfaces = " << corner_match1.size();
 	    std::cout << ", nmb modified = " << nmb_modified << std::endl;
 	  }
@@ -133,9 +136,9 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 	    corner_match2[0] = make_pair(sfs[kj*nmb_u+kr-1], 3);
 	    corner_match2[1] = make_pair(sfs[kj*nmb_u+kr], 2);
 	    if (cont == 0)
-	      nmb_modified = LRSurfStitch::averageCorner(corner_match2, eps);
+	      nmb_modified = averageCorner(corner_match2, eps);
 	    else
-	      nmb_modified = LRSurfStitch::makeCornerC1(corner_match2, eps);
+	      nmb_modified = makeCornerC1(corner_match2, eps);
 	    std::cout << "Nmb surfaces = " << corner_match2.size();
 	    std::cout << ", nmb modified = " << nmb_modified << std::endl;
 	  }
@@ -153,9 +156,9 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 	if (corner_match3.size() > 1)
 	  {
 	    if (cont == 0)
-	      nmb_modified = LRSurfStitch::averageCorner(corner_match3, eps);
+	      nmb_modified = averageCorner(corner_match3, eps);
 	    else
-	      nmb_modified = LRSurfStitch::makeCornerC1(corner_match3, eps);
+	      nmb_modified = makeCornerC1(corner_match3, eps);
 	      
 	  std::cout << "Nmb surfaces = " << corner_match3.size();
 	  std::cout << ", nmb modified = " << nmb_modified << std::endl;
@@ -165,23 +168,183 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 	// Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
 	if (kr > 0 && kr < nmb_u &&
 	    sfs[(kj-1)*nmb_u+kr-1].get() && sfs[(kj-1)*nmb_u+kr].get())
-	  matched = LRSurfStitch::averageEdge(sfs[(kj-1)*nmb_u+kr-1], 1,
-					      sfs[(kj-1)*nmb_u+kr], 0, 
-					      cont, eps);
+	{
+	  matched = averageEdge(sfs[(kj-1)*nmb_u+kr-1], 1,
+				sfs[(kj-1)*nmb_u+kr], 0, 
+				cont, eps);
+	  if (!matched)
+	  {
+	      MESSAGE("Failed vertical match!");
+	  }
+	}
 	if (kj == nmb_v-1 && kr > 0 && kr < nmb_u &&
 	    sfs[kj*nmb_u+kr-1].get() && sfs[kj*nmb_u+kr].get())
-	  matched = LRSurfStitch::averageEdge(sfs[kj*nmb_u+kr-1], 1,
-					      sfs[kj*nmb_u+kr], 0, 
-					      cont, eps);
+	{
+	  matched = averageEdge(sfs[kj*nmb_u+kr-1], 1,
+				sfs[kj*nmb_u+kr], 0, 
+				cont, eps);
+	  if (!matched)
+	  {
+	      MESSAGE("Failed vertical match!");
+	  }
+	}
+
 
 	// Match horizontal edge
 	if (kr < nmb_u &&
 	    sfs[(kj-1)*nmb_u+kr].get() && sfs[kj*nmb_u+kr].get())
-	  matched = LRSurfStitch::averageEdge(sfs[(kj-1)*nmb_u+kr], 3,
-					      sfs[kj*nmb_u+kr], 2, 
-					      cont, eps);
+	{
+	  matched = averageEdge(sfs[(kj-1)*nmb_u+kr], 3,
+				sfs[kj*nmb_u+kr], 2, 
+				cont, eps);
+	  if (!matched)
+	  {
+	      MESSAGE("Failed horizontal match!");
+	  }
+	}
       }
     }
+}
+
+//==============================================================================
+vector<double> LRSurfStitch::analyzeContinuity(vector<shared_ptr<ParamSurface> >& sfs,
+					       int nmb_u, int nmb_v, int derivs,
+					       int nmb_edge_samples)
+//==============================================================================
+{
+  assert(derivs < 2);
+
+  vector<shared_ptr<LRSplineSurface> > lr_sfs(sfs.size());
+  for (size_t ki=0; ki<sfs.size(); ++ki)
+    {
+      if (!sfs[ki].get())
+	continue;
+      shared_ptr<LRSplineSurface> sflr =
+	dynamic_pointer_cast<LRSplineSurface, ParamSurface>(sfs[ki]);
+      if (!sflr.get())
+	{
+	  shared_ptr<BoundedSurface> sfbd = 
+	dynamic_pointer_cast<BoundedSurface, ParamSurface>(sfs[ki]);
+	  if (sfbd.get())
+	    {
+	      shared_ptr<ParamSurface> tmp_sf = sfbd->underlyingSurface();
+	      sflr = dynamic_pointer_cast<LRSplineSurface, ParamSurface>(tmp_sf);
+	    }
+	}
+      
+      if (sflr.get())
+	lr_sfs[ki] = sflr;
+    }
+
+    vector<double> global_max_cont_dist(derivs + 1, 0.0);
+
+    // We first analyze the cont in the nmb_u direction.
+    for (int kj = 0; kj < nmb_v; ++kj)
+    {
+	for (int ki = 0; ki < nmb_u - 1; ++ki)
+	{
+	    vector<double> max_cont_dist(derivs + 1, 0.0);
+	    vector<int> sample_ind(derivs + 1, -1);
+
+	    LRSplineSurface* sf_left = lr_sfs[kj*nmb_u + ki].get();
+	    LRSplineSurface* sf_right = lr_sfs[kj*nmb_u + ki + 1].get();
+
+	    if (sf_left == NULL || sf_right == NULL)
+	      continue;
+
+	    // We may assume the the lr_sfs are oriented such that sf_left->umax matches sf_right->umin.
+	    double upar_left = sf_left->endparam_u();
+	    double upar_right = sf_right->startparam_u();
+
+	    // We may also assume that they share domain along the shared edge.
+	    double vmin = sf_left->startparam_v();
+	    double vmax = sf_left->endparam_v();
+	    double vstep = (vmax - vmin)/(nmb_edge_samples - 1);
+	    vector<Point> pt_left((derivs + 1)*(derivs + 2));
+	    vector<Point> pt_right((derivs + 1)*(derivs + 2));
+	    for (int kk = 0; kk < nmb_edge_samples; ++kk)
+	    {
+		double vpar = vmin + kk*vstep;
+		sf_left->point(pt_left, upar_left, vpar, derivs);
+		sf_right->point(pt_right, upar_right, vpar, derivs);
+		for (int kr = 0; kr < derivs + 1; ++kr)
+		{
+		    int ind = (kr == 1) ? 1 : 0;
+		    double dist = pt_left[ind].dist(pt_right[ind]);
+		    if (dist > max_cont_dist[kr])
+		    {
+			max_cont_dist[kr] = dist;
+			sample_ind[kr] = kk;
+		    }
+		}
+	    }
+
+	    for (size_t kk = 0; kk < max_cont_dist.size(); ++kk)
+	    {
+		std::cout << "ki: " << ki << ", kj: " << kj << ", u-dir, sample #: " << sample_ind[kk] << 
+		    ", max_cont_dist[" << kk << "]: " << max_cont_dist[kk] << std::endl;
+		if (max_cont_dist[kk] > global_max_cont_dist[kk])
+		{
+		    global_max_cont_dist[kk] = max_cont_dist[kk];
+		}
+	    }
+	}
+    }
+
+    // We then analyze the cont in the nmb_v direction.
+    for (int kj = 0; kj < nmb_u; ++kj)
+    {
+	for (int ki = 0; ki < nmb_v - 1; ++ki)
+	{
+	    vector<double> max_cont_dist(derivs + 1, 0.0);
+	    vector<int> sample_ind(derivs + 1, -1);
+
+	    LRSplineSurface* sf_bottom = lr_sfs[ki*nmb_u + kj].get();
+	    LRSplineSurface* sf_top = lr_sfs[(ki + 1)*nmb_u + kj].get();
+
+	    if (sf_bottom == NULL || sf_top == NULL)
+	      continue;
+
+	    // We may assume the the lr_sfs are oriented such that sf_bottom->vmax matches sf_top->vmin.
+	    double vpar_bottom = sf_bottom->endparam_v();
+	    double vpar_top = sf_top->startparam_v();
+
+	    // We may also assume that they share domain along the shared edge.
+	    double umin = sf_bottom->startparam_u();
+	    double umax = sf_bottom->endparam_u();
+	    double ustep = (umax - umin)/(nmb_edge_samples - 1);
+	    vector<Point> pt_bottom((derivs + 1)*(derivs + 2));
+	    vector<Point> pt_top((derivs + 1)*(derivs + 2));
+	    for (int kk = 0; kk < nmb_edge_samples; ++kk)
+	    {
+		double upar = umin + kk*ustep;
+		sf_bottom->point(pt_bottom, upar, vpar_bottom, derivs);
+		sf_top->point(pt_top, upar, vpar_top, derivs);
+		for (int kr = 0; kr < derivs + 1; ++kr)
+		{
+		    int ind = (kr == 1) ? 2 : 0;
+		    double dist = pt_bottom[ind].dist(pt_top[ind]);
+		    if (dist > max_cont_dist[kr])
+		    {
+			max_cont_dist[kr] = dist;
+			sample_ind[kr] = kk;
+		    }
+		}
+	    }
+
+	    for (size_t kk = 0; kk < max_cont_dist.size(); ++kk)
+	    {
+		std::cout << "ki: " << ki << ", kj: " << kj << ", v-dir, sample #: " << sample_ind[kk] << 
+		    ", max_cont_dist[" << kk << "]: " << max_cont_dist[kk] << std::endl;
+		if (max_cont_dist[kk] > global_max_cont_dist[kk])
+		{
+		    global_max_cont_dist[kk] = max_cont_dist[kk];
+		}
+	    }
+	}
+    }
+
+    return global_max_cont_dist;
 }
 
 //==============================================================================
@@ -204,31 +367,71 @@ void LRSurfStitch::consistentSplineSpaces(vector<shared_ptr<LRSplineSurface> >& 
 	  continue;
 	edges[0] = (kr != 0);
 	edges[1] = (kr != nmb_u-1);
-	tensorStructure(sfs[kj*nmb_u+kr], cont+1, edges);
+	// Other parts of the code requires 2 inner rows for c0.
+	int num_inner_rows = std::max(cont + 1, 2); // I.e. the number of elements that are affected.
+	tensorStructure(sfs[kj*nmb_u+kr], num_inner_rows, edges);
       }
     }
 
-  // Then make corresponding spline spaces across boundaries
+  // Then make corresponding spline spaces across boundaries (i.e. insert knots along the common edge).
   for (kj=1; kj<nmb_v; ++kj)
     {
       for (kr=0; kr<=nmb_u; ++kr)
       {
 	// Vertical edge
 	// Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
+	const int element_width = cont + 2;//std::max(2, cont + 1);//cont + 2; // Number of rows with inner knots.
 	if (kr > 0 && kr < nmb_u &&
 	    sfs[(kj-1)*nmb_u+kr-1].get() && sfs[(kj-1)*nmb_u+kr].get())
 	  matchSplineSpace(sfs[(kj-1)*nmb_u+kr-1], 1,
-			  sfs[(kj-1)*nmb_u+kr], 0, cont+2, eps);
+			  sfs[(kj-1)*nmb_u+kr], 0, element_width, eps);
 	if (kj == nmb_v-1 && kr > 0 && kr < nmb_u &&
 	    sfs[kj*nmb_u+kr-1].get() && sfs[kj*nmb_u+kr].get())
 	  matchSplineSpace(sfs[kj*nmb_u+kr-1], 1,
-			  sfs[kj*nmb_u+kr], 0, cont+2, eps);
+			  sfs[kj*nmb_u+kr], 0, element_width, eps);
 
 	// Horizontal edge
 	if (kr < nmb_u &&
 	    sfs[(kj-1)*nmb_u+kr].get() && sfs[kj*nmb_u+kr].get())
 	  matchSplineSpace(sfs[(kj-1)*nmb_u+kr], 3,
-			  sfs[kj*nmb_u+kr], 2, cont+2, eps);
+			  sfs[kj*nmb_u+kr], 2, element_width, eps);
+      }
+    }
+
+  // If a surface was refined within the first 'num_inner_rows' elements along an edge, we must
+  // make sure the surface is still a full tensor product surface within those elements.
+  // @@sbr201504 We should not have to do this twice (i.e. at beginning of function), but
+  // otherwise an inconsistenciy is reported ... Fix!
+  for (kj=0; kj<nmb_v; ++kj)
+    {
+      edges[2] = (kj != 0);
+      edges[3] = (kj != nmb_v-1);
+      for (kr=0; kr<nmb_u; ++kr)
+      {
+	  if (!sfs[kj*nmb_u+kr].get())
+	      continue;
+	edges[0] = (kr != 0);
+	edges[1] = (kr != nmb_u-1);
+	// Other parts of the code requires 2 inner rows for c0.
+	int num_inner_rows = std::max(cont + 1, 2); // I.e. the number of elements that are affected.
+
+#ifdef DEBUG
+	{
+	    std::ofstream ofmesh("mesh.eps");
+	    writePostscriptMesh(*sfs[kj*nmb_u+kr], ofmesh);
+	}
+#endif
+
+	tensorStructure(sfs[kj*nmb_u+kr], num_inner_rows, edges);
+
+#ifdef DEBUG
+	{
+	    std::ofstream ofmesh("mesh_2.eps");
+	    writePostscriptMesh(*sfs[kj*nmb_u+kr], ofmesh);
+	    double debug_val = 0.0;
+	}
+#endif
+
       }
     }
 }
@@ -524,6 +727,37 @@ int LRSurfStitch::makeCornerC1(vector<pair<shared_ptr<LRSplineSurface>,int> >& s
       bsplines[kj]->setCoefAndGamma(coef[kj], gamma);
     }
 
+#ifndef NDEBUG
+  {
+      // We check if the corner continuity is satisfied.
+      for (kj = 0; kj < (int)sfs.size() - 1; ++kj)
+      {
+	  const LRSplineSurface* sf1 = sfs[kj].first.get();
+	  const int edge1 = sfs[kj].second;
+	  const LRSplineSurface* sf2 = sfs[kj+1].first.get();
+	  const int edge2 = sfs[kj+1].second;
+	  const bool dir_is_u = (edge1 > 1);
+	  double sf_dist = -1.0;
+	  double tang1_ang = -1.0;
+	  double tang2_ang = -1.0;
+//	  double normal_ang = -1.0;
+	  Point par1 = param[kj];
+	  Point par2 = param[kj+1];
+	  try
+	  {
+	      surfaceDifference(sf1, par1, sf2, par2,// dir_is_u,
+				sf_dist, tang1_ang, tang2_ang);
+	  }
+	  catch (...)
+	  {
+	      MESSAGE("Fail ...");
+	  }
+	  std::cout << "sf_dist = " << sf_dist << ", tang1_ang = " << tang1_ang << ", tang2_ang = " << tang2_ang << std::endl;
+      }
+
+  }
+#endif
+
   return nmb_mod;
 }
 
@@ -687,23 +921,25 @@ bool LRSurfStitch::matchSplineSpace(shared_ptr<LRSplineSurface> surf1,
   int ix2 = (edge2 == 0 || edge2 == 2) ? 0 : m2.numDistinctKnots(flip(dir2)) - 1;
 
   // The knot vectors are included multiplicities (no value at zero multiplicity)
-  vector<vector<double> > knots(2*element_width);
+  int num_knot_rows = element_width;// + 1;
+  vector<vector<double> > knots(2*(num_knot_rows));
   int sgn1 = (ix1 == 0) ? 1 : -1;
   int sgn2 = (ix2 == 0) ? 1 : -1;
-  for (int ki=0; ki<element_width; ++ki)
+  for (int ki=0; ki<num_knot_rows; ++ki)
     {
       knots[ki] = m1.getKnots(dir1, ix1+sgn1*ki, (ix1==0));
-      knots[element_width+ki] = m2.getKnots(dir2, ix2+sgn2*ki, (ix2==0));
+      knots[num_knot_rows+ki] = m2.getKnots(dir2, ix2+sgn2*ki, (ix2==0));
     }
 
   if (corner[0].dist(corner[2]) > corner[0].dist(corner[3]))
     {
       // The direction of the boundary curves are turned. Turn knot vector
+	MESSAGE("We should turn the knot vector! Not implemented yet.");
     }
 
   double knot_tol = 1.0e-4;   // Should relate to existing knot intervals
-  if (fabs(knots[0][0]-knots[element_width][0]) > knot_tol || 
-      fabs(knots[0][knots[0].size()-1]-knots[element_width][knots[element_width].size()-1]) > knot_tol)
+  if (fabs(knots[0][0]-knots[num_knot_rows][0]) > knot_tol || 
+      fabs(knots[0][knots[0].size()-1]-knots[num_knot_rows][knots[num_knot_rows].size()-1]) > knot_tol)
     {
       // Knot intervals are not matching. Change interval of second knot vector
     }
@@ -717,13 +953,13 @@ bool LRSurfStitch::matchSplineSpace(shared_ptr<LRSplineSurface> surf1,
   int order = surf1->degree(dir1) + 1;
   set<double> all_new_knots1;
   set<double> all_new_knots2;
-  for (int ki=0; ki<element_width; ++ki)
+  for (int ki=0; ki<num_knot_rows; ++ki)
     {
       vector<double> tmp1;
       extractMissingKnots(union_knots, knots[ki], knot_tol, order, tmp1);
       all_new_knots1.insert(tmp1.begin(), tmp1.end());
       vector<double> tmp2;
-      extractMissingKnots(union_knots, knots[element_width+ki], knot_tol, 
+      extractMissingKnots(union_knots, knots[num_knot_rows+ki], knot_tol, 
 			  order, tmp2);
       all_new_knots2.insert(tmp2.begin(), tmp2.end());
     }
@@ -778,11 +1014,12 @@ bool LRSurfStitch::matchSplineSpace(shared_ptr<LRSplineSurface> surf1,
   writePostscriptMesh(*surf2, ofmesh2);
 #endif
  
+  // For both refinements we make sure that we end up with at most 1 lines (not multiplicities).
   for (size_t kj=0; kj<refs1.size(); ++kj)
-    surf1->refine(refs1[kj]);
+      surf1->refine(refs1[kj], true);
 
   for (size_t kj=0; kj<refs2.size(); ++kj)
-    surf2->refine(refs2[kj]);
+      surf2->refine(refs2[kj], true);
 
  #ifdef DEBUG
   std::ofstream ofmesh3("mesh1_2.eps");
@@ -801,7 +1038,10 @@ bool LRSurfStitch::averageEdge(shared_ptr<LRSplineSurface> surf1, int edge1,
 //==============================================================================
 {
   int dim = surf1->dimension();
-  int element_width = std::max(cont+1, 2);
+  // @@sbr201504 In matchSplineSpace() 'cont + 2' is used as input ...
+  // @@sbr 201504 It may make sense to require tensor-product-structure along common boundaries to avoid
+  // problems with over-determined basis functions (gamma != 1.0). But no need to use c1-methods for c0 in this function.
+  int element_width = cont+1;//std::max(cont+1, 2); // Yes, even for c0 we require 2 elements along border.
   if (surf2->dimension() != dim)
     return false;
   if (dim != 1)
@@ -847,7 +1087,17 @@ bool LRSurfStitch::averageEdge(shared_ptr<LRSplineSurface> surf1, int edge1,
   for (int ki=0; ki<element_width; ++ki)
     {
       if (bsplines1[ki].size() != bsplines2[ki].size())
+      {
+#ifndef NDEBUG
+	  {
+	      std::ofstream ofmesh("mesh1.eps");
+	      writePostscriptMesh(*surf1, ofmesh);
+	      std::ofstream ofmesh2("mesh2.eps");
+	      writePostscriptMesh(*surf2, ofmesh2);
+	  }
+#endif
 	return false;
+      }
       std::sort(bsplines1[ki].begin(), bsplines1[ki].end(), 
 		(dir1==XFIXED) ? bspline_sort_in_u : bspline_sort_in_v);
       std::sort(bsplines2[ki].begin(), bsplines2[ki].end(), 
@@ -858,7 +1108,7 @@ bool LRSurfStitch::averageEdge(shared_ptr<LRSplineSurface> surf1, int edge1,
   std::ofstream of("bspline.txt");
 #endif
   for (size_t kj=element_width; kj<bsplines1[0].size()-element_width; ++kj)
-    {
+    { // The corner coefs should be handled separately.
       Point coef1 = bsplines1[0][kj]->Coef();
       double gamma1 = bsplines1[0][kj]->gamma();
       Point coef2 = bsplines2[0][kj]->Coef();
@@ -1028,7 +1278,7 @@ void LRSurfStitch::extractMissingKnots(vector<double>& union_vec,
 
 //==============================================================================
 void LRSurfStitch::defineRefinements(const Mesh2D& mesh, Direction2D dir,
-				     int edge, int ix, vector<double>& knot_vals, 
+				     int edge, int ix, const vector<double>& knot_vals, 
 				     int element_width,
 				     vector<LRSplineSurface::Refinement2D>& refs)
 //==============================================================================
@@ -1043,23 +1293,44 @@ void LRSurfStitch::defineRefinements(const Mesh2D& mesh, Direction2D dir,
       double p1 = mesh.kval(curr_dir, ix);
       double p2;
       if (edge == 1 || edge == 3)
-	{
+      {
 	  int c_ix = ix;
 	  for (int ki=0; ki<element_width; ++ki)
-	    c_ix =
-	      Mesh2DUtils::search_downwards_for_nonzero_multiplicity(mesh, curr_dir,
-								     c_ix-1, other_ix);
+	  {
+	      int p_ix = c_ix;
+	      c_ix = // We search for the next line which contains curr_knot.
+		  Mesh2DUtils::search_downwards_for_nonzero_multiplicity(mesh, curr_dir,
+									 c_ix-1, other_ix);
+	      // // If segment already exists we must decrease p1.
+	      // int mult = mesh.nu(dir, other_ix, c_ix, p_ix);
+	      // if (mult > 0)
+	      // {
+	      // 	  MESSAGE("Do something!");
+	      // 	  p1 = mesh.kval(curr_dir, c_ix);
+	      // }
+	  }
 	  p2 = mesh.kval(curr_dir, c_ix);
 	}
       else
 	{
 	  int c_ix = ix;
 	  for (int ki=0; ki<element_width; ++ki)
-	    c_ix =
-	      Mesh2DUtils::search_upwards_for_nonzero_multiplicity(mesh, curr_dir,
-								   c_ix+1, other_ix);
+	  {
+	      int p_ix = c_ix;
+	      c_ix =
+		  Mesh2DUtils::search_upwards_for_nonzero_multiplicity(mesh, curr_dir,
+								       c_ix+1, other_ix);
+	      // // If segment already exists we must increase p1.
+	      // int mult = mesh.nu(dir, other_ix, p_ix, c_ix);
+	      // if (mult > 0)
+	      // {
+	      // 	  MESSAGE("Do something!");
+	      // 	  p1 = mesh.kval(curr_dir, c_ix);
+	      // }
+	  }
 	  p2 = mesh.kval(curr_dir, c_ix);
 	}
+
       if (p1 > p2)
 	std::swap(p1, p2);
 
@@ -1118,3 +1389,33 @@ void LRSurfStitch::extractBoundaryBsplines(shared_ptr<LRSplineSurface> surf,
 	}
 }
   
+
+void LRSurfStitch::surfaceDifference(const LRSplineSurface* sf1, const Point& param1,
+				     const LRSplineSurface* sf2, const Point& param2,
+//				     bool along_u_dir,
+				     double& sf_dist, double& tang1_ang, double& tang2_ang)
+{
+    const int derivs = 1;
+    const int totpts = (derivs + 1)*(derivs + 2)/2;
+    vector<Point> sf_pt1(totpts), sf_pt2(totpts);
+    sf1->point(sf_pt1, param1[0], param1[1], derivs);
+    sf2->point(sf_pt2, param2[0], param2[1], derivs);
+
+    sf_dist = sf_pt1[0].dist(sf_pt2[0]);
+    tang1_ang = sf_pt1[1].angle(sf_pt2[1]);
+    tang2_ang = sf_pt1[2].angle(sf_pt2[2]);
+
+    // tangent_ang = (along_u_dir) ? sf_pt1[1].angle(sf_pt2[1]) : sf_pt1[2].angle(sf_pt2[2]);
+
+    // Point normal1, normal2;
+    // try
+    // {
+    // 	sf1->normal(normal1, param1[0], param1[1]);
+    // 	sf2->normal(normal2, param2[0], param2[1]);
+    // }
+    // catch (...)
+    // {
+    // 	std::cout << "tangent dim: " << sf_pt1[1].dimension() << std::endl;
+    // }
+    // normal_ang = normal1.angle(normal2);
+}
