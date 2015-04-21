@@ -174,7 +174,10 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 				cont, eps);
 	  if (!matched)
 	  {
-	      MESSAGE("Failed vertical match!");
+#ifdef DEBUG
+	      std::cout << "Failed vertical match! ki = " << kr-1 << ", kj = " << kj - 1 << std::endl;
+//	      MESSAGE("Failed vertical match!");
+#endif
 	  }
 	}
 	if (kj == nmb_v-1 && kr > 0 && kr < nmb_u &&
@@ -185,10 +188,12 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 				cont, eps);
 	  if (!matched)
 	  {
-	      MESSAGE("Failed vertical match!");
+#ifdef DEBUG
+	      std::cout << "Failed vertical match! ki = " << kr-1 << ", kj = " << kj << std::endl;
+//	      MESSAGE("Failed vertical match!");
+#endif
 	  }
 	}
-
 
 	// Match horizontal edge
 	if (kr < nmb_u &&
@@ -199,7 +204,10 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 				cont, eps);
 	  if (!matched)
 	  {
-	      MESSAGE("Failed horizontal match!");
+#ifdef DEBUG
+	      std::cout << "Failed horizontal match! ki = " << kr << ", kj = " << kj-1 << std::endl;
+//	      MESSAGE("Failed horizontal match!");
+#endif
 	  }
 	}
       }
@@ -236,18 +244,21 @@ vector<double> LRSurfStitch::analyzeContinuity(vector<shared_ptr<ParamSurface> >
 	lr_sfs[ki] = sflr;
     }
 
-    vector<double> global_max_cont_dist(derivs + 1, 0.0);
+    vector<double> global_max_cont_dist(derivs + 1, -1.0);
 
     // We first analyze the cont in the nmb_u direction.
     for (int kj = 0; kj < nmb_v; ++kj)
     {
 	for (int ki = 0; ki < nmb_u - 1; ++ki)
 	{
-	    vector<double> max_cont_dist(derivs + 1, 0.0);
+	    vector<double> max_cont_dist(derivs + 1, -1.0);
 	    vector<int> sample_ind(derivs + 1, -1);
 
 	    LRSplineSurface* sf_left = lr_sfs[kj*nmb_u + ki].get();
 	    LRSplineSurface* sf_right = lr_sfs[kj*nmb_u + ki + 1].get();
+
+	    if (sf_left == NULL || sf_right == NULL)
+		continue;
 
 	    // We may assume the the lr_sfs are oriented such that sf_left->umax matches sf_right->umin.
 	    double upar_left = sf_left->endparam_u();
@@ -278,8 +289,8 @@ vector<double> LRSurfStitch::analyzeContinuity(vector<shared_ptr<ParamSurface> >
 
 	    for (size_t kk = 0; kk < max_cont_dist.size(); ++kk)
 	    {
-		std::cout << "ki: " << ki << ", kj: " << kj << ", u-dir, sample #: " << sample_ind[kk] << 
-		    ", max_cont_dist[" << kk << "]: " << max_cont_dist[kk] << std::endl;
+		// std::cout << "ki: " << ki << ", kj: " << kj << ", u-dir, sample #: " << sample_ind[kk] << 
+		//     ", max_cont_dist[" << kk << "]: " << max_cont_dist[kk] << std::endl;
 		if (max_cont_dist[kk] > global_max_cont_dist[kk])
 		{
 		    global_max_cont_dist[kk] = max_cont_dist[kk];
@@ -293,11 +304,14 @@ vector<double> LRSurfStitch::analyzeContinuity(vector<shared_ptr<ParamSurface> >
     {
 	for (int ki = 0; ki < nmb_v - 1; ++ki)
 	{
-	    vector<double> max_cont_dist(derivs + 1, 0.0);
+	    vector<double> max_cont_dist(derivs + 1, -1.0);
 	    vector<int> sample_ind(derivs + 1, -1);
 
 	    LRSplineSurface* sf_bottom = lr_sfs[ki*nmb_u + kj].get();
 	    LRSplineSurface* sf_top = lr_sfs[(ki + 1)*nmb_u + kj].get();
+
+	    if (sf_bottom == NULL || sf_top == NULL)
+		continue;
 
 	    // We may assume the the lr_sfs are oriented such that sf_bottom->vmax matches sf_top->vmin.
 	    double vpar_bottom = sf_bottom->endparam_v();
@@ -328,8 +342,8 @@ vector<double> LRSurfStitch::analyzeContinuity(vector<shared_ptr<ParamSurface> >
 
 	    for (size_t kk = 0; kk < max_cont_dist.size(); ++kk)
 	    {
-		std::cout << "ki: " << ki << ", kj: " << kj << ", v-dir, sample #: " << sample_ind[kk] << 
-		    ", max_cont_dist[" << kk << "]: " << max_cont_dist[kk] << std::endl;
+		// std::cout << "ki: " << ki << ", kj: " << kj << ", v-dir, sample #: " << sample_ind[kk] << 
+		//     ", max_cont_dist[" << kk << "]: " << max_cont_dist[kk] << std::endl;
 		if (max_cont_dist[kk] > global_max_cont_dist[kk])
 		{
 		    global_max_cont_dist[kk] = max_cont_dist[kk];
@@ -349,85 +363,80 @@ void LRSurfStitch::consistentSplineSpaces(vector<shared_ptr<LRSplineSurface> >& 
 {
   int kj, kr;
 
-  // First ensure tensor-product structure close to the boundaries
-  bool edges[4];
-  for (kj=0; kj<nmb_v; ++kj)
-    {
-      edges[2] = (kj != 0);
-      edges[3] = (kj != nmb_v-1);
-      for (kr=0; kr<nmb_u; ++kr)
+  int max_nmb = std::max(nmb_u, nmb_v);
+  // The current method refines globally around surface corners. In theory this means that 'max_nmb - 1'
+  // corner adjustments must be performed for the method to propagate along the nmb_u x nmb_v-grid.  Once
+  // there is no change in the number of basis functions we exit.
+  int sum_basis_functions = 0;
+  for (int kk = 0; kk < sfs.size(); ++kk)
+  {
+      if (sfs[kk].get() != NULL)
       {
-	  if (!sfs[kj*nmb_u+kr].get())
-	      continue;
-	edges[0] = (kr != 0);
-	edges[1] = (kr != nmb_u-1);
-	// Other parts of the code requires 2 inner rows for c0.
-	int num_inner_rows = std::max(cont + 1, 2); // I.e. the number of elements that are affected.
-	tensorStructure(sfs[kj*nmb_u+kr], num_inner_rows, edges);
+	  sum_basis_functions += sfs[kk]-> numBasisFunctions();
       }
-    }
-
-  // Then make corresponding spline spaces across boundaries (i.e. insert knots along the common edge).
-  for (kj=1; kj<nmb_v; ++kj)
-    {
-      for (kr=0; kr<=nmb_u; ++kr)
+  }
+  for (int ki = 0; ki < max_nmb - 1; ++ki)
+  {
+      // First ensure tensor-product structure close to the boundaries
+      bool edges[4];
+      for (kj=0; kj<nmb_v; ++kj)
       {
-	// Vertical edge
-	// Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
-	const int element_width = cont + 2;//std::max(2, cont + 1);//cont + 2; // Number of rows with inner knots.
-	if (kr > 0 && kr < nmb_u &&
-	    sfs[(kj-1)*nmb_u+kr-1].get() && sfs[(kj-1)*nmb_u+kr].get())
-	  matchSplineSpace(sfs[(kj-1)*nmb_u+kr-1], 1,
-			  sfs[(kj-1)*nmb_u+kr], 0, element_width, eps);
-	if (kj == nmb_v-1 && kr > 0 && kr < nmb_u &&
-	    sfs[kj*nmb_u+kr-1].get() && sfs[kj*nmb_u+kr].get())
-	  matchSplineSpace(sfs[kj*nmb_u+kr-1], 1,
-			  sfs[kj*nmb_u+kr], 0, element_width, eps);
-
-	// Horizontal edge
-	if (kr < nmb_u &&
-	    sfs[(kj-1)*nmb_u+kr].get() && sfs[kj*nmb_u+kr].get())
-	  matchSplineSpace(sfs[(kj-1)*nmb_u+kr], 3,
-			  sfs[kj*nmb_u+kr], 2, element_width, eps);
+	  edges[2] = (kj != 0);
+	  edges[3] = (kj != nmb_v-1);
+	  for (kr=0; kr<nmb_u; ++kr)
+	  {
+	      if (!sfs[kj*nmb_u+kr].get())
+		  continue;
+	      edges[0] = (kr != 0);
+	      edges[1] = (kr != nmb_u-1);
+	      // Other parts of the code requires 2 inner rows for c0.
+	      int num_inner_rows = std::max(cont + 1, 2); // I.e. the number of elements that are affected.
+	      tensorStructure(sfs[kj*nmb_u+kr], num_inner_rows, edges);
+	  }
       }
-    }
 
-  // If a surface was refined within the first 'num_inner_rows' elements along an edge, we must
-  // make sure the surface is still a full tensor product surface within those elements.
-  // @@sbr201504 We should not have to do this twice (i.e. at beginning of function), but
-  // otherwise an inconsistenciy is reported ... Fix!
-  for (kj=0; kj<nmb_v; ++kj)
-    {
-      edges[2] = (kj != 0);
-      edges[3] = (kj != nmb_v-1);
-      for (kr=0; kr<nmb_u; ++kr)
+      // Then make corresponding spline spaces across boundaries (i.e. insert knots along the common edge).
+      for (kj=1; kj<nmb_v; ++kj)
       {
-	  if (!sfs[kj*nmb_u+kr].get())
-	      continue;
-	edges[0] = (kr != 0);
-	edges[1] = (kr != nmb_u-1);
-	// Other parts of the code requires 2 inner rows for c0.
-	int num_inner_rows = std::max(cont + 1, 2); // I.e. the number of elements that are affected.
+	  for (kr=0; kr<=nmb_u; ++kr)
+	  {
+	      // Vertical edge
+	      // Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
+	      const int element_width = cont + 2;//std::max(2, cont + 1);//cont + 2; // Number of rows with inner knots.
+	      if (kr > 0 && kr < nmb_u &&
+		  sfs[(kj-1)*nmb_u+kr-1].get() && sfs[(kj-1)*nmb_u+kr].get())
+		  matchSplineSpace(sfs[(kj-1)*nmb_u+kr-1], 1,
+				   sfs[(kj-1)*nmb_u+kr], 0, element_width, eps);
+	      if (kj == nmb_v-1 && kr > 0 && kr < nmb_u &&
+		  sfs[kj*nmb_u+kr-1].get() && sfs[kj*nmb_u+kr].get())
+		  matchSplineSpace(sfs[kj*nmb_u+kr-1], 1,
+				   sfs[kj*nmb_u+kr], 0, element_width, eps);
 
-#ifdef DEBUG
-	{
-	    std::ofstream ofmesh("mesh.eps");
-	    writePostscriptMesh(*sfs[kj*nmb_u+kr], ofmesh);
-	}
-#endif
-
-	tensorStructure(sfs[kj*nmb_u+kr], num_inner_rows, edges);
-
-#ifdef DEBUG
-	{
-	    std::ofstream ofmesh("mesh_2.eps");
-	    writePostscriptMesh(*sfs[kj*nmb_u+kr], ofmesh);
-	    double debug_val = 0.0;
-	}
-#endif
-
+	      // Horizontal edge
+	      if (kr < nmb_u &&
+		  sfs[(kj-1)*nmb_u+kr].get() && sfs[kj*nmb_u+kr].get())
+		  matchSplineSpace(sfs[(kj-1)*nmb_u+kr], 3,
+				   sfs[kj*nmb_u+kr], 2, element_width, eps);
+	  }
       }
-    }
+
+      int new_sum_basis_functions = 0;
+      for (int kk = 0; kk < sfs.size(); ++kk)
+      {
+	  if (sfs[kk].get() != NULL)
+	  {
+	      new_sum_basis_functions += sfs[kk]-> numBasisFunctions();
+	  }
+      }
+      if (new_sum_basis_functions == sum_basis_functions)
+      {
+	  break;
+      }
+      else
+      {
+	  sum_basis_functions = new_sum_basis_functions;
+      }
+  }
 }
 
 //==============================================================================
@@ -721,7 +730,7 @@ int LRSurfStitch::makeCornerC1(vector<pair<shared_ptr<LRSplineSurface>,int> >& s
       bsplines[kj]->setCoefAndGamma(coef[kj], gamma);
     }
 
-#ifndef NDEBUG
+#if 0//def DEBUG
   {
       // We check if the corner continuity is satisfied.
       for (kj = 0; kj < (int)sfs.size() - 1; ++kj)
