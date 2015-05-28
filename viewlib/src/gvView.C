@@ -1138,7 +1138,8 @@ void gvView::setAxis(bool mode)
 {
     if (mode == axis_) return;
     if (mode) {
-	camera_.setAxisSize(base_axis_size_);
+      //camera_.setAxisSize(base_axis_size_);
+	camera_.setAxisSize(0.2*base_axis_size_);
     } else {
 	camera_.setAxisSize(0.0);
     }

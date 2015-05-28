@@ -56,8 +56,8 @@
 #include <fstream>
 #include <stdlib.h> // For atof()
 
-const double EPS_GAP = 1e-7;
-const double EPS_NEIGHBOUR = 1e-4;
+const double EPS_GAP = 1e-3;
+const double EPS_NEIGHBOUR = 1e-2;
 const double EPS_KINK = 1e-2;
 const double EPS_BEND = 4e-2;
 
@@ -92,6 +92,13 @@ int main( int argc, char* argv[] )
   // Removed from corresponding use of fairingToolbox
   double approx = 0.001;
 
+  time_t tstart = time(0);
+  tm *ltm = localtime(&tstart);
+  std::cout << "TIME: Model read and build starts: " << tstart;
+  std::cout << " | " << 1900+ltm->tm_year << "-" << 1+ltm->tm_mon << ":";
+  std::cout << ltm->tm_mday << " " << ltm->tm_hour << ":";
+  std::cout << ltm->tm_min << ":" << ltm->tm_sec << std::endl;
+  std::cout << std::endl;
 
   ifstream file(argv[1]);
 
@@ -99,6 +106,7 @@ int main( int argc, char* argv[] )
 
   shared_ptr<Go::CompositeModel> model(factory.createFromIges(file1));
 
+  std::cout << "Topology build completed" << std::endl;
 
   // Create the Surface model
   // Replaces:
@@ -135,13 +143,31 @@ int main( int argc, char* argv[] )
   osPl << p_y << std::endl;
   osPl << p_z << std::endl;
 
+  tstart = time(0);
+  ltm = localtime(&tstart);
+  std::cout << "TIME: Intersection starts: " << tstart;
+  std::cout << " | " << 1900+ltm->tm_year << "-" << 1+ltm->tm_mon << ":";
+  std::cout << ltm->tm_mday << " " << ltm->tm_hour << ":";
+  std::cout << ltm->tm_min << ":" << ltm->tm_sec << std::endl;
+  std::cout << std::endl;
+
   std::ofstream out("plane_ints.g2");
   double density = 1.0;
   std::vector<shared_ptr<LineStrip> > line_seg;
   PointCloud3D points;
-  shared_ptr<IntResultsModel> results = model->intersect_plane(pl);
+  shared_ptr<IntResultsModel> results;
+  //for (int kr=0; kr<100; ++kr)
+    results = model->intersect_plane(pl);
 
-  results->tesselate(density, line_seg, points);
+  tstart = time(0);
+  ltm = localtime(&tstart);
+  std::cout << "TIME: Intersection completed: " << tstart;
+  std::cout << " | " << 1900+ltm->tm_year << "-" << 1+ltm->tm_mon << ":";
+  std::cout << ltm->tm_mday << " " << ltm->tm_hour << ":";
+  std::cout << ltm->tm_min << ":" << ltm->tm_sec << std::endl;
+  std::cout << std::endl;
+
+   results->tesselate(density, line_seg, points);
 
   for (size_t ki=0; ki<line_seg.size(); ++ki)
     {
@@ -178,7 +204,23 @@ int main( int argc, char* argv[] )
 //  	  sf->write(out2);
 // 	}
 
+      tstart = time(0);
+  ltm = localtime(&tstart);
+  std::cout << "TIME: Boolean starts: " << tstart;
+  std::cout << " | " << 1900+ltm->tm_year << "-" << 1+ltm->tm_mon << ":";
+  std::cout << ltm->tm_mday << " " << ltm->tm_hour << ":";
+  std::cout << ltm->tm_min << ":" << ltm->tm_sec << std::endl;
+  std::cout << std::endl;
+
       sfmodel->booleanIntersect(pl);
+  tstart = time(0);
+  ltm = localtime(&tstart);
+  std::cout << "TIME: Boolean completed: " << tstart;
+  std::cout << " | " << 1900+ltm->tm_year << "-" << 1+ltm->tm_mon << ":";
+  std::cout << ltm->tm_mday << " " << ltm->tm_hour << ":";
+  std::cout << ltm->tm_min << ":" << ltm->tm_sec << std::endl;
+  std::cout << std::endl;
+
       std::ofstream out3("trimmed_model2.g2");
       int nmb = sfmodel->nmbEntities();
       for (int ki=0; ki<nmb; ++ki)
@@ -199,4 +241,12 @@ int main( int argc, char* argv[] )
       for (size_t ki=0; ki<int_pt.size(); ++ki)
 	std::cout << int_pt[ki].getPos() << std::endl;
     }
+  tstart = time(0);
+  ltm = localtime(&tstart);
+  std::cout << "TIME: Application completed: " << tstart;
+  std::cout << " | " << 1900+ltm->tm_year << "-" << 1+ltm->tm_mon << ":";
+  std::cout << ltm->tm_mday << " " << ltm->tm_hour << ":";
+  std::cout << ltm->tm_min << ":" << ltm->tm_sec << std::endl;
+  std::cout << std::endl;
+
 }

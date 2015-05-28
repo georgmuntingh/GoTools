@@ -98,21 +98,23 @@ int main(int argc, char *argv[])
 				 vmin - vmid, vmax - vmid);
 	}
 
-      shared_ptr<LRSplineSurface> tmp_lr;
-      shared_ptr<BoundedSurface> bd_sf = 
-	dynamic_pointer_cast<BoundedSurface, ParamSurface>(sf);
-      if (bd_sf.get())
+      if (translate != 2)
 	{
-	  shared_ptr<ParamSurface> tmp_sf = bd_sf->underlyingSurface();
-	  tmp_lr = 
-	    dynamic_pointer_cast<LRSplineSurface, ParamSurface>(tmp_sf);
-	}
-      else
-	tmp_lr = 
-	  dynamic_pointer_cast<LRSplineSurface, ParamSurface>(sf);
+	  shared_ptr<LRSplineSurface> tmp_lr;
+	  shared_ptr<BoundedSurface> bd_sf = 
+	    dynamic_pointer_cast<BoundedSurface, ParamSurface>(sf);
+	  if (bd_sf.get())
+	    {
+	      shared_ptr<ParamSurface> tmp_sf = bd_sf->underlyingSurface();
+	      tmp_lr = 
+		dynamic_pointer_cast<LRSplineSurface, ParamSurface>(tmp_sf);
+	    }
+	  else
+	    tmp_lr = 
+	      dynamic_pointer_cast<LRSplineSurface, ParamSurface>(sf);
     
-      tmp_lr->to3D();
-
+	  tmp_lr->to3D();
+	}
       sf->writeStandardHeader(output);
       sf->write(output);
 

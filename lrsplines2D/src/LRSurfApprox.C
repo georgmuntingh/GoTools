@@ -86,12 +86,12 @@ LRSurfApprox::LRSurfApprox(vector<double>& points,
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
 
-  if (dim > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (dim > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Create an LR B-spline surface with the domain given by the 
   // parameter domain of the points. Only one element will be
@@ -123,12 +123,12 @@ LRSurfApprox::LRSurfApprox(shared_ptr<SplineSurface>& srf,
   make_ghost_points_ = false;
   usize_min_ = vsize_min_ = -1;
 
-  if (srf->dimension() > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (srf->dimension() > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Create an LR B-spline surface based on the given spline surface
   makeInitSurf(srf);
@@ -160,12 +160,12 @@ LRSurfApprox::LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
   coef_known_.assign(srf_->numBasisFunctions(), 0.0);  // Initially nothing is fixed
   usize_min_ = vsize_min_ = -1;
 
-  if (srf->dimension() > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (srf->dimension() > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 }
 
 //==============================================================================
@@ -193,12 +193,12 @@ LRSurfApprox::LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
 
-  if (dim > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (dim > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Create an LR B-spline surface with unset coefficients and the domain
   // given by the parameter domain of the points. The size of the spline
@@ -232,12 +232,12 @@ LRSurfApprox::LRSurfApprox(int order_u, vector<double>& knots_u,
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
 
-  if (dim > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (dim > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Compute domain
   double domain[4]; //umin, umax, vmin, vmax;
@@ -311,12 +311,12 @@ LRSurfApprox::LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
 
-  if (dim > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (dim > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Create an LR B-spline surface with unset coefficients and the domain
   // given by the parameter domain of the points. The size of the spline
@@ -446,7 +446,7 @@ LRSurfApprox::~LRSurfApprox()
   // Initial approximation of LR B-spline surface
   if (/*useMBA_ || */initMBA_)
   {
-      if (omp_for_mba_update)
+      if (omp_for_mba_update && srf_->dimension() == 1)
       {
 	  LRSplineMBA::MBADistAndUpdate_omp(srf_.get());
       }
@@ -459,7 +459,7 @@ LRSurfApprox::~LRSurfApprox()
 	adaptSurfaceToConstraints();
       // computeAccuracy();
       // LRSplineMBA::MBAUpdate(srf_.get());
-      if (omp_for_mba_update)
+      if (omp_for_mba_update && srf_->dimension() == 1)
       {
 	  LRSplineMBA::MBADistAndUpdate_omp(srf_.get());
       }
@@ -621,7 +621,11 @@ LRSurfApprox::~LRSurfApprox()
        // Update surface
       if (useMBA_ || ki >= toMBA_)
       {
-	  if (omp_for_mba_update)
+	if (srf_->dimension() == 3)
+	  {
+	    LRSplineMBA::MBADistAndUpdate(srf_.get());
+	  }
+	else if (omp_for_mba_update)
 	  {
 	      LRSplineMBA::MBAUpdate_omp(srf_.get());
 	  }
@@ -631,7 +635,7 @@ LRSurfApprox::~LRSurfApprox()
 	  }
 	  if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
 	    adaptSurfaceToConstraints();
-	  if (omp_for_mba_update)
+	  if (omp_for_mba_update && srf_->dimension() == 1)
 	  {
 	      LRSplineMBA::MBADistAndUpdate_omp(srf_.get());
 	  }
@@ -665,7 +669,11 @@ LRSurfApprox::~LRSurfApprox()
 		{
 		  // Switch to MBA method
 		  useMBA_ = true;
-		  if (omp_for_mba_update)
+		  if (srf_->dimension() == 3)
+		    {
+		      LRSplineMBA::MBADistAndUpdate(srf_.get());
+		    }
+		  else if (omp_for_mba_update)
 		    {
 		      LRSplineMBA::MBAUpdate_omp(srf_.get());
 		    }

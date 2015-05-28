@@ -154,7 +154,7 @@ void LRApproxApp::pointCloud2Spline(vector<double>& points, int dim,
       approx.setSwitchToMBA(tomba);
       approx.setMakeGhostPoints(true);
     }
-  approx.setVerbose(true);
+  //approx.setVerbose(true);
   if (del == 3)
     {
       approx.addLowerConstraint(low - 0.1*(high-low));
