@@ -162,8 +162,11 @@ void DataHandlerVolAndLR::create(shared_ptr<GeomObject> obj,
 	    shared_ptr<LRSplineSurface> lr_sf = dynamic_pointer_cast<LRSplineSurface>(under_sf);
 	    lr_sf->to3D();
 	}
+<<<<<<< HEAD
 	// We want to continue to DefaultDataHandler::create(), which will handle the
 	// BoundedSurface tesselation etc, hence we do not 'break'.
+=======
+>>>>>>> 85c775be5ffee65ef62314f3de4b173752ca6eab
     }
     default:
 	DefaultDataHandler::create(obj, col, id);
