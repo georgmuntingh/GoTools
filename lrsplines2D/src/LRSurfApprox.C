@@ -86,12 +86,12 @@ LRSurfApprox::LRSurfApprox(vector<double>& points,
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
 
-  if (dim > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (dim > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Create an LR B-spline surface with the domain given by the 
   // parameter domain of the points. Only one element will be
@@ -123,12 +123,12 @@ LRSurfApprox::LRSurfApprox(shared_ptr<SplineSurface>& srf,
   make_ghost_points_ = false;
   usize_min_ = vsize_min_ = -1;
 
-  if (srf->dimension() > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (srf->dimension() > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Create an LR B-spline surface based on the given spline surface
   makeInitSurf(srf);
@@ -160,12 +160,12 @@ LRSurfApprox::LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
   coef_known_.assign(srf_->numBasisFunctions(), 0.0);  // Initially nothing is fixed
   usize_min_ = vsize_min_ = -1;
 
-  if (srf->dimension() > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (srf->dimension() > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 }
 
 //==============================================================================
@@ -193,12 +193,12 @@ LRSurfApprox::LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
 
-  if (dim > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (dim > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Create an LR B-spline surface with unset coefficients and the domain
   // given by the parameter domain of the points. The size of the spline
@@ -232,12 +232,12 @@ LRSurfApprox::LRSurfApprox(int order_u, vector<double>& knots_u,
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
 
-  if (dim > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (dim > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Compute domain
   double domain[4]; //umin, umax, vmin, vmax;
@@ -311,12 +311,12 @@ LRSurfApprox::LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
 
-  if (dim > 1)
-    {
-      initMBA_ = false;
-      useMBA_ = false;
-      toMBA_ = 10e4;  // A large number
-    }
+  // if (dim > 1)
+  //   {
+  //     initMBA_ = false;
+  //     useMBA_ = false;
+  //     toMBA_ = 10e4;  // A large number
+  //   }
 
   // Create an LR B-spline surface with unset coefficients and the domain
   // given by the parameter domain of the points. The size of the spline
@@ -446,7 +446,7 @@ LRSurfApprox::~LRSurfApprox()
   // Initial approximation of LR B-spline surface
   if (/*useMBA_ || */initMBA_)
   {
-      if (omp_for_mba_update)
+      if (omp_for_mba_update && srf_->dimension() == 1)
       {
 	  LRSplineMBA::MBADistAndUpdate_omp(srf_.get());
       }
@@ -459,7 +459,7 @@ LRSurfApprox::~LRSurfApprox()
 	adaptSurfaceToConstraints();
       // computeAccuracy();
       // LRSplineMBA::MBAUpdate(srf_.get());
-      if (omp_for_mba_update)
+      if (omp_for_mba_update && srf_->dimension() == 1)
       {
 	  LRSplineMBA::MBADistAndUpdate_omp(srf_.get());
       }
@@ -621,7 +621,11 @@ LRSurfApprox::~LRSurfApprox()
        // Update surface
       if (useMBA_ || ki >= toMBA_)
       {
-	  if (omp_for_mba_update)
+	if (srf_->dimension() == 3)
+	  {
+	    LRSplineMBA::MBADistAndUpdate(srf_.get());
+	  }
+	else if (omp_for_mba_update)
 	  {
 	      LRSplineMBA::MBAUpdate_omp(srf_.get());
 	  }
@@ -631,7 +635,7 @@ LRSurfApprox::~LRSurfApprox()
 	  }
 	  if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
 	    adaptSurfaceToConstraints();
-	  if (omp_for_mba_update)
+	  if (omp_for_mba_update && srf_->dimension() == 1)
 	  {
 	      LRSplineMBA::MBADistAndUpdate_omp(srf_.get());
 	  }
@@ -665,7 +669,11 @@ LRSurfApprox::~LRSurfApprox()
 		{
 		  // Switch to MBA method
 		  useMBA_ = true;
-		  if (omp_for_mba_update)
+		  if (srf_->dimension() == 3)
+		    {
+		      LRSplineMBA::MBADistAndUpdate(srf_.get());
+		    }
+		  else if (omp_for_mba_update)
 		    {
 		      LRSplineMBA::MBAUpdate_omp(srf_.get());
 		    }
@@ -1006,18 +1014,18 @@ void LRSurfApprox::computeAccuracy(vector<Element2D*>& ghost_elems)
       //double acc_prev = it->second->getAccumulatedError();
       it->second->getAccuracyInfo(av_prev, max_prev, nmb_out_prev);
 
-#ifdef DEBUG
-      of5 << "El nmb: " << elem.size() << ", div: " << (nmb_out_prev < 0);
-      of5 << ", prev max: " << max_prev;
-      of5 << ", prev average: " << acc_prev/nmb_pts << std::endl;
-      of5 << "nmb pts: " << nmb_pts << ", curr max: " << max_err;
-      of5 << ", curr average: " << acc_err/nmb_pts << ", av sgn: ";
-      of5 << acc_err_sgn/nmb_pts << std::endl << "av outside: " << av_err;
-      of5 << ", av out sgn: " << av_err_sgn;
-      of5 << ", nmb above: " << n_above;
-      of5 << ", nmb below: " << n_below << std::endl << std::endl;
-      elem.push_back(it->second.get());
-#endif
+// #ifdef DEBUG
+//       of5 << "El nmb: " << elem.size() << ", div: " << (nmb_out_prev < 0);
+//       of5 << ", prev max: " << max_prev;
+//       of5 << ", prev average: " << acc_prev/nmb_pts << std::endl;
+//       of5 << "nmb pts: " << nmb_pts << ", curr max: " << max_err;
+//       of5 << ", curr average: " << acc_err/nmb_pts << ", av sgn: ";
+//       of5 << acc_err_sgn/nmb_pts << std::endl << "av outside: " << av_err;
+//       of5 << ", av out sgn: " << av_err_sgn;
+//       of5 << ", nmb above: " << n_above;
+//       of5 << ", nmb below: " << n_below << std::endl << std::endl;
+//       elem.push_back(it->second.get());
+// #endif
 
       if (max_err > aepsge_ && max_prev > 0.0 && max_err > ghost_fac*max_prev &&
 	  nmb_ghost > 0.25*nmb_pts)
@@ -1141,144 +1149,161 @@ void LRSurfApprox::computeAccuracy_omp(vector<Element2D*>& ghost_elems)
   elem_iters.reserve(num_elem);
   for (LRSplineSurface::ElementMap::const_iterator it=srf_->elementsBegin();
        it != srf_->elementsEnd(); ++it)
+  {
       elem_iters.push_back(it);
+  }
 
 #pragma omp parallel default(none) private(kj, it) shared(dim, elem_iters, rd, del, ghost_fac, ghost_elems)
-#pragma omp for schedule(auto)//guided)//static,8)//runtime)//dynamic,4)
-  for (kj = 0; kj < num_elem ; ++kj)
   {
-      it = elem_iters[kj];
-
-      if (!it->second->hasDataPoints())
-      {
-	  // Reset accuracy information in element
-	  it->second->resetAccuracyInfo();
-	  continue;   // No points in which to check accuracy
-      }
-
-      double umin = it->second->umin();
-      double umax = it->second->umax();
-      double vmin = it->second->vmin();
-      double vmax = it->second->vmax();
-      vector<double>& points = it->second->getDataPoints();
-      vector<double>& ghost_points = it->second->getGhostPoints();
-      int nmb_pts = it->second->nmbDataPoints();
-      int nmb_ghost = it->second->nmbGhostPoints();
-
-       // Local error information
-      double max_err = 0.0;
-      double av_err = 0.0;
-      double acc_err = 0.0;
-      int outside = 0;
-      double acc_err_sgn = 0.0;
-      double av_err_sgn = 0.0;
-
-      // Check if the accuracy can have been changed
-      const vector<LRBSpline2D*>& bsplines = it->second->getSupport();
+      double av_prev, max_prev;
+      int nmb_out_prev;
+      double umin, umax, vmin, vmax;
+      double max_err;
+      double av_err;
+      double acc_err;
+      int outside;
+      double acc_err_sgn;
+      double av_err_sgn;
+      int nmb_pts;
+      int nmb_ghost;
       size_t nb;
-      for (nb=0; nb<bsplines.size(); ++nb)
-	if (!bsplines[nb]->coefFixed())
-	  break;
+      int ki;
+      double *curr;
+      double dist2;
+      Element2D *elem;
+      double acc_prev;
 
-      if (/*useMBA_ ||*/ nb < bsplines.size())
+#pragma omp for schedule(auto)//guided)//static,8)//runtime)//dynamic,4)
+      for (kj = 0; kj < num_elem ; ++kj)
       {
-	  // Compute distances in data points and update parameter pairs
-	  // if requested
+	  it = elem_iters[kj];
+
+	  if (!it->second->hasDataPoints())
+	  {
+	      // Reset accuracy information in element
+	      it->second->resetAccuracyInfo();
+	      continue;   // No points in which to check accuracy
+	  }
+
+	  umin = it->second->umin();
+	  umax = it->second->umax();
+	  vmin = it->second->vmin();
+	  vmax = it->second->vmax();
+	  vector<double>& points = it->second->getDataPoints();
+	  vector<double>& ghost_points = it->second->getGhostPoints();
+	  nmb_pts = it->second->nmbDataPoints();
+	  nmb_ghost = it->second->nmbGhostPoints();
+
+	  // Local error information
+	  max_err = 0.0;
+	  av_err = 0.0;
+	  acc_err = 0.0;
+	  outside = 0;
+	  acc_err_sgn = 0.0;
+	  av_err_sgn = 0.0;
+
+	  // Check if the accuracy can have been changed
+	  const vector<LRBSpline2D*>& bsplines = it->second->getSupport();
+	  for (nb=0; nb<bsplines.size(); ++nb)
+	      if (!bsplines[nb]->coefFixed())
+		  break;
+
+	  if (/*useMBA_ ||*/ nb < bsplines.size())
+	  {
+	      // Compute distances in data points and update parameter pairs
+	      // if requested
 // #ifdef _OPENMP
 // 	    double time0_part = omp_get_wtime();
 // #endif
-	  if (nmb_pts > 0)
-	  {
-	      computeAccuracyElement(points, nmb_pts, del, rd, it->second.get());
-	  }
+	      if (nmb_pts > 0)
+	      {
+		  computeAccuracyElement(points, nmb_pts, del, rd, it->second.get());
+	      }
 	  
-	  // Compute distances in ghost points
-	  if (nmb_ghost > 0 && !useMBA_)
-	  {
-	      computeAccuracyElement(ghost_points, nmb_ghost, del, rd, it->second.get());
-	  }
+	      // Compute distances in ghost points
+	      if (nmb_ghost > 0 && !useMBA_)
+	      {
+		  computeAccuracyElement(ghost_points, nmb_ghost, del, rd, it->second.get());
+	      }
 // #ifdef _OPENMP
 // 	    double time1_part = omp_get_wtime();
 // 	    time_computeAccuracyElement += time1_part - time0_part;
 // #endif
-      }
+	  }
 
-      // Accumulate error information related to data points
-      int ki;
-      double *curr;
-      for (ki=0, curr=&points[0]; ki<nmb_pts;)
-	{
-	  Point curr_pt(curr+(dim==3)*2, curr+del-1);
+	  // Accumulate error information related to data points
+	  for (ki=0, curr=&points[0]; ki<nmb_pts;)
+	  {
+	      Point curr_pt(curr+(dim==3)*2, curr+del-1);
 
-	  // Accumulate approximation error
-	  double dist2 = fabs(curr[del-1]);
-	  maxdist_ = std::max(maxdist_, dist2);
-	  max_err = std::max(max_err, dist2);
-	  acc_err += dist2;
-	  acc_err_sgn += curr[del-1];
-	  avdist_all_ += dist2;
-	  if (dist2 > aepsge_)
-	    {
-	      av_err_sgn += curr[del-1];
-	      avdist_ += dist2;
-	      outsideeps_++;
-	      av_err += dist2;
-	      outside++;
+	      // Accumulate approximation error
+	      dist2 = fabs(curr[del-1]);
+	      maxdist_ = std::max(maxdist_, dist2);
+	      max_err = std::max(max_err, dist2);
+	      acc_err += dist2;
+	      acc_err_sgn += curr[del-1];
+	      avdist_all_ += dist2;
+	      if (dist2 > aepsge_)
+	      {
+		  av_err_sgn += curr[del-1];
+		  avdist_ += dist2;
+		  outsideeps_++;
+		  av_err += dist2;
+		  outside++;
 		  
-	    }
-	  else
-	    {
-	    }	     	  
-
-	  if (dim == 3 && repar_)
-	    {
-	      // Check if the point has moved
-	      if (curr[0] < umin || curr[0] > umax || curr[1] < vmin || curr[1] > vmax)
-		{
-		  // Find element
-		  Element2D *elem = srf_->coveringElement(curr[0], curr[1]);
-		  elem->addDataPoints(points.begin()+ki*del, 
-				      points.begin()+(ki+1)*del, false);
-		  it->second->eraseDataPoints(points.begin()+ki*del, 
-					      points.begin()+(ki+1)*del);
-		  nmb_pts--;
-		}
+	      }
 	      else
-		{
+	      {
+	      }	     	  
+
+	      if (dim == 3 && repar_)
+	      {
+		  // Check if the point has moved
+		  if (curr[0] < umin || curr[0] > umax || curr[1] < vmin || curr[1] > vmax)
+		  {
+		      // Find element
+		      elem = srf_->coveringElement(curr[0], curr[1]);
+		      elem->addDataPoints(points.begin()+ki*del, 
+					  points.begin()+(ki+1)*del, false);
+		      it->second->eraseDataPoints(points.begin()+ki*del, 
+						  points.begin()+(ki+1)*del);
+		      nmb_pts--;
+		  }
+		  else
+		  {
+		      curr += del;
+		      ki++;
+		  }
+	      }
+	      else
+	      {
 		  curr += del;
 		  ki++;
-		}
-	    }
-	  else
-	    {
-	      curr += del;
-	      ki++;
-	    }
-	}
-      if (outside > 0)
-	{
-	  av_err /= (double)outside;
-	  av_err_sgn /= (double)outside;
-	}
+	      }
+	  }
+	  if (outside > 0)
+	  {
+	      av_err /= (double)outside;
+	      av_err_sgn /= (double)outside;
+	  }
 
-      // Previous accuracy information
-      double av_prev, max_prev;
-      int nmb_out_prev;
-      //double acc_prev = it->second->getAccumulatedError();
-      it->second->getAccuracyInfo(av_prev, max_prev, nmb_out_prev);
+	  // Previous accuracy information
+	  acc_prev = it->second->getAccumulatedError();
+	  it->second->getAccuracyInfo(av_prev, max_prev, nmb_out_prev);
 
-      if (max_err > aepsge_ && max_prev > 0.0 && max_err > ghost_fac*max_prev &&
-	  nmb_ghost > 0.25*nmb_pts)
-	{
-	  // Collect element for update of ghost points
+	  if (max_err > aepsge_ && max_prev > 0.0 && max_err > ghost_fac*max_prev &&
+	      nmb_ghost > 0.25*nmb_pts)
+	  {
+	      // Collect element for update of ghost points
 #pragma omp critical
-	    ghost_elems.push_back(it->second.get());
-	}
+	      ghost_elems.push_back(it->second.get());
+	  }
 
-      // Store updated accuracy information in the element
-      it->second->setAccuracyInfo(acc_err, av_err, max_err, outside);
+	  // Store updated accuracy information in the element
+	  it->second->setAccuracyInfo(acc_err, av_err, max_err, outside);
 
-    }
+      }
+  }
 
   avdist_all_ /= (double)nmb_pts_;
   if (outsideeps_ > 0)
