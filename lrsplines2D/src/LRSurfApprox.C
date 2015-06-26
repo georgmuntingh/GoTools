@@ -1330,6 +1330,7 @@ void LRSurfApprox::computeAccuracy_omp(vector<Element2D*>& ghost_elems)
   // double vmin = srf_->paramMin(YFIXED);
   // double vmax = srf_->paramMax(YFIXED);
   int maxiter = 3; //4;
+  Element2D* elem2 = (Element2D*)elem;
 
   // Fetch basis functions
   const vector<LRBSpline2D*>& bsplines = elem->getSupport();
@@ -1370,7 +1371,8 @@ void LRSurfApprox::computeAccuracy_omp(vector<Element2D*>& ghost_elems)
 	  for (ki=grid1, upar=elem_grid_start[0]; ki<=grid2; 
 	       ++ki, ++kr, upar+=cell_size_[0])
 	    {
-	      srf_->point(pos, std::max(elmin_u, std::min(upar, elmax_u)), vpar1, elem);
+	      srf_->point(pos, std::max(elmin_u, std::min(upar, elmax_u)), 
+			  vpar1, elem2);
 	      grid_height[kr] = pos[0];
 	    }
 	}
@@ -1392,8 +1394,9 @@ void LRSurfApprox::computeAccuracy_omp(vector<Element2D*>& ghost_elems)
 	  // the element (at least initially)
 	  // double upar, vpar;
 	  // Point close_pt;
+	  srf_->setCurrentElement((Element2D*)elem);
 	  srf_->closestPoint(curr_pt, upar, vpar, close_pt,
-			     dist, aepsge_, maxiter, &rd, curr);
+			     dist, aepsge_, maxiter, elem2, &rd, curr);
 	  vec = curr_pt - close_pt;
 	  // Point norm;
 	  srf_->normal(norm, upar, vpar);
@@ -1450,11 +1453,11 @@ void LRSurfApprox::computeAccuracy_omp(vector<Element2D*>& ghost_elems)
 	      else
 		{
 		  Point pos;
-		  srf_->point(pos, curr[0], curr[1], elem);
+		  srf_->point(pos, curr[0], curr[1], elem2);
 		  dist = pos.dist(Point(curr+2, curr+del));
 		  vec = curr_pt - pos;
 		  // Point norm;
-		  srf_->normal(norm, curr[0], curr[1]);
+		  srf_->normal(norm, curr[0], curr[1], elem2);
 		  if (vec*norm < 0.0)
 		    dist *= -1;
 		}
@@ -1479,6 +1482,7 @@ void LRSurfApprox::computeAccuracyElement_omp(vector<double>& points, int nmb, i
   // double vmin = srf_->paramMin(YFIXED);
   // double vmax = srf_->paramMax(YFIXED);
   int maxiter = 3; //4;
+  Element2D* elem2 = (Element2D*)elem;
 
   // Fetch basis functions
   const vector<LRBSpline2D*>& bsplines = elem->getSupport();
@@ -1519,7 +1523,8 @@ void LRSurfApprox::computeAccuracyElement_omp(vector<double>& points, int nmb, i
 	  for (ki=grid1, upar=elem_grid_start[0]; ki<=grid2; 
 	       ++ki, ++kr, upar+=cell_size_[0])
 	    {
-	      srf_->point(pos, std::max(elmin_u, std::min(upar, elmax_u)), vpar1, elem);
+	      srf_->point(pos, std::max(elmin_u, std::min(upar, elmax_u)), 
+			  vpar1, elem2);
 	      grid_height[kr] = pos[0];
 	    }
 	}
@@ -1536,21 +1541,21 @@ void LRSurfApprox::computeAccuracyElement_omp(vector<double>& points, int nmb, i
 #ifdef _OPENMP
   pthread_attr_getstacksize(&attr, &stacksize);
 #endif
-//	std::cout << "stacksize (in MB): " << (double)stacksize/(1024.0*1024.0) << std::endl;
-//	omp_set_num_threads(4);
-#pragma omp parallel default(none) private(ki, curr, idx1, idx2, dist, upar, vpar, close_pt, curr_pt, vec, norm, dist1, dist2, dist3, dist4, sgn, pos, sfval, kr, bval) \
-    shared(points, nmb, del, dim, rd, maxiter, elem_grid_start, grid2, grid1, grid_height, grid3, grid4, elem, bsplines)
+  //	std::cout << "stacksize (in MB): " << (double)stacksize/(1024.0*1024.0) << std::endl;
+  //	omp_set_num_threads(4);
+#pragma omp parallel default(none) private(ki, curr, idx1, idx2, dist, upar, vpar, close_pt, curr_pt, vec, norm, dist1, dist2, dist3, dist4, sgn, pos, sfval, kr, kj, bval) \
+  shared(points, nmb, del, dim, rd, maxiter, elem_grid_start, grid2, grid1, grid_height, grid3, grid4, elem2, bsplines)
 #pragma omp for schedule(dynamic, 4)//static, 4)//runtime)//guided)//auto)
   for (ki=0; ki<nmb; ++ki)
-  {
-// #ifdef _OPENMP
-//       const int num_omp_threads = omp_get_num_threads();
-// 	if (num_omp_threads > 4)
-// 	{
-// 	    ;//printf("omp_get_num_threads(): %d\n",omp_get_num_threads());
-// 	    // std::cout << "num_omp_threads: " << num_omp_threads << std::endl;
-// 	}
-// #endif
+    {
+      // #ifdef _OPENMP
+      //       const int num_omp_threads = omp_get_num_threads();
+      // 	if (num_omp_threads > 4)
+      // 	{
+      // 	    ;//printf("omp_get_num_threads(): %d\n",omp_get_num_threads());
+      // 	    // std::cout << "num_omp_threads: " << num_omp_threads << std::endl;
+      // 	}
+      // #endif
       curr = &points[ki*del];
       curr_pt = Point(curr+(dim==3)*2, curr+del-1);
       if (check_close_ && dim == 3)
@@ -1561,10 +1566,10 @@ void LRSurfApprox::computeAccuracyElement_omp(vector<double>& points, int nmb, i
 	  // double upar, vpar;
 	  // Point close_pt;
 	  srf_->closestPoint(curr_pt, upar, vpar, close_pt,
-			     dist, aepsge_, maxiter, &rd, curr);
+			     dist, aepsge_, maxiter, elem2, &rd, curr);
 	  vec = curr_pt - close_pt;
 	  // Point norm;
-	  srf_->normal(norm, upar, vpar);
+	  srf_->normal(norm, upar, vpar, elem2);
 	  if (vec*norm < 0.0)
 	    dist *= -1;
 	  if (to3D_ >= 0)
@@ -1618,7 +1623,7 @@ void LRSurfApprox::computeAccuracyElement_omp(vector<double>& points, int nmb, i
 	      else
 		{
 		  Point pos;
-		  srf_->point(pos, curr[0], curr[1], elem);
+		  srf_->point(pos, curr[0], curr[1], elem2);
 		  dist = pos.dist(Point(curr+2, curr+del));
 		  vec = curr_pt - pos;
 		  // Point norm;
@@ -1629,7 +1634,7 @@ void LRSurfApprox::computeAccuracyElement_omp(vector<double>& points, int nmb, i
 	    }
 	}
       curr[del-1] = dist;
-  }
+    }
 
 }
 
