@@ -75,14 +75,15 @@ int main( int argc, char* argv[] )
   using Go::Point;
 #endif
 
-  if (argc != 11) {
-    std::cout << "Input parameters : Input file on IGES format, ";
+  if (argc != 12) {
+    std::cout << "Input parameters : Format (igs=1/g2=0), Input file , ";
     std::cout << "x-value of first point on plane, y-value f first point, ... , z-value of third point" << std::endl;
     exit(-1);
   }
 
   // Read input arguments
-  std::ifstream file1(argv[1]);
+  int format = atoi(argv[1]);
+  std::ifstream file1(argv[2]);
   ALWAYS_ERROR_IF(file1.bad(), "Input file not found or file corrupt");
 
 
@@ -104,7 +105,12 @@ int main( int argc, char* argv[] )
 
   CompositeModelFactory factory(approx, gap, neighbour, kink, 10.0*kink);
 
-  shared_ptr<Go::CompositeModel> model(factory.createFromIges(file1));
+  shared_ptr<Go::CompositeModel> model;
+  if (format == 1)
+    model = shared_ptr<Go::CompositeModel>(factory.createFromIges(file1));
+  else
+    model = shared_ptr<Go::CompositeModel>(factory.createFromG2(file1));
+    
 
   std::cout << "Topology build completed" << std::endl;
 
@@ -126,9 +132,9 @@ int main( int argc, char* argv[] )
 //     std::cout << "Warning nr " << ki+1 << " : " << status.getWarning(ki) << std::endl;
 
   Point
-    p_x (atof(argv[2]), atof(argv[3]), atof(argv[4])),
-    p_y (atof(argv[5]), atof(argv[6]), atof(argv[7])),
-    p_z (atof(argv[8]), atof(argv[9]), atof(argv[10]));
+    p_x (atof(argv[3]), atof(argv[4]), atof(argv[5])),
+    p_y (atof(argv[6]), atof(argv[7]), atof(argv[8])),
+    p_z (atof(argv[9]), atof(argv[10]), atof(argv[11]));
 
   ftPlane pl(p_x, p_y, p_z);
 

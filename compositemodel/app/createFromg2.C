@@ -73,6 +73,9 @@ int main( int argc, char* argv[] )
 
   if (sfmodel)
   {
+    BoundingBox box = sfmodel->boundingBox();
+    std::cout << "Bounding box, low: " << box.low() << std::endl;
+    std::cout << "high: " << box.high() << std::endl;
       int ki;
       std::ofstream out_file("fileg2.g2");
       int nmb = sfmodel->nmbEntities();
