@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 	  // seed[0] = std::max(umin, std::min(umax, curr[0]));
 	  // seed[1] = std::max(vmin, std::min(vmax, curr[1]));
 	  sf1->closestPoint(curr_pt, upar, vpar, close_pt,
-			    dist, aeps, maxiter, NULL, seed.begin());
+			    dist, aeps, maxiter, NULL, NULL, seed.begin());
 	  Point vec = curr_pt - close_pt;
 	  Point norm;
 	  sf1->normal(norm, upar, vpar);
