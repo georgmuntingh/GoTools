@@ -67,8 +67,8 @@ void LRSplineMBA::MBADistAndUpdate(LRSplineSurface *srf)
 //   // double time_loop = 0.0;
 // #endif
 
-  if (srf->dimension() == 3)
-    std::cout << "3D MBA" << std::endl;
+  // if (srf->dimension() == 3)
+  //   std::cout << "3D MBA" << std::endl;
 
   double tol = 1.0e-12;  // Numeric tolerance
 
