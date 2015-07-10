@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 	  		       dist, aeps, maxiter, NULL, seed.begin());
 	  else
 	    tpsf->closestPoint(curr_pt, upar, vpar, close_pt,
-	  		       dist, aeps, maxiter);
+			       dist, aeps, maxiter);
 	  seed.setValue(upar, vpar);
 
 	  // Perform closest point
