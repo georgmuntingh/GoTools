@@ -914,6 +914,16 @@ void BoundedSurface::evalGrid(int num_u, int num_v,
       vector<double> par_intervals;
       dom.findPcurveInsideSegments(cv, tol, par_intervals);
 
+      if (par_intervals.size() == 0)
+	{
+	  // No boundary found. Extend with appropriate parameter bound
+	  Vector2D param(0.5*(umin+umax), vpar);
+	  if (dom.isInDomain(param, tol))
+	    {
+	      par_intervals.push_back(umin);
+	      par_intervals.push_back(umax);
+	    }
+	}
       if (par_intervals.size() % 2 == 1)
 	{
 	  // Boundary touch. Extend with appropriate parameter bound
