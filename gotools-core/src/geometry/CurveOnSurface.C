@@ -1399,7 +1399,8 @@ bool CurveOnSurface::ensureParCrvExistence(double epsgeo,
               notfound = true;
           }
       }
-      if (notfound == false && pos.dist(close) < epspar)
+      if (notfound == false && pos.dimension() == close.dimension() &&
+	  pos.dist(close) < epspar)
 	{
 	  // The point lies at a boundary. Check the opposite boundary
 	  if (startpt[0] - dom.umin() < epspar)
@@ -1444,7 +1445,8 @@ bool CurveOnSurface::ensureParCrvExistence(double epsgeo,
               notfound = true;
           }
       }
-      if (notfound == false && pos.dist(close) < epspar)
+      if (notfound == false && pos.dimension() == close.dimension() &&
+	  pos.dist(close) < epspar)
 	{
 	  // The point lies at a boundary. Check the opposite boundary
 	  if (endpt[0] - dom.umin() < epspar)

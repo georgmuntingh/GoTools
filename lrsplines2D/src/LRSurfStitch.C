@@ -49,7 +49,7 @@
 #include <iostream> // @@ debug
 #include <fstream> // @@ debug
 
-//#define DEBUG
+#define DEBUG
 
 using namespace Go;
 using std::vector;
@@ -106,11 +106,11 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
   int kj, kr;
   int nmb_modified;
   bool matched = false;
-  for (kj=1; kj<nmb_v; ++kj)
+  for (kj=0; kj<nmb_v; ++kj)
     {
       for (kr=0; kr<=nmb_u; ++kr)
       {
-	if (kj == 1 && kr > 0 && kr < nmb_u &&
+	if (kj == 0 && kr > 0 && kr < nmb_u &&
 	    sfs[kr-1].get() && sfs[kr].get())
 	  {
 	    // Match corner along the lower boundary
@@ -140,40 +140,43 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 	  }
 	
 	// Match inner corner
-	vector<pair<shared_ptr<LRSplineSurface>, int> > corner_match3;
-	if (kr > 0 && sfs[(kj-1)*nmb_u+kr-1].get())
-	  corner_match3.push_back(make_pair(sfs[(kj-1)*nmb_u+kr-1], 3));
-	if (kr < nmb_u && sfs[(kj-1)*nmb_u+kr].get())
-	  corner_match3.push_back(make_pair(sfs[(kj-1)*nmb_u+kr], 2));
-	if (kr > 0 && sfs[kj*nmb_u+kr-1].get())
-	  corner_match3.push_back(make_pair(sfs[kj*nmb_u+kr-1], 1));
-	if (kr < nmb_u && sfs[kj*nmb_u+kr].get())
-	  corner_match3.push_back(make_pair(sfs[kj*nmb_u+kr], 0));
-	if (corner_match3.size() > 1)
+	if (kj > 0)
 	  {
-	    if (cont == 0)
-	      nmb_modified = averageCorner(corner_match3, eps);
-	    else
-	      nmb_modified = makeCornerC1(corner_match3, eps);
+	    vector<pair<shared_ptr<LRSplineSurface>, int> > corner_match3;
+	    if (kr > 0 && sfs[(kj-1)*nmb_u+kr-1].get())
+	      corner_match3.push_back(make_pair(sfs[(kj-1)*nmb_u+kr-1], 3));
+	    if (kr < nmb_u && sfs[(kj-1)*nmb_u+kr].get())
+	      corner_match3.push_back(make_pair(sfs[(kj-1)*nmb_u+kr], 2));
+	    if (kr > 0 && sfs[kj*nmb_u+kr-1].get())
+	      corner_match3.push_back(make_pair(sfs[kj*nmb_u+kr-1], 1));
+	    if (kr < nmb_u && sfs[kj*nmb_u+kr].get())
+	      corner_match3.push_back(make_pair(sfs[kj*nmb_u+kr], 0));
+	    if (corner_match3.size() > 1)
+	      {
+		if (cont == 0)
+		  nmb_modified = averageCorner(corner_match3, eps);
+		else
+		  nmb_modified = makeCornerC1(corner_match3, eps);
 	      
-	  }
+	      }
 
-	// Match vertical edges
-	// Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
-	if (kr > 0 && kr < nmb_u &&
-	    sfs[(kj-1)*nmb_u+kr-1].get() && sfs[(kj-1)*nmb_u+kr].get())
-	{
-	  matched = averageEdge(sfs[(kj-1)*nmb_u+kr-1], 1,
-				sfs[(kj-1)*nmb_u+kr], 0, 
-				cont, eps);
-	  if (!matched)
-	  {
+	    // Match vertical edges
+	    // Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
+	    if (kr > 0 && kr < nmb_u &&
+		sfs[(kj-1)*nmb_u+kr-1].get() && sfs[(kj-1)*nmb_u+kr].get())
+	      {
+		matched = averageEdge(sfs[(kj-1)*nmb_u+kr-1], 1,
+				      sfs[(kj-1)*nmb_u+kr], 0, 
+				      cont, eps);
+		if (!matched)
+		  {
 #ifdef DEBUG
-	      std::cout << "Failed vertical match! ki = " << kr-1 << ", kj = " << kj - 1 << std::endl;
-//	      MESSAGE("Failed vertical match!");
+		    std::cout << "Failed vertical match! ki = " << kr-1 << ", kj = " << kj - 1 << std::endl;
+		    //	      MESSAGE("Failed vertical match!");
 #endif
+		  }
+	      }
 	  }
-	}
 	if (kj == nmb_v-1 && kr > 0 && kr < nmb_u &&
 	    sfs[kj*nmb_u+kr-1].get() && sfs[kj*nmb_u+kr].get())
 	{
@@ -190,20 +193,23 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 	}
 
 	// Match horizontal edge
-	if (kr < nmb_u &&
-	    sfs[(kj-1)*nmb_u+kr].get() && sfs[kj*nmb_u+kr].get())
-	{
-	  matched = averageEdge(sfs[(kj-1)*nmb_u+kr], 3,
-				sfs[kj*nmb_u+kr], 2, 
-				cont, eps);
-	  if (!matched)
+	if (kj > 0)
 	  {
+	    if (kr < nmb_u &&
+		sfs[(kj-1)*nmb_u+kr].get() && sfs[kj*nmb_u+kr].get())
+	      {
+		matched = averageEdge(sfs[(kj-1)*nmb_u+kr], 3,
+				      sfs[kj*nmb_u+kr], 2, 
+				      cont, eps);
+		if (!matched)
+		  {
 #ifdef DEBUG
-	      std::cout << "Failed horizontal match! ki = " << kr << ", kj = " << kj-1 << std::endl;
-//	      MESSAGE("Failed horizontal match!");
+		    std::cout << "Failed horizontal match! ki = " << kr << ", kj = " << kj-1 << std::endl;
+		    //	      MESSAGE("Failed horizontal match!");
 #endif
+		  }
+	      }
 	  }
-	}
       }
     }
 }
@@ -390,14 +396,14 @@ void LRSurfStitch::consistentSplineSpaces(vector<shared_ptr<LRSplineSurface> >& 
       }
 
       // Then make corresponding spline spaces across boundaries (i.e. insert knots along the common edge).
-      for (kj=1; kj<nmb_v; ++kj)
+      for (kj=0; kj<nmb_v; ++kj)
       {
 	  for (kr=0; kr<=nmb_u; ++kr)
 	  {
 	      // Vertical edge
 	      // Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
 	      const int element_width = cont + 2;//std::max(2, cont + 1);//cont + 2; // Number of rows with inner knots.
-	      if (kr > 0 && kr < nmb_u &&
+	      if (kj > 0 && kr > 0 && kr < nmb_u &&
 		  sfs[(kj-1)*nmb_u+kr-1].get() && sfs[(kj-1)*nmb_u+kr].get())
 		  matchSplineSpace(sfs[(kj-1)*nmb_u+kr-1], 1,
 				   sfs[(kj-1)*nmb_u+kr], 0, element_width, eps);
@@ -407,7 +413,7 @@ void LRSurfStitch::consistentSplineSpaces(vector<shared_ptr<LRSplineSurface> >& 
 				   sfs[kj*nmb_u+kr], 0, element_width, eps);
 
 	      // Horizontal edge
-	      if (kr < nmb_u &&
+	      if (kj > 0 && kr < nmb_u &&
 		  sfs[(kj-1)*nmb_u+kr].get() && sfs[kj*nmb_u+kr].get())
 		  matchSplineSpace(sfs[(kj-1)*nmb_u+kr], 3,
 				   sfs[kj*nmb_u+kr], 2, element_width, eps);

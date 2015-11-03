@@ -412,9 +412,55 @@ vector<shared_ptr<ParamCurve> >
 Cone::constParamCurves(double parameter, bool pardir_is_u) const
 //===========================================================================
 {
-    MESSAGE("constParamCurves() not yet implemented");
-    vector<shared_ptr<ParamCurve> > res;
-    return res;
+  bool cyl_pardir_is_u = (isSwapped()) ? !pardir_is_u : pardir_is_u;
+  if (isSwapped())
+    {
+      MESSAGE("Not yet tested this function with swapped cylinder!");
+    }
+  vector<shared_ptr<ParamCurve> > res;
+  if (cyl_pardir_is_u)
+    {
+      shared_ptr<ParamCurve> circle = getCircle(parameter);
+      res.push_back(circle);
+    }
+  else
+    {
+      if (!isBounded())
+	{
+	  MESSAGE("constParamCurves() not supported for unbounded cylinder in linear direction!");
+	}
+      else
+	{
+	  double vmin = domain_.vmin();
+	  double vmax = domain_.vmax();
+	  Point cv_min = ParamSurface::point(parameter, vmin);
+	  Point cv_max = ParamSurface::point(parameter, vmax);
+	  shared_ptr<Line> line(new Line(cv_min, cv_max, vmin, vmax));
+	  res.push_back(line);
+	}
+    }
+    
+  return res;
+  // MESSAGE("constParamCurves() not yet implemented");
+  // vector<shared_ptr<ParamCurve> > res;
+  // return res;
+}
+
+
+//===========================================================================
+shared_ptr<Circle> Cone::getCircle(double par) const
+//===========================================================================
+{
+    Point centre = location_ + par * z_axis_;
+    double rad = radius_ + par * tan(cone_angle_);
+    shared_ptr<Circle> circle(new Circle(rad, centre, z_axis_, x_axis_));
+    // Note: We are using domain_ on purpose, because domain_'s
+    // u-direction is always the angular direction, no matter what
+    // isSwapped_ is.
+    double umin = domain_.umin();
+    double umax = domain_.umax();
+    circle->setParamBounds(umin, umax);
+    return circle;
 }
 
 
