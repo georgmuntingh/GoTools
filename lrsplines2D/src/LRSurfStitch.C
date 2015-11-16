@@ -49,7 +49,7 @@
 #include <iostream> // @@ debug
 #include <fstream> // @@ debug
 
-#define DEBUG
+//#define DEBUG
 
 using namespace Go;
 using std::vector;
@@ -99,6 +99,7 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
   // We also make sure that the surfaces are full tensor product surfaces
   // along adjacent edges (the first couple of element rows).
   // Note that the surfaces (i.e. the coefs) are not altered.
+  consistentSplineSpaces(sfs, nmb_u, nmb_v, eps, cont);
   consistentSplineSpaces(sfs, nmb_u, nmb_v, eps, cont);
   
   // Stitch surfaces along common edges (by altering the coefs).
