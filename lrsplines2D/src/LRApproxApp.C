@@ -60,14 +60,14 @@ void LRApproxApp::pointCloud2Spline(vector<double>& points, int dim,
 				    double eps, int max_iter,
 				    shared_ptr<LRSplineSurface>& surf,
 				    double& maxdist, double& avdist, 
-				    double& avdist_out, int& nmb_out)
+				    double& avdist_out, int& nmb_out,
+				    int mba, int initmba, int tomba)
 //=============================================================================
 {
   // Define parameters
   double smoothwg = 1.0e-10; 
-  int initmba = 1; //0;  // Initiate surface using tensor product least squares
-  int mba = 0;      // Use least squares approximation
-  int tomba = std::min(5, max_iter-1);    // Turn to the mba method at 
+  if (tomba == 5)
+    tomba = std::min(tomba, max_iter-1);    // Turn to the mba method at 
   // iteration level 5 or in the last iteration
 
   // Translate data points to origo
@@ -101,11 +101,11 @@ void LRApproxApp::pointCloud2Spline(vector<double>& points, int dim,
   std::ofstream of2("translated_points.g2");
   cloud.writeStandardHeader(of2);
   cloud.write(of2);
-#endif
   
   std::cout << std::endl;
   std::cout << "Input points read and pre processed. Ready for surface creation.";
   std::cout << std::endl << std::endl;
+#endif
   
   // Make approximation engine
   // First make initial tensor-product spline space
@@ -164,6 +164,7 @@ void LRApproxApp::pointCloud2Spline(vector<double>& points, int dim,
   // Approximate
   surf = approx.getApproxSurf(maxdist, avdist,avdist_out, nmb_out, max_iter);
 
+#ifdef DEBUG
   std::cout << std::endl;
   std::cout << "Approximation completed. " << std::endl;
  
@@ -173,6 +174,7 @@ void LRApproxApp::pointCloud2Spline(vector<double>& points, int dim,
   std::cout << "Average distance: " << avdist << std::endl;
   std::cout << "Average distance for points outside of the tolerance: " << avdist_out << std::endl;
   std::cout << "Number of points outside the tolerance: " << nmb_out << std::endl;
+#endif
   if (surf.get())
     {
 #ifdef DEBUG

@@ -50,6 +50,7 @@ namespace Go
 
 
 class SplineSurface;
+class Circle;
 
 
 /// \brief Class that represents a cone. It is a subclass of
@@ -206,6 +207,8 @@ public:
 
     /// Check if the surface is closed.
     bool isClosed(bool& closed_dir_u, bool& closed_dir_v) const;
+
+   shared_ptr<Circle> getCircle(double par) const;
 
     /// Return the part of the cone surface limited by the parameter bounds
     Cone* subSurface(double from_upar, double from_vpar,

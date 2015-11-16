@@ -37,7 +37,7 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-//#define DEBUG_VOL1
+#define DEBUG_VOL1
 
 #include "GoTools/trivariatemodel/ftVolume.h"
 #include "GoTools/trivariatemodel/ftVolumeTools.h"
@@ -4541,9 +4541,9 @@ ftVolume::getMissingSfLoops(vector<pair<Point,Point> >& corr_vx_pts,
       shared_ptr<Vertex> vx1 = vx_pair[ki].first;
       shared_ptr<Vertex> vx2 = vx_pair[ki].second;
       shared_ptr<ParamCurve> cv = 
-	makeMissingEdgeCv(vx1, vx2);
-	// shared_ptr<ParamCurve>(new SplineCurve(vx1->getVertexPoint(),
-	// 				       vx2->getVertexPoint()));
+	//makeMissingEdgeCv(vx1, vx2);
+	shared_ptr<ParamCurve>(new SplineCurve(vx1->getVertexPoint(),
+					       vx2->getVertexPoint()));
 
 #ifdef DEBUG_VOL1
       of0 << "100 1 0 4 0 255 0 255" << std::endl;
