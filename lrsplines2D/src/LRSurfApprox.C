@@ -1799,8 +1799,8 @@ int LRSurfApprox::refineSurf()
   for (kr=0; kr<refs.size(); ++kr)
     {
 #ifdef DEBUG
-      // std::cout << "Refine nr " << kr << ": " << refs[kr].kval << "  " << refs[kr].start << "  ";
-      // std::cout << refs[kr].end << "  " << refs[kr].d << "  " << refs[kr].multiplicity << std::endl;
+      //      std::cout << "Refine nr " << kr << ": " << refs[kr].kval << "  " << refs[kr].start << "  ";
+      //      std::cout << refs[kr].end << "  " << refs[kr].d << "  " << refs[kr].multiplicity << std::endl;
 #endif
       // Perform refinements, one at the time to keep information stored in the elements
       srf_->refine(refs[kr], true /*false*/);

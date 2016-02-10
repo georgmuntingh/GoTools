@@ -153,7 +153,8 @@ bool Path::estimateHoleInfo(const vector<ftEdge*>& edges, Point& centre,
   Point vec1 = edges[0]->tangent(edges[0]->tMin());
   Point vec2 = edges[edges.size()-1]->tangent(edges[edges.size()-1]->tMax());
   vec2 *= -1;
-  angle = vec1.angle2(vec2);
+  //angle = vec1.angle2(vec2);
+  angle = vec1.angle(vec2);
 
   return true;
 }
