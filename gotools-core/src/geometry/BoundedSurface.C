@@ -55,7 +55,7 @@
 #include "GoTools/geometry/ElementaryCurve.h"
 #include <fstream>
 
-//#define DEBUG
+#define DEBUG
 
 using namespace Go;
 using std::vector;
@@ -893,7 +893,15 @@ void BoundedSurface::evalGrid(int num_u, int num_v,
   double tol = 1.0e-6;  // A good tolerance for intersections
   CurveBoundedDomain dom = parameterDomain();
   
-  // Evaluate underlying surface in grid.
+ #ifdef DEBUG
+    std::ofstream of("tmp_grid_bd.g2");
+    (void)of.precision(15);
+    of << "400 1 0 4 255 0 0 255" << std::endl;
+
+    vector<double> tmppt;
+#endif
+
+ // Evaluate underlying surface in grid.
   // This is done to be able to utilize structures for grid
   // evaluation and improve performance
   surface_->evalGrid(num_u, num_v, umin, umax, vmin, vmax,
@@ -908,7 +916,8 @@ void BoundedSurface::evalGrid(int num_u, int num_v,
   for (ki=0, vpar=vmin, pos=&points[0]; ki<num_v; ++ki, vpar+=vdel)
     {
       // Make horizontal parameter curve
-      SplineCurve cv(Point(umin,vpar), umin, Point(umax,vpar), umax);
+      SplineCurve cv(Point(umin-2*udel,vpar), umin-2*udel, 
+		     Point(umax+2*udel,vpar), umax+2*udel);
 
       // Find inside intervals
       vector<double> par_intervals;
@@ -946,8 +955,21 @@ void BoundedSurface::evalGrid(int num_u, int num_v,
 	      for (kh=0; kh<dim; ++kh)
 		pos[kh] = nodata_val;
 	    }
+#ifdef DEBUG
+	  else
+	    {
+	      tmppt.push_back(upar);
+	      tmppt.push_back(vpar);
+	      tmppt.push_back(pos[0]);
+	    }
+#endif
 	}
     }
+#ifdef DEBUG
+      of << tmppt.size()/3 << std::endl;
+      for (size_t ka=0; ka<tmppt.size(); ka+=3)
+	of << tmppt[ka] << " " << tmppt[ka+1] << " " << tmppt[ka+2] << std::endl;
+#endif
 }
   
 //===========================================================================

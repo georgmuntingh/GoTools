@@ -59,7 +59,7 @@
 #include "GoTools/geometry/Utils.h"
 
 #define NDEBUG
-//#define DEBUG
+#define DEBUG
 
 using std::vector;
 using std::istream;
