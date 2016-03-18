@@ -664,7 +664,7 @@ public:
 
     /// Fetch one boundary surface
     shared_ptr<SplineSurface> getBoundarySurface(int idx,
-							bool do_clear = false) const
+						 bool do_clear = false) const
       {
 	(void)getBoundarySurfaces(do_clear);
 	return bd_sfs_[idx];

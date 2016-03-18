@@ -75,14 +75,15 @@ namespace Go
     /// \param constdir: 0 = not set, 1 = u-parameter constant, 
     /// 2 = v-parameter constant, 3 = w-parameter constant
     /// \param constpar value of constant parameter
-    /// \param boundary index: -1=no, 0=umin, 1=umax, 2=vmin, 3=vmax, 4=wmin, 5=wmax
+    /// \param boundary index: -1=no, 0=umin, 1=umax, 2=vmin, 
+    /// 3=vmax, 4=wmin, 5=wmax
     /// \param swapped orientation of surface related to underlying volume
     SurfaceOnVolume(shared_ptr<ParamVolume> vol,
 		    shared_ptr<ParamSurface> spacesurf,
 		    int constdir, double constpar, int boundary,
-		    bool swapped);
+		    bool swapped, int orientation=0);
 
-    /// Constructor given volume and constant parmeter information. Must only
+    /// Constructor given volume and constant parameter information. Must only
     /// be used if the constant parameter information is set
     SurfaceOnVolume(shared_ptr<ParamVolume> vol,
 		    int constdir, double constpar, int boundary);
@@ -416,6 +417,9 @@ namespace Go
 
     /// Info on relation to corresponding volume
     /// Return value: -1=none, 0=umin, 1=umax, 2=vmin,  3=vmax, 4=wmin, 5=wmax
+    /// orientation = -1 and return value >= 0: the orientation of the surface 
+    /// compared to the volume boundary is not known or the two surfaces 
+    /// are coincident but not identical
     int whichBoundary(double tol, int& orientation, bool& swap) const;
 
     /// Volume parameter corresponding to surface parameter
@@ -508,6 +512,9 @@ namespace Go
     int at_bd_;  /// -1=no, 0=umin, 1=umax, 2=vmin, 3=vmax, 4=wmin, 5=wmax
     int orientation_;  /// Orientation of constant parameter surface relative to the
     /// underlying volume
+    /// -1 and at_bd >= 0: the orientation of the surface compared to the 
+    /// volume boundary is not known or the two surfaces are coincident
+    /// but not identical
     bool swap_;
   };
 

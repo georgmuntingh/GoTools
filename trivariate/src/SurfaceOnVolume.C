@@ -63,10 +63,10 @@ SurfaceOnVolume::SurfaceOnVolume(shared_ptr<ParamVolume> vol,
 SurfaceOnVolume::SurfaceOnVolume(shared_ptr<ParamVolume> vol,
 				 shared_ptr<ParamSurface> spacesurf,
 				 int constdir, double constpar, int boundary,
-				 bool swapped)
+				 bool swapped, int orientation)
   : volume_(vol), spacesurf_(spacesurf), prefer_parameter_(true), 
     constdir_(constdir), constval_(constpar), at_bd_(boundary), 
-    orientation_(0), swap_(swapped)
+    orientation_(orientation), swap_(swapped)
 //===========================================================================
 {
   // Make parameter surface
@@ -808,7 +808,8 @@ Point SurfaceOnVolume:: volumeParameter(double u_par, double v_par) const
 {
   Point param(3);
   RectDomain dom = containingDomain();
-  if (constdir_ == 1 || constdir_ == 2 || constdir_ == 3)
+  if ((constdir_ == 1 || constdir_ == 2 || constdir_ == 3) &&
+      orientation_ >= 0)
     {
       int idx1, idx2, idx3;
       idx1 = constdir_ - 1;
