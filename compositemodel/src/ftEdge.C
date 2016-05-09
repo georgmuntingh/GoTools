@@ -101,8 +101,8 @@ ftEdge::ftEdge(ftFaceBase* face,
                bool is_reversed,
 	       int entry_id)
 //===========================================================================
-    : ftEdgeBase(), face_(face), geom_curve_(cv), is_reversed_(is_reversed),
-      entry_id_(entry_id)
+    : ftEdgeBase(), face_(face), geom_curve_(cv),
+      entry_id_(entry_id), is_reversed_(is_reversed)
 {
     setVertices(v1, v2);
 }
@@ -114,8 +114,8 @@ ftEdge::ftEdge(shared_ptr<ParamCurve> cv,
                bool is_reversed,
 	       int entry_id)
 //===========================================================================
-    : ftEdgeBase(), face_(0), geom_curve_(cv), is_reversed_(is_reversed),
-      entry_id_(entry_id)
+    : ftEdgeBase(), face_(0), geom_curve_(cv),
+      entry_id_(entry_id), is_reversed_(is_reversed)
 {
     setVertices(v1, v2);
 }
@@ -163,13 +163,13 @@ void ftEdge::setVertices(shared_ptr<Vertex> v1,
     double t1, t2, td1, td2;
 
 #ifndef NDEBUG
-	{
-		Point start_debug = v1->getVertexPoint();
-		Point end_debug = v2->getVertexPoint();
-		double dist_debug = start_debug.dist(end_debug);
-		double val_debug = 0.0;
-	}
-#endif NDEBUG
+    {
+        Point start_debug = v1->getVertexPoint();
+        Point end_debug = v2->getVertexPoint();
+        double dist_debug = start_debug.dist(end_debug);
+        double val_debug = dist_debug;
+    }
+#endif
 
     geom_curve_->closestPoint(v1->getVertexPoint(), t1, close1, td1);
     geom_curve_->closestPoint(v2->getVertexPoint(), t2, close2, td2);
@@ -198,20 +198,19 @@ void ftEdge::setVertices(shared_ptr<Vertex> v1,
 	// t2. If this is the case, we must subtract 2pi from t1. But:
 	// Not if t2=0, which means that t2 actually is 2pi (!).
 	if (!is_reversed_ && t1 > t2) {
-	    if (t2 == 0.0) {
-		t2 = 2.0 * M_PI;
+	    if (t2 == startpar) {
+		t2 = endpar;
 	    }
-	    else {
-		t1 -= 2.0 * M_PI;
+	    if (t1 == endpar) {
+		t1 = startpar;
 	    }
 	}
 	if (is_reversed_ && t1 < t2) {
-            // Needs testing. @jbt
-	    if (t1 == 0.0) {
-		t1 = 2.0 * M_PI;
+	    if (t1 == startpar) {
+		t1 = endpar;
 	    }
-	    else {
-		t2 -= 2.0 * M_PI;
+            if (t2 == endpar) {
+		t2 = startpar;
 	    }
 	}
     }
@@ -245,6 +244,7 @@ void ftEdge::setVertices(shared_ptr<Vertex> v1,
 	    t1 = endpar;
 	low_param_ = t2;
 	high_param_ = t1;
+        MESSAGE("Swapping input vertices to match geometry curve!");
 	v1_ = v2;
 	v2_ = v1;
     }
@@ -665,8 +665,8 @@ void ftEdge::joinVertices(ftEdgeBase* newtwin)
 	  if (v1_.get() == tmp_twin->v1_.get() &&
 	      v2_.get() == tmp_twin->v2_.get())
 	    {
-	      v1_->reOrganize();
-	      v2_->reOrganize();
+                v1_->reOrganize();
+                v2_->reOrganize();
 	    }
 	  else
 	    {
@@ -685,8 +685,8 @@ void ftEdge::joinVertices(ftEdgeBase* newtwin)
 	  if (v1_.get() == tmp_twin->v2_.get() &&
 	      v2_.get() == tmp_twin->v1_.get())
 	    {
-	      v1_->reOrganize();
-	      v2_->reOrganize();
+                v1_->reOrganize();
+                v2_->reOrganize();
 	    }
 	  else
 	    {
@@ -924,7 +924,17 @@ bool ftEdge::orientationOK() const
     // is_reversed_ was implemented (?). We simply return 'true' and
     // hope the best...
 
-    return true;
+    // The low_param_ is always related to v1_, even if reversed_ is true.
+    Point low = geom_curve_->point(low_param_);
+    Point high = geom_curve_->point(high_param_);
+    double d1 = low.dist(v1_->getVertexPoint()) + high.dist(v2_->getVertexPoint());
+    double d2 = low.dist(v2_->getVertexPoint()) + high.dist(v1_->getVertexPoint());
+    bool isOK = (d1 <= d2); // For a closed curve with snapped end params the test is inconclusive.
+    if (!isOK) {
+        MESSAGE("orientationOK(): Not OK!");
+    }
+
+    return isOK;
 
 
 //     // Evaluate edge

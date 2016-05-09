@@ -108,18 +108,18 @@ public:
     ClassType classType() const { return class_type_; }
 
     /// Get the major version number stored in this ObjectHeader
-    int majorVersion()  const { return major_version_; }
+    int majorVersion() const { return major_version_; }
 
     /// Get the minor version number stored in this ObjectHeader
-    int minorVersion()  const { return minor_version_; }
+    int minorVersion() const { return minor_version_; }
 
     /// Get the size of the auxiliary data stored in this ObjectHeader 
     /// (size measured in number of ints).
-    int auxdataSize()  const { return (int)auxillary_data_.size(); }
+    int auxdataSize() const { return (int)auxillary_data_.size(); }
 
     /// Get a certain piece of auxiliary data (an integer).
     /// \param i the requested integer's position in the auxiliary data vector
-    int auxdata(int i)  const { return auxillary_data_[i]; }
+    int auxdata(int i) const { return auxillary_data_[i]; }
 
 private:
     ClassType class_type_;

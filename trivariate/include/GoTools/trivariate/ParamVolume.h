@@ -51,6 +51,7 @@ namespace Go
 {
 
   class ParamSurface;
+  class SplineVolume;
 
   /** Base class for parametric Volumes in Go
    *

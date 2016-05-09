@@ -70,10 +70,10 @@ using std::endl;
 
 //#define CHECK_PARAM_LOOP_ORIENTATION
 
-// #ifndef NDEBUG
-// #define SBR_DBG
-// #include "GoTools/geometry/SplineDebugUtils.h"
-// #endif
+#ifndef NDEBUG
+#define SBR_DBG
+#include "GoTools/geometry/SplineDebugUtils.h"
+#endif
 
 //===========================================================================
 BoundedSurface::BoundedSurface()
@@ -2164,7 +2164,7 @@ void BoundedSurface::analyzeLoops()
     bool par_cv_missing = parameterCurveMissing();
 
     // We first check if the loop is closed within loop tolerance.
-    double max_loop_gap = -1.0;
+    double max_loop_gap = -1.0; // Only set if fixLoopGaps returns false.
     bool loop_gaps_ok;
     try {
 	loop_gaps_ok= fixLoopGaps(max_loop_gap, analyze);
@@ -3045,7 +3045,7 @@ BoundedSurface* BoundedSurface::allSplineCopy() const
 	{
 	  shared_ptr<CurveOnSurface> cos = dynamic_pointer_cast<CurveOnSurface, ParamCurve>(*it);
 	  if (cos.get() == NULL)
-	    return false;
+        return NULL;
 	  shared_ptr<ParamCurve> pcrv;
 	  bool par_pref = cos->parPref();
 	  if (par_pref)

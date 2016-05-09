@@ -68,8 +68,8 @@
 #ifndef NDEBUG
 #ifndef DEBUG
 #define DEBUG
-#endif DEBUG
-#endif NDEBUG
+#endif // DEBUG
+#endif // NDEBUG
 
 #include "GoTools/geometry/Plane.h"
 
@@ -622,9 +622,10 @@ CurveCreators::projectSpaceCurve(shared_ptr<ParamCurve>& space_cv,
     // ... Which makes sense. Hence no need to demand curve to be
     // within tolerance in end points.
     if (std::max(dist1, dist2) > epsge)
-	{
+    {
 		MESSAGE("Inconsistent input to curve approximation: max_dist = "
 		<< std::max(dist1, dist2) << ", epsge = " << epsge);
+                return NULL;
     }
 #ifdef DEBUG
       std::ofstream out("project.g2");
