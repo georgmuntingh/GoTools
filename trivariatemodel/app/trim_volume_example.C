@@ -72,6 +72,8 @@ int main(int argc, char* argv[] )
   double approxtol = 0.001;
   int degree = 3;
 
+  double eps = 1.0e-8;  // Computational tolerance
+
   CompositeModelFactory factory(approxtol, gap, neighbour, kink, 10.0*kink);
 
   CompositeModel *model = factory.createFromG2(infile);
@@ -127,6 +129,7 @@ int main(int argc, char* argv[] )
       // = 4 : wmin
       // = 5 : wmax
       int bd_status = ftVolumeTools::boundaryStatus(vol, face, gap);
+      std::cout << "Boundary surface nr " << ki+1 << ", boundary status: " << bd_status << std::endl;
 
       // Fetch associated surface
       shared_ptr<ParamSurface> surf = face->surface();
@@ -148,21 +151,81 @@ int main(int argc, char* argv[] )
       for (kj=0, par=dom.vmin()+del_v; kj<nmb_v; ++kj, par+=del_v)
 	param_v[kj] = par;
 
-      // Check if the grid points are inside the trimmed surface. In that case
-      // evaluate basis functions, point and surface normal. The surface is oriented
-      // such that the normal points out of the volume.
-      // Fetch associated spline surface. If the surface is trimmed, the underlying
+       // Fetch associated spline surface. If the surface is trimmed, the underlying
       // non-trimmed surface is returned. If the surface is not a spline surface (this
       // can happen in theory), a null pointer is returned.
       SplineSurface* spline_surf = surf->asSplineSurface();
+
+     // Check if the grid points are inside the trimmed surface. In that case
+      // evaluate basis functions, point and surface normal. The surface is oriented
+      // such that the normal points out of the volume.
       for (kj=0; kj<nmb_v; ++kj)
 	for (kr=0; kr<nmb_u; ++kr)
 	  {
+	    if (face->pointInFace(param_u[kr], param_v[kj], gap))
+	      {
+		// Evaluate position
+		Point pos = face->point(param_u[kr], param_v[kj]);
+
+		// Evaluate normal
+		Point normal = face->normal(param_u[kr], param_v[kj]);
+
+		if (spline_surf)
+		  {
+		    // Compute value and 1. derivative with respect
+		    // to the B-spline basis functions
+		    vector<double> basisValues;
+		    vector<double> basisDerivs_u;
+		    vector<double> basisDerivs_v;
+		    double param[2];
+		    param[0] = param_u[kr];
+		    param[1] = param_v[kj];
+		    spline_surf->computeBasis(param, basisValues,
+					      basisDerivs_u, basisDerivs_v);
+
+		    // Alternative use struct for storage (see SplineSurface.h)
+		    BasisDerivsSf result1;
+		    spline_surf->computeBasis(param_u[kr], param_v[kj],
+					      result1);
+
+		    // Compute also 2. derivative
+		    BasisDerivsSf2 result2;
+		    spline_surf->computeBasis(param_u[kr], param_v[kj],
+					      result2);
+		  }
+
+		// Given the position on the surface, find the corresponding
+		// parameter value through a closest point iteration
+		double upar, vpar, dist;  // Parameter of closest point and distance
+		Point pos2;  // Closest point
+		face->closestPoint(pos, upar, vpar, pos2, dist, eps);
+
+		// Alternatively
+		surf->closestPoint(pos, upar, vpar, pos2, dist, eps);
+
+		int stop_debug_gridpoint = 1;
+	      }
 	  }
 
-      int stop_debug = 1;
+      // Perform grid evaluation. In the case of a trimmed surface, the
+      // grid will extend beyond the trimmed surface
+      // Points and derivatives
+      vector<double> points;
+      vector<double> derivs_u;
+      vector<double> derivs_v;
+      spline_surf->gridEvaluator(param_u, param_v, points, derivs_u, derivs_v);
+
+      // Basis functions including 1. derivatives
+      vector<BasisDerivsSf> basis_derivs1;
+      spline_surf->computeBasisGrid(param_u, param_v, basis_derivs1);
+
+      // Including 2. derivatives
+      vector<BasisDerivsSf2> basis_derivs2;
+      spline_surf->computeBasisGrid(param_u, param_v, basis_derivs2);
+
+      int stop_debug_face = 1;
     }
   
-
+  
 }
 

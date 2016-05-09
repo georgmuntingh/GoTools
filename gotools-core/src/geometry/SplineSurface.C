@@ -700,7 +700,7 @@ RectDomain SplineSurface::containingDomain() const
 }
 
 //===========================================================================
-bool SplineSurface::inDomain(double u, double v) const
+  bool SplineSurface::inDomain(double u, double v, double eps) const
 //===========================================================================
 {
     if (u < startparam_u() || u > endparam_u())
@@ -711,6 +711,36 @@ bool SplineSurface::inDomain(double u, double v) const
     return true;
 }
 
+//===========================================================================
+  int SplineSurface::inDomain2(double u, double v, double eps) const
+//===========================================================================
+{
+    if (u < startparam_u()-eps || u > endparam_u()+eps)
+	return 0;
+    if (v < startparam_v()-eps || v > endparam_v()+eps)
+	return 0;
+
+    if (u < startparam_u()+eps || u > endparam_u()-eps)
+	return 2;
+    if (v < startparam_v()+eps || v > endparam_v()-eps)
+	return 2;
+
+    return 1;
+}
+
+//===========================================================================
+  bool SplineSurface::onBoundary(double u, double v, double eps) const
+//===========================================================================
+{
+  if ((u > startparam_u()-eps && u < startparam_u()+eps) || 
+      (u > endparam_u()-eps && u < endparam_u()+eps))
+	return true;
+  if ((v > startparam_v()-eps && v < startparam_v()-eps) || 
+      (v > endparam_v()-eps && v < endparam_v()+eps))
+	return true;
+
+    return false;
+}
 //===========================================================================
 Point SplineSurface::closestInDomain(double u, double v) const
 //===========================================================================

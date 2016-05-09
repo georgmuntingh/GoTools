@@ -59,7 +59,7 @@
 #include "GoTools/geometry/Utils.h"
 
 #define NDEBUG
-#define DEBUG
+//#define DEBUG
 
 using std::vector;
 using std::istream;
@@ -1563,7 +1563,7 @@ const RectDomain& LRSplineSurface::parameterDomain() const
   }
 
  //===========================================================================
-  bool LRSplineSurface::inDomain(double u, double v) const
+  bool LRSplineSurface::inDomain(double u, double v, double eps) const
   //===========================================================================
   {
     if (u < startparam_u() || u > endparam_u())
@@ -1574,6 +1574,36 @@ const RectDomain& LRSplineSurface::parameterDomain() const
     return true;
   }
 
+//===========================================================================
+  int LRSplineSurface::inDomain2(double u, double v, double eps) const
+//===========================================================================
+{
+    if (u < startparam_u()-eps || u > endparam_u()+eps)
+	return 0;
+    if (v < startparam_v()-eps || v > endparam_v()+eps)
+	return 0;
+
+    if (u < startparam_u()+eps || u > endparam_u()-eps)
+	return 2;
+    if (v < startparam_v()+eps || v > endparam_v()-eps)
+	return 2;
+
+    return 1;
+}
+
+//===========================================================================
+  bool LRSplineSurface::onBoundary(double u, double v, double eps) const
+//===========================================================================
+{
+  if ((u > startparam_u()-eps && u < startparam_u()+eps) || 
+      (u > endparam_u()-eps && u < endparam_u()+eps))
+	return true;
+  if ((v > startparam_v()-eps && v < startparam_v()-eps) || 
+      (v > endparam_v()-eps && v < endparam_v()+eps))
+	return true;
+
+    return false;
+}
   //===========================================================================
   Point LRSplineSurface::closestInDomain(double u, double v) const
   //===========================================================================

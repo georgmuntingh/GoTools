@@ -55,7 +55,7 @@
 #include "GoTools/geometry/ElementaryCurve.h"
 #include <fstream>
 
-#define DEBUG
+//#define DEBUG
 
 using namespace Go;
 using std::vector;
@@ -781,12 +781,27 @@ RectDomain BoundedSurface::containingDomain() const
 
 
 //===========================================================================
-bool BoundedSurface::inDomain(double u, double v) const 
+bool BoundedSurface::inDomain(double u, double v, double eps) const 
 //===========================================================================
 {
     Array<double, 2> pnt(u, v);
-    double eps = 1.0e-4;
     return parameterDomain().isInDomain(pnt, eps);
+}
+
+//===========================================================================
+int BoundedSurface::inDomain2(double u, double v, double eps) const 
+//===========================================================================
+{
+    Array<double, 2> pnt(u, v);
+    return parameterDomain().isInDomain2(pnt, eps);
+}
+
+//===========================================================================
+bool BoundedSurface::onBoundary(double u, double v, double eps) const 
+//===========================================================================
+{
+    Array<double, 2> pnt(u, v);
+    return parameterDomain().isOnBoundary(pnt, eps);
 }
 
 //===========================================================================

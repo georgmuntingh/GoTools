@@ -95,7 +95,16 @@ public:
     virtual RectDomain containingDomain() const = 0;
 
     /// Check if a parameter pair lies inside the domain of this surface
-    virtual bool inDomain(double u, double v) const = 0;
+    virtual bool inDomain(double u, double v, double eps=1.0e-4) const = 0;
+
+    /// Check if a parameter pair lies inside the domain of this surface
+    /// return value = 0: outside
+    ///              = 1: internal
+    ///              = 2: at the boundary
+    virtual int inDomain2(double u, double v, double eps=1.0e-4) const = 0;
+
+    /// Check if a parameter pair lies at the boundary of this surface
+    virtual bool onBoundary(double u, double v, double eps=1.0e-4) const = 0;
 
     /// Fetch the paramater value in the parameter domain of the surface
     /// closest to the parameter pair (u,v)

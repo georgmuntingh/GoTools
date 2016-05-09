@@ -509,6 +509,27 @@ public:
     /// to this face
     std::vector<ftSurface*> fetchCorrespondingFaces() const;
 
+    /// Point in face testing
+    bool pointInFace(double u, double v, double tol)
+    {
+      return surf_->inDomain(u, v, tol);
+    }
+
+    /// Point in face testing
+    /// return value = 0 : Not in face
+    ///              = 1 : Internal in face
+    ///              = 2 : On boundary
+    int pointInFace2(double u, double v, double tol)
+    {
+      return surf_->inDomain2(u, v, tol);
+    }
+
+    /// Point on surface boundary
+    bool pointOnBd(double u, double v, double tol)
+    {
+      return surf_->onBoundary(u, v, tol);
+    }
+
     /// Debug functionality
     bool checkFaceTopology();
 

@@ -926,6 +926,12 @@ public:
       return true;  // This is a spline
     }
 
+    /// Return the spline surface represented by this surface
+    virtual SplineVolume* asSplineVolume() 
+    {
+      return this;
+    }
+
     // inherited from ParamVolume
     virtual void translate(const Point& vec);
 

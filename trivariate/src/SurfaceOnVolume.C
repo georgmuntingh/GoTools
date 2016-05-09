@@ -246,13 +246,33 @@ RectDomain SurfaceOnVolume::containingDomain() const
 }
 
 //===========================================================================
-bool SurfaceOnVolume::inDomain(double u, double v) const
+bool SurfaceOnVolume::inDomain(double u, double v, double eps) const
 //===========================================================================
 {
   if (prefer_parameter_)
-    return psurf_->inDomain(u,v);
+    return psurf_->inDomain(u,v,eps);
   else
-    return spacesurf_->inDomain(u,v);
+    return spacesurf_->inDomain(u,v,eps);
+}
+
+//===========================================================================
+int SurfaceOnVolume::inDomain2(double u, double v, double eps) const
+//===========================================================================
+{
+  if (prefer_parameter_)
+    return psurf_->inDomain2(u,v,eps);
+  else
+    return spacesurf_->inDomain2(u,v,eps);
+}
+
+//===========================================================================
+bool SurfaceOnVolume::onBoundary(double u, double v, double eps) const
+//===========================================================================
+{
+  if (prefer_parameter_)
+    return psurf_->onBoundary(u,v,eps);
+  else
+    return spacesurf_->onBoundary(u,v,eps);
 }
 
 //===========================================================================
