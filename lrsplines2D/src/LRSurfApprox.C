@@ -1841,10 +1841,10 @@ int LRSurfApprox::refineSurf()
       int stop_break = 1;
 #endif
     }
-#ifdef DEBUG
+  #ifdef DEBUG
   std::ofstream ofmesh("mesh1.eps");
   writePostscriptMesh(*srf_, ofmesh);
-#endif
+  #endif
 
   return (int)refs.size();
 }

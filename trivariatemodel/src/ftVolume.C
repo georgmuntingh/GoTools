@@ -37,7 +37,7 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-//#define DEBUG_VOL1
+#define DEBUG_VOL1
 
 #include "GoTools/trivariatemodel/ftVolume.h"
 #include "GoTools/trivariatemodel/ftVolumeTools.h"
@@ -1381,6 +1381,43 @@ bool ftVolume::getBoundaryCoefEnumeration(int bd,
 
   bool found = VolumeTools::getVolCoefEnumeration(vol, bd, enumeration);
   return found;
+}
+
+//===========================================================================
+// 
+// 
+int ftVolume::ElementOnBoundary(int elem_ix, double eps) const
+//===========================================================================
+{
+  if (!isSpline())
+    return -1;
+
+  return 0;
+}
+
+//===========================================================================
+// 
+// 
+int ftVolume::ElementBoundaryStatus(int elem_ix, double eps) const
+//===========================================================================
+{
+  if (!isSpline())
+    return -1;
+  
+  int bdstat = ElementOnBoundary(elem_ix, eps);
+  if (bdstat != 0)
+    return bdstat;
+
+  // Fetch point internal to element
+  // First fetch associated spline volume
+  SplineVolume *vol = vol_->asSplineVolume();
+  if (!vol)
+    return 0;
+  
+  // Point pnt;
+  // bool inside = isInside(pnt);
+  // return (inside) ? 2 : 0;
+  return 0;
 }
 
 //===========================================================================

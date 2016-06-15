@@ -249,6 +249,27 @@ namespace Go
     /// return value: true if spline, false if not
     bool getBoundaryCoefEnumeration(int bd, std::vector<int>& enumeration);
 
+    /// Check if a polynomial element (for spline volumes) intersects the
+    /// (trimming) boundaries of this ftVolume
+    /// \param elem_ix: Element index counted according to distinct knot
+    /// values. Sequence of coordinates: x runs fastest, then y and at last z
+    /// \param eps: Intersection tolerance
+    /// \return -1: Not a spline volume or element index out of range
+    ///          0: Not on boundary or an isotrimmed volume
+    ///          1: On boundary (intersection with boundary found)
+    int ElementOnBoundary(int elem_ix, double eps) const;
+
+   /// Check if a polynomial element (for spline volumes) intersects the
+    /// (trimming) boundaries of this ftVolume, is inside or outside
+    /// \param elem_ix: Element index counted according to distinct knot
+    /// values. Sequence of coordinates: x runs fastest, then y and at last z
+    /// \param eps: Intersection tolerance
+    /// \return -1: Not a spline volume or element index out of range
+    ///          0: Outside trimmed volume
+    ///          1: On boundary (intersection with boundary found)
+    ///          2: Internal to trimmed volume
+    int ElementBoundaryStatus(int elem_ix, double eps) const;
+
     /// Information about whether or not the volume is trimmed and how it
     /// is trimmed
     /// Check if the volume is boundary trimmed (not trimmed). The boundary

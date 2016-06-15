@@ -1860,6 +1860,18 @@ bool CurveOnSurface::updateIsoCurves()
 
 
 //===========================================================================
+void CurveOnSurface::enableSameOrientation()
+//===========================================================================
+{
+  if ((!pcurve_.get()) || (!spacecurve_.get()))
+    return;
+  if (prefer_parameter_)
+    spacecurve_->reverseParameterDirection();
+  else
+    pcurve_->reverseParameterDirection();
+}
+
+//===========================================================================
 bool CurveOnSurface::updateCurves(double epsge)
 //===========================================================================
 {
