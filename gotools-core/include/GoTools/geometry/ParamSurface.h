@@ -462,6 +462,39 @@ public:
     void estimateSfSize(double& u_size, double& v_size, int u_nmb = 5,
 			int v_nmb = 5) const;
 
+   /// Check if a polynomial element (for spline surfaces) intersects the
+    /// (trimming) boundaries of this surface
+    /// \param elem_ix: Element index counted according to distinct knot
+    /// values. Sequence of coordinates: x runs fastest, then y
+    /// \param eps: Intersection tolerance
+    /// \return -1: Not a spline surface or element index out of range
+    ///          0: Not on boundary or touching a boundary curve
+    ///          1: On boundary (intersection with boundary found)
+    /// Note that a touch with the boundaries of the underlying surfaces
+    /// is not consdered a boundary intersection while touching a trimming
+    /// curve is seen as an intersection
+    virtual int ElementOnBoundary(int elem_ix, double eps)
+    {
+      return -1;  // Is overridden for bounded surface and spline surface
+    }
+
+   /// Check if a polynomial element (for spline surfaces) intersects the
+    /// (trimming) boundaries of this ftSurface, is inside or outside
+    /// \param elem_ix: Element index counted according to distinct knot
+    /// values. Sequence of coordinates: x runs fastest, then y
+    /// \param eps: Intersection tolerance
+    /// \return -1: Not a spline surface or element index out of range
+    ///          0: Outside trimmed volume
+    ///          1: On boundary (intersection with boundary found)
+    ///          2: Internal to trimmed surfaces
+    /// Note that a touch with the boundaries of the underlying surface
+    /// is not consdered a boundary intersection while touching a trimming
+    /// curve is seen as an intersection
+    virtual int ElementBoundaryStatus(int elem_ix, double eps)
+    {
+      return -1; // Is overridden for bounded surface and spline surface
+    }
+
  protected:
     /// Degeneracy information regarding one boundary surface of the current surface
     struct degenerate_info

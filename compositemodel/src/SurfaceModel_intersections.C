@@ -36,7 +36,7 @@
  * This file may be used in accordance with the terms contained in a
  * written agreement between you and SINTEF ICT. 
  */
-#define DEBUG
+//#define DEBUG
 
 #include "GoTools/compositemodel/CellDivision.h"
 #include "GoTools/utils/Point.h"
@@ -639,6 +639,36 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
   return trimmed_model;
 }
 
+
+//===========================================================================
+  /// Check if a spline surface intersects the current surface model
+  /// within the given tolerance
+  bool SurfaceModel::doIntersect(shared_ptr<SplineSurface> sf)
+//===========================================================================
+  {
+    double eps = toptol_.gap;
+
+  // Perform all intersections and return at the first found intersection
+  int ki;
+  int nmb = nmbEntities();
+  BoundingBox box = sf->boundingBox();
+  for (ki=0; ki<nmb; ++ki)
+    {
+      shared_ptr<ParamSurface> surf2 = faces_[ki]->surface();
+      BoundingBox box2 = surf2->boundingBox();
+      if (!box.overlaps(box2))
+	continue;
+
+      shared_ptr<BoundedSurface> bd1, bd2;
+      vector<shared_ptr<CurveOnSurface> > int_cv1, int_cv2;
+      BoundedUtils::getSurfaceIntersections(sf, surf2, eps,
+					    int_cv1, bd1,
+					    int_cv2, bd2);
+      if (int_cv1.size() > 0 || int_cv2.size() > 0)
+	return true;
+    }
+  return false;
+  }
 
 //===========================================================================
 // Split surface model by intersection with a different surface model.

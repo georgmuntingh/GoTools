@@ -437,6 +437,9 @@ class GO_API SurfaceModel : public CompositeModel
   std::vector<shared_ptr<SurfaceModel> > 
     splitSurfaceModels(shared_ptr<SurfaceModel>& model2);
 
+  /// Check if a spline surface intersects the current surface model
+  bool doIntersect(shared_ptr<SplineSurface> sf);
+
   // Gaussian curvature
   // Not yet implemented
   //  virtual double curvature(int idx, // Index of surface

@@ -81,7 +81,7 @@ namespace Go
     /// 1 = boundary surface corresponding to umax, 2 = boundary surface corresponding to vmin,
     /// 3 = boundary surface corresponding to vmax, 4 = boundary surface corresponding to wmin,
     /// 5 = boundary surface corresponding to wmax
-    int boundaryStatus(shared_ptr<ftVolume>& vol, shared_ptr<ftSurface>& bd_face,
+    int boundaryStatus(ftVolume* vol, shared_ptr<ftSurface>& bd_face,
 		       double tol);
  
   }  // namespace ftVolumeTools

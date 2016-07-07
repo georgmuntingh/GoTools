@@ -95,6 +95,32 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 				int cont)
 //==============================================================================
 {
+#ifdef DEBUG
+  std::ofstream ofmesh1("mesh_1.eps");
+  writePostscriptMesh(*sfs[0], ofmesh1);
+  std::ofstream ofmesh2("mesh_2.eps");
+  writePostscriptMesh(*sfs[1], ofmesh2);
+  if (sfs.size() > 2)
+    {
+      std::ofstream ofmesh3("mesh_3.eps");
+      writePostscriptMesh(*sfs[2], ofmesh3);
+    }
+  if (sfs.size() > 3)
+    {
+      std::ofstream ofmesh4("mesh_4.eps");
+      writePostscriptMesh(*sfs[3], ofmesh4);
+    }
+  if (sfs.size() > 4)
+    {
+      std::ofstream ofmesh5("mesh_5.eps");
+      writePostscriptMesh(*sfs[4], ofmesh5);
+    }
+  if (sfs.size() > 5)
+    {
+      std::ofstream ofmesh6("mesh_6.eps");
+      writePostscriptMesh(*sfs[5], ofmesh6);
+    }
+#endif
   // Ensure corresponding spline spaces along common boundaries
   // We also make sure that the surfaces are full tensor product surfaces
   // along adjacent edges (the first couple of element rows).
@@ -102,6 +128,7 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
   consistentSplineSpaces(sfs, nmb_u, nmb_v, eps, cont);
   consistentSplineSpaces(sfs, nmb_u, nmb_v, eps, cont);
   
+
   // Stitch surfaces along common edges (by altering the coefs).
   // Assosiated corners will be handled first
   int kj, kr;
@@ -213,6 +240,32 @@ void LRSurfStitch::stitchRegSfs(vector<shared_ptr<LRSplineSurface> >& sfs,
 	  }
       }
     }
+#ifdef DEBUG
+  std::ofstream ofmesh_1("mesh2_1.eps");
+  writePostscriptMesh(*sfs[0], ofmesh_1);
+  std::ofstream ofmesh_2("mesh2_2.eps");
+  writePostscriptMesh(*sfs[1], ofmesh_2);
+  if (sfs.size() > 2)
+    {
+      std::ofstream ofmesh_3("mesh2_3.eps");
+      writePostscriptMesh(*sfs[2], ofmesh_3);
+    }
+  if (sfs.size() > 3)
+    {
+      std::ofstream ofmesh_4("mesh2_4.eps");
+      writePostscriptMesh(*sfs[3], ofmesh_4);
+    }
+  if (sfs.size() > 4)
+    {
+      std::ofstream ofmesh_5("mesh2_5.eps");
+      writePostscriptMesh(*sfs[4], ofmesh_5);
+    }
+  if (sfs.size() > 5)
+    {
+      std::ofstream ofmesh_6("mesh2_6.eps");
+      writePostscriptMesh(*sfs[5], ofmesh_6);
+    }
+#endif
 }
 
 //==============================================================================
@@ -867,10 +920,10 @@ void LRSurfStitch::tensorStructure(shared_ptr<LRSplineSurface> surf,
   for (size_t kr=0; kr<refs.size(); ++kr)
     surf->refine(refs[kr]);
 
-#ifdef DEBUG
-  std::ofstream ofmesh_2("mesh_2.eps");
-  writePostscriptMesh(*surf, ofmesh_2);
-#endif
+// #ifdef DEBUG
+//   std::ofstream ofmesh_2("mesh_2.eps");
+//   writePostscriptMesh(*surf, ofmesh_2);
+// #endif
 
   return;
 }

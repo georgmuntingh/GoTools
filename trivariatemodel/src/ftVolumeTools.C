@@ -882,7 +882,7 @@ ftVolumeTools::updateWithSplitFaces(shared_ptr<SurfaceModel> shell,
 // 
 // 
 int
-ftVolumeTools::boundaryStatus(shared_ptr<ftVolume>& vol,
+ftVolumeTools::boundaryStatus(ftVolume* vol,
 			      shared_ptr<ftSurface>& bd_face,
 			      double tol)
 //===========================================================================
@@ -902,7 +902,7 @@ ftVolumeTools::boundaryStatus(shared_ptr<ftVolume>& vol,
       if (!bd_face->hasBody())
 	return -1;   // No volume information implies no boundary information available
 
-      if (bd_face->getBody() != vol.get())
+      if (bd_face->getBody() != vol)
 	return -1;   // Inconsistent volume information
 
       // For each volume boundary, check for coincidence with the given surface
@@ -942,7 +942,7 @@ ftVolumeTools::boundaryStatus(shared_ptr<ftVolume>& vol,
 	  
 	  // Replace current face
 	  shared_ptr<ftSurface> face2(new ftSurface(surf2, 0));
-	  face2->setBody(vol.get());
+	  face2->setBody(vol);
 	  ftSurface *twin = bd_face->twin();
 	  int ix = shell->getIndex(bd_face);
 	  shell->removeFace(bd_face);

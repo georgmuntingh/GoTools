@@ -37,7 +37,7 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#define DEBUG1
+//#define DEBUG1
 
 #include "GoTools/geometry/BoundedUtils.h"
 #include <fstream>
@@ -3303,7 +3303,6 @@ bool BoundedUtils::createMissingParCvs(vector<CurveLoop>& bd_loops)
 
     return all_par_cvs_ok;
 }
-
 
 
 } // end namespace Go

@@ -54,6 +54,10 @@ using std::endl;
 using std::ifstream;
 using std::vector;
 
+// This program is intended to illustrate some GoTools functionality that
+// can be useful in the context of performing isogeometric analysis on 
+// trimmed volumes. 
+
 int main(int argc, char* argv[] )
 {
   if (argc != 2)
@@ -107,9 +111,155 @@ int main(int argc, char* argv[] )
       std::cout << "Untrimming performed: " << untrimmed << std::endl;
     }
 
+  // Fetch spline volume
+  bool is_spline = vol->isSpline();
+  std::cout << "Spline? " << is_spline << std::endl;
+  shared_ptr<ParamVolume> par_vol = vol->getVolume();
+  SplineVolume *spline_vol = par_vol->asSplineVolume();
+  if (spline_vol)
+    {
+      // Refine volume
+      // First fetch parameter domain information
+      // Sequence: umin, umax, vmin, vmax, wmin, wmax
+      const Array<double, 6> pardom = spline_vol->parameterSpan();
+
+      // Insert knots. The initial underlying volume will be without
+      // inner knots. Normally, one would take existing knot vector into
+      // considerations when inserting new knots
+      vector<double> knots_u(8);
+      double udel = (pardom[1] - pardom[0])/(double)9;
+      double tt = pardom[0]+udel;
+      for (int ki=0; ki<8; ++ki, tt+=udel)
+	knots_u[ki] = tt;
+      vector<double> knots_v(5);
+      double vdel = (pardom[3] - pardom[2])/(double)6;
+      tt = pardom[2]+vdel;
+      for (int ki=0; ki<5; ++ki, tt+=vdel)
+	knots_v[ki] = tt;
+      vector<double> knots_w(4);
+      double wdel = (pardom[5] - pardom[4])/(double)5;
+      tt = pardom[4]+wdel;
+      for (int ki=0; ki<4; ++ki, tt+=wdel)
+	knots_w[ki] = tt;
+      spline_vol->insertKnot(0, knots_u);
+      spline_vol->insertKnot(1, knots_v);
+      spline_vol->insertKnot(2, knots_w);
+
+      // Insert one knot
+      spline_vol->insertKnot(2, 0.5*(knots_w[2]+knots_w[3]));
+ 
+      // Check element status
+      // -1 = not a spline volume, 0 = outside trimmed volume, 1 = boundary
+      // element, 2 = completely inside
+      int elem_ix;
+      std::cout << "Give element index" << std::endl;
+      std::cin >> elem_ix;
+      int element_status = vol->ElementBoundaryStatus(elem_ix);
+      std::cout << "Element status: " << element_status << std::endl;
+
+      // -1 = not spline, 0 = not on boundary, 1 = on boundary
+      int on_bd = vol->ElementOnBoundary(elem_ix);
+      std::cout << "On boundary: " << on_bd << std::endl;
+
+      // Perform grid evaluation. In the case of a trimmed surface, the
+      // grid will extend beyond the trimmed surface
+      // Points and derivatives
+      // Also other alternatives exist, check SplineVolume.h
+     // Define grid in the internal of the volume (non-trimmed)
+      int nmb_u = 5;
+      int nmb_v = 5;
+      int nmb_w = 5;
+      vector<double> param_u(nmb_u);
+      vector<double> param_v(nmb_v);
+      vector<double> param_w(nmb_w);
+      double del_u = (pardom[1] - pardom[0])/(double)(nmb_u+1);
+      double del_v = (pardom[3] - pardom[2])/(double)(nmb_v+1);
+      double del_w = (pardom[5] - pardom[4])/(double)(nmb_w+1);
+      int kj, kr;
+      double par;
+      for (kj=0, par=pardom[0]+del_u; kj<nmb_u; ++kj, par+=del_u)
+	param_u[kj] = par;
+      for (kj=0, par=pardom[2]+del_v; kj<nmb_v; ++kj, par+=del_v)
+	param_v[kj] = par;
+      for (kj=0, par=pardom[4]+del_w; kj<nmb_w; ++kj, par+=del_w)
+	param_w[kj] = par;
+
+      vector<double> points;
+      vector<double> derivs_u;
+      vector<double> derivs_v;
+      vector<double> derivs_w;
+      spline_vol->gridEvaluator(param_u, param_v, param_w,
+				points, derivs_u, derivs_v, derivs_w);
+
+      // Basis functions including 1. derivatives
+      // See SplineVolume.h for the struct BasisDerivs
+      vector<BasisDerivs> basis_derivs1;
+      spline_vol->computeBasisGrid(param_u, param_v, param_w,
+				   basis_derivs1);
+
+      // Including 2. derivatives
+      // See SplineVolume.h for the struct BasisDerivs2
+      vector<BasisDerivs2> basis_derivs2;
+      spline_vol->computeBasisGrid(param_u, param_v, param_w,
+				   basis_derivs2);
+
+      int stop_debug_face = 1;
+      
+    }
+
+  // Fetch parameter domain information. This function works also for 
+  // other volume types
+  const Array<double, 6> pardom = par_vol->parameterSpan();
+
+  // Evaluate in midpoint
+  Point pt;
+  par_vol->point(pt, 0.5*(pardom[0]+pardom[1]),
+		 0.5*(pardom[2]+pardom[3]), 0.5*(pardom[4]+pardom[5]));
+
+  
+  // Evaluate point and derivatives including 2nd order
+  vector<Point> der(10);  // pos, der_u, der_v, der_w, der_uu, der_uv, der_uw, der_vv, der_vw, der_ww
+  int nmb_derivs = 2;
+  par_vol->point(der, 0.5*(pardom[0]+pardom[1]),
+		 0.5*(pardom[2]+pardom[3]), 0.5*(pardom[4]+pardom[5]), 2);
+
+  // Point in volume test
+  bool inside = vol->isInside(pt);
+  std::cout << "Point in volume test for midpoint: " << inside << std::endl;
+
+  // Alternatively test parameter tripple
+  inside = vol->ParamInVolume((2.0*pardom[0]+pardom[1])/3.0,
+			      (2.0*pardom[2]+pardom[3])/3.0, 
+			      (2.0*pardom[4]+pardom[5])/3.0);
+  std::cout << "Point in volume test for point one third in in all directions: " << inside << std::endl;
+
+  // Closest point (compute parameter value) of underlying volume
+  double clo_u, clo_v, clo_w, clo_dist;
+  Point clo_pt;
+  par_vol->closestPoint(pt, clo_u, clo_v, clo_w, clo_pt, clo_dist, eps);
+  std::cout << "Closest point parameters: (" << clo_u << ", " << clo_v << ", " << clo_w << ")" << std::endl;
+  std::cout << "Distance: " << clo_dist << std::endl;
+
+  // Closest point of trimmed volume
+  double clo_u2, clo_v2, clo_w2, clo_dist2;
+  Point clo_pt2;
+  vol->closestPoint(pt, clo_u2, clo_v2, clo_w2, clo_pt2, clo_dist2, eps);
+  std::cout << "Closest point parameters(trimmed): (" << clo_u2 << ", " << clo_v2 << ", " << clo_w2 << ")" << std::endl;
+  std::cout << "Distance: " << clo_dist2 << std::endl;
+
   // Check surface category as volume boundary surfaces
   // First fetch outer boundary
   shared_ptr<SurfaceModel> shell = vol->getOuterShell();
+
+  // Closest point of shell
+  double clo_dist3;
+  Point clo_pt3;
+  double clo_par[2];
+  int clo_idx;
+  shell->closestPoint(pt, clo_pt3, clo_idx, clo_par, clo_dist3);
+  std::cout << "Closest point face index: " << clo_idx << std::endl;
+  std::cout << "Closest point parameters(shell): (" << clo_par[0] << ", " << clo_par[1] << ")" << std::endl;
+  std::cout << "Distance: " << clo_dist3 << std::endl;
 
   // Number of surfaces in shell
   int nmb = shell->nmbEntities();
@@ -128,8 +278,16 @@ int main(int argc, char* argv[] )
       // = 3 : vmax
       // = 4 : wmin
       // = 5 : wmax
-      int bd_status = ftVolumeTools::boundaryStatus(vol, face, gap);
-      std::cout << "Boundary surface nr " << ki+1 << ", boundary status: " << bd_status << std::endl;
+      int bd_status = ftVolumeTools::boundaryStatus(vol.get(), face, gap);
+      std::cout << "Boundary surface nr " << ki << ", boundary status: " << bd_status << std::endl;
+
+      // Check element status
+      // -1 = not a spline surface, 0 = outside trimmed surface, 1 = boundary
+      // element, 2 = completely inside
+      int sf_elem_ix = 0;  // Hardcoded just to show call
+      // The functionality is also available through the associated surface
+      int sf_elem_stat = face->ElementBoundaryStatus(sf_elem_ix, gap);
+      std::cout << "Element status surface " << ki << ": " << sf_elem_stat << std::endl;
 
       // Fetch associated surface
       shared_ptr<ParamSurface> surf = face->surface();
@@ -216,10 +374,12 @@ int main(int argc, char* argv[] )
       spline_surf->gridEvaluator(param_u, param_v, points, derivs_u, derivs_v);
 
       // Basis functions including 1. derivatives
-      vector<BasisDerivsSf> basis_derivs1;
+      // See SplineSurface.h for the struct BasisDerivsSf
+     vector<BasisDerivsSf> basis_derivs1;
       spline_surf->computeBasisGrid(param_u, param_v, basis_derivs1);
 
       // Including 2. derivatives
+      // See SplineSurface.h for the struct BasisDerivsSf2
       vector<BasisDerivsSf2> basis_derivs2;
       spline_surf->computeBasisGrid(param_u, param_v, basis_derivs2);
 
