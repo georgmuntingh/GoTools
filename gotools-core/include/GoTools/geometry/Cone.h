@@ -43,6 +43,7 @@
 
 #include "GoTools/geometry/ElementarySurface.h"
 #include "GoTools/geometry/Line.h"
+#include "GoTools/geometry/Circle.h"
 
 
 namespace Go
@@ -129,6 +130,10 @@ public:
 
     std::vector<shared_ptr<ParamCurve> >
     constParamCurves(double parameter, bool pardir_is_u) const;
+
+    shared_ptr<ParamCurve>
+    constParamCurve(double parameter, bool pardir_is_u,
+		    double from, double to) const;
 
     std::vector<shared_ptr<ParamSurface> >
     subSurfaces(double from_upar, double from_vpar,

@@ -670,6 +670,12 @@ public:
 	return bd_sfs_[idx];
       }
 
+    /// Fetch all boundary surfaces of a specified element
+    /// elem_par - parameter values of element boundaries, sequence umin,
+    /// umax, vmin, vmax, wmin, wmax
+    std::vector<shared_ptr<SplineSurface> > getElementBdSfs(int elem_ix,
+							    double elem_par[]) const;
+
     /// Evaluate points and derivatives on an entire grid, taking computational
     /// advantage over calculating all these values simultaneously rather than
     /// one-by-one.

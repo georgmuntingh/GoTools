@@ -3305,7 +3305,6 @@ bool BoundedUtils::createMissingParCvs(vector<CurveLoop>& bd_loops)
 }
 
 
-
 } // end namespace Go
 
 namespace {

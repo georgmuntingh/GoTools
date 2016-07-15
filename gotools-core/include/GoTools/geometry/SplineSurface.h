@@ -1228,6 +1228,45 @@ class GO_API SplineSurface : public ParamSurface
     /// spline surface is linear in both parameter direction and planar
     virtual bool isPlanar(Point& normal, double tol);
 
+   /// Check if a polynomial element (for spline surfaces) intersects the
+    /// (trimming) boundaries of this surface
+    /// \param elem_ix: Element index counted according to distinct knot
+    /// values. Sequence of coordinates: x runs fastest, then y
+    /// \param eps: Intersection tolerance
+    /// \return -1: Not a spline surface or element index out of range
+    ///          0: Not on boundary or touching a boundary curve
+    ///          1: On boundary (intersection with boundary found)
+    /// Note that a touch with the boundaries of the underlying surfaces
+    /// is not consdered a boundary intersection while touching a trimming
+    /// curve is seen as an intersection
+    virtual int ElementOnBoundary(int elem_ix, double eps)
+    {
+      return 0;  
+    }
+
+   /// Check if a polynomial element (for spline surfaces) intersects the
+    /// (trimming) boundaries of this ftSurface, is inside or outside
+    /// \param elem_ix: Element index counted according to distinct knot
+    /// values. Sequence of coordinates: x runs fastest, then y
+    /// \param eps: Intersection tolerance
+    /// \return -1: Not a spline surface or element index out of range
+    ///          0: Outside trimmed volume
+    ///          1: On boundary (intersection with boundary found)
+    ///          2: Internal to trimmed surfaces
+    /// Note that a touch with the boundaries of the underlying surface
+    /// is not consdered a boundary intersection while touching a trimming
+    /// curve is seen as an intersection
+    virtual int ElementBoundaryStatus(int elem_ix, double eps)
+    {
+      return 2;
+    }
+
+    /// Fetch curves in the parameter domain surrounding the specified element
+    /// elem_par - parameter values of element boundaries, sequence umin,
+    /// umax, vmin, vmax
+    std::vector<shared_ptr<SplineCurve> > getElementBdParCvs(int elem_ix,
+							     double elem_par[]);
+
     /// Query if the surface was generated from an ElementarySurface
     bool isElementarySurface()
     {
