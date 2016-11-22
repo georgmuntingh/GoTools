@@ -588,6 +588,112 @@ ftVolumeTools::splitVolumes(shared_ptr<ftVolume>& vol,
   return result;
 }
 
+//===========================================================================
+// 
+// 
+vector<shared_ptr<ftVolume> >
+ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
+			   double eps)
+//===========================================================================
+{
+  vector<shared_ptr<ftVolume> > result;
+
+  // Fetch trim faces from boundary shells
+  vector<shared_ptr<SurfaceModel> > shells = trim_vol->getAllShells();
+  vector<shared_ptr<ftSurface> > faces;
+  for (size_t ki=0; ki<shells.size(); ++ki)
+    {
+      int nmb = shells[ki]->nmbEntities();
+      for (int kj=0; kj<nmb; ++kj)
+	{
+	  shared_ptr<ftSurface> curr_face = shells[ki]->getFace(kj);
+	  int bd_stat = ftVolumeTools::boundaryStatus(trim_vol,
+						      curr_face, eps);
+	  if (bd_stat < 0)
+	    faces.push_back(curr_face);
+	}
+    }
+
+  // Fetch shell surrounding element volume
+  shared_ptr<SurfaceModel> elem_shell = elem_vol->getOuterShell();
+
+  // Split element volume and trim faces
+  vector<vector<shared_ptr<ParamSurface> > > split_groups;
+  elem_shell->splitSurfaceModel(faces, trim_vol, split_groups);
+
+  // Remove outdated parameter information
+  for (size_t kr=0; kr<1; ++kr)
+    {
+      for (size_t ki=0; ki<split_groups[kr].size(); ++ki)
+	{
+	  shared_ptr<ParamSurface> surf = split_groups[kr][ki];
+	  shared_ptr<SurfaceOnVolume> vol_sf = 
+	    dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(surf);
+	  if (!vol_sf.get())
+	    {
+	      shared_ptr<BoundedSurface> bd_sf = 
+		dynamic_pointer_cast<BoundedSurface,ParamSurface>(surf);
+	      vol_sf =
+		dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bd_sf->underlyingSurface());
+	    }
+	  if (vol_sf.get())
+	    {
+	      // Unset parameter surface information. Not necessarily valid.
+	      vol_sf->unsetParamSurf();
+	    }
+	}
+    }
+
+   // Add trimming face pieces to the element surfaces
+  for (size_t ki=0; ki<split_groups[2].size(); ++ki)
+    {
+      // Make oppositely oriented copy
+      shared_ptr<ParamSurface> surf1 = split_groups[2][ki];
+      shared_ptr<ParamSurface> surf2(surf1->clone());
+      surf2->swapParameterDirection();
+
+      // Add surface to element groups
+      split_groups[0].push_back(surf1);
+      split_groups[1].push_back(surf2);
+    }
+  
+  // Create surface models
+  vector<shared_ptr<SurfaceModel> > surf_mod;
+  tpTolerances toptol = shells[0]->getTolerances();
+  if (split_groups[0].size() > 0)
+    {
+      shared_ptr<SurfaceModel> mod(new SurfaceModel(toptol.gap, toptol.gap,
+						    toptol.neighbour,
+						    toptol.kink, toptol.bend,
+						    split_groups[0]));
+      surf_mod.push_back(mod);
+    }
+
+  if (split_groups[1].size() > 0)
+    {
+      shared_ptr<SurfaceModel> mod(new SurfaceModel(toptol.gap, toptol.gap,
+						    toptol.neighbour,
+						    toptol.kink, toptol.bend,
+						    split_groups[1]));
+      surf_mod.push_back(mod);
+    }
+
+  // Separate surface models into connected sets and make 
+  // corresponding volumes
+  for (size_t ki=0; ki<surf_mod.size(); ++ki)
+    {
+      vector<shared_ptr<SurfaceModel> > sep_models;
+      sep_models =surf_mod[ki]->getConnectedModels();
+      for (size_t kj=0; kj<sep_models.size(); ++kj)
+      {
+	shared_ptr<ftVolume> curr(new ftVolume(elem_vol->getVolume(), 
+					       sep_models[kj]));
+	result.push_back(curr);
+      }
+    }
+  return result;
+}
+
 
 //===========================================================================
 // 

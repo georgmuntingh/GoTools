@@ -102,7 +102,8 @@ BoundedUtils::intersectWithSurface(CurveOnSurface& curve,
 				     double epsge)
 //===========================================================================
 {
-  double int_tol = 0.1*epsge; //1e-06;
+  //double int_tol = 0.1*epsge; //1e-06;
+  double int_tol = epsge; 
 
     // We extract boundary loop, and check for intersections.
     // We do not handle trimming of trimmed surfaces with holes.
@@ -172,7 +173,9 @@ BoundedUtils::intersectWithSurface(CurveOnSurface& curve,
 			    int_params[kk].first, int_params[kk].second,
 			    par1, par2, dist, ptc1, ptc2);
 	  
-	    if (dist < init_dist)
+	    if (dist < init_dist &&
+		(fabs(int_params[kk].first-par1) < int_tol ||
+		 fabs(int_params[kk].second-par2) < int_tol))
 	      all_int_params.push_back(par1);
 	    else
 	      all_int_params.push_back(int_params[kk].first);
@@ -1420,7 +1423,7 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
       for (kj=0; kj<(int)part_bd_cvs.size(); ++kj)
 	{
 	  int coincidence = checkCurveCoincidence(old_loop_cvs[ki], part_bd_cvs[kj], 
-						  min_loop_tol, false);
+						  10.0*min_loop_tol, false);
 	  if (coincidence)
 	    {
 	      // Coincidence. Remove last curve
@@ -2137,7 +2140,7 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
 	    }
 	}
 	vector<shared_ptr<CurveOnSurface> > new_cvs = 
-	  intersectWithSurface(*cvs1[ki], *bd_sf1, 0.1*epsge);
+	  intersectWithSurface(*cvs1[ki], *bd_sf1, /*0.1**/epsge);
 	new_cvs1.insert(new_cvs1.end(), new_cvs.begin(), new_cvs.end());
 	int other_ind = opp_dir ? (int)cvs1.size() - 1 - ki : ki;
 
@@ -2156,7 +2159,7 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
 	      cvs2[other_ind]->ensureParCrvExistence(epsge);
 	    }
 	}
-	new_cvs = intersectWithSurface(*cvs2[other_ind], *bd_sf2, 0.1*epsge);
+	new_cvs = intersectWithSurface(*cvs2[other_ind], *bd_sf2, /*0.1*/epsge);
 	new_cvs2.insert(new_cvs2.end(), new_cvs.begin(), new_cvs.end());
     }
 

@@ -67,6 +67,7 @@ namespace Go
  class ftPointSet;
  class IntResultsSfModel;
  class Loop;
+ class Body;
  struct SamplePointData;
 
 //===========================================================================
@@ -436,6 +437,13 @@ class GO_API SurfaceModel : public CompositeModel
   /// \return Vector of new surface models.
   std::vector<shared_ptr<SurfaceModel> > 
     splitSurfaceModels(shared_ptr<SurfaceModel>& model2);
+
+  /// Split a surface models according to a set of faces belonging to
+  /// a specified surface model
+  void
+  splitSurfaceModel(std::vector<shared_ptr<ftSurface> >& faces,
+		    Body* model2,
+		    std::vector<std::vector<shared_ptr<ParamSurface> > >& result);
 
   /// Check if a spline surface intersects the current surface model
   bool doIntersect(shared_ptr<SplineSurface> sf);

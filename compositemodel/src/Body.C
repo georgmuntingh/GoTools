@@ -39,6 +39,9 @@
 
 #include "GoTools/compositemodel/Body.h"
 #include "GoTools/geometry/SplineCurve.h"
+#include <fstream>
+
+//#define DEBUG
 
 using std::vector;
 
@@ -258,7 +261,22 @@ bool Body::areNeighbours(Body *other, shared_ptr<ftSurface>& bd_face1,
   size_t ki, kj;
   for (ki=0; ki<shells_.size(); ++ki)
     {
-      vector<bool> seg0;
+#ifdef DEBUG
+      std::ofstream of("insidetest.g2");
+      int nmb = shells_[ki]->nmbEntities();
+      for (kj=0; kj<nmb; ++kj)
+	{
+	  shared_ptr<ParamSurface> sf = shells_[ki]->getSurface(kj);
+	  sf->writeStandardHeader(of);
+	  sf->write(of);
+	}
+      crv->writeStandardHeader(of);
+      crv->write(of);
+      of << "400 1 0 4 255 0 0 255" << std::endl;
+      of << "1" << std::endl;
+      of << pnt << std::endl;
+#endif
+       vector<bool> seg0;
       vector<pair<ftPoint, double> > int_pts0 = 
 	shells_[ki]->intersect(crv, seg0);
       int_pts.insert(int_pts.end(), int_pts0.begin(), int_pts0.end());
