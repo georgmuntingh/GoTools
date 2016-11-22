@@ -210,8 +210,6 @@ public:
     /// \return \a true if bounded, \a false otherwise
     bool isBounded() const;
 
-    shared_ptr<Circle> getCircle(double par) const;
-
     /// Check if the surface is closed.
     bool isClosed(bool& closed_dir_u, bool& closed_dir_v) const;
 

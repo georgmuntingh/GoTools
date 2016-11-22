@@ -229,11 +229,19 @@ SplineCurve* SplineCurve::subCurve(double from_par, double to_par,
 	if (is_elementary_curve_)
 	  {
 	    the_subCurve->is_elementary_curve_ = true;
-	    ElementaryCurve *tmp = 
-	      elementary_curve_->subCurve(the_subCurve->startparam(),
-					  the_subCurve->endparam(),
-					  fuzzy);
-	    the_subCurve->elementary_curve_ = shared_ptr<ElementaryCurve>(tmp);
+	    ElementaryCurve *tmp = NULL;
+	    try {
+	      tmp =elementary_curve_->subCurve(the_subCurve->startparam(),
+					       the_subCurve->endparam(),
+					       fuzzy);
+	    }
+	    catch (...)
+	      {
+		the_subCurve->is_elementary_curve_ = false;
+		the_subCurve->elementary_curve_.reset();
+	      }
+	    if (tmp)
+	      the_subCurve->elementary_curve_ = shared_ptr<ElementaryCurve>(tmp);
 	  }
 	sub_cvs.push_back(shared_ptr<SplineCurve>(the_subCurve));
 	start = curr - kk + 1;
@@ -256,11 +264,19 @@ SplineCurve* SplineCurve::subCurve(double from_par, double to_par,
     if (is_elementary_curve_)
       {
 	the_subCurve->is_elementary_curve_ = true;
-	ElementaryCurve *tmp = 
-	  elementary_curve_->subCurve(the_subCurve->startparam(),
+	ElementaryCurve *tmp;
+	try {
+	  tmp = elementary_curve_->subCurve(the_subCurve->startparam(),
 				      the_subCurve->endparam(),
 				      fuzzy);
-	the_subCurve->elementary_curve_ = shared_ptr<ElementaryCurve>(tmp);
+	}
+	catch (...)
+	  {
+	    the_subCurve->is_elementary_curve_ = false;
+	    tmp = NULL;
+	  }
+	  if (tmp)
+	    the_subCurve->elementary_curve_ = shared_ptr<ElementaryCurve>(tmp);
       }
     sub_cvs.push_back(shared_ptr<SplineCurve>(the_subCurve));
     
