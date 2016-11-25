@@ -226,6 +226,8 @@ public:
 
     shared_ptr<Line> getLine(double upar) const; 
 
+    shared_ptr<Circle> getCircle(double par) const;
+
     shared_ptr<ElementaryCurve> 
       getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
 			      const Point* start_par_pt = NULL, const Point* end_par_pt = NULL) const;
