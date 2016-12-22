@@ -81,7 +81,6 @@ namespace Go
 class GO_API SurfaceModel : public CompositeModel  
 {
  public:
-
   /// Constructor taking a vector of faces
   /// \param approxtol Approximation error tolerance.
   /// \param gap If the distance between two points are less than 'gap' they

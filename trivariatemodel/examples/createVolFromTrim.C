@@ -45,6 +45,7 @@
 #include "GoTools/compositemodel/SurfaceModel.h"
 #include "GoTools/trivariatemodel/ftVolume.h"
 #include "GoTools/trivariatemodel/ftVolumeTools.h"
+#include "GoTools/trivariatemodel/VolumeModelFileHandler.h"
 #include <fstream>
 
 using namespace Go;
@@ -163,8 +164,18 @@ int main( int argc, char* argv[] )
   // they intersect the non-boundary trimming surface
   shared_ptr<ftVolume> curr_vol = topvols2[0];
   
+  std::ofstream out_file("volmodel2.g22");
+  VolumeModelFileHandler filehandler;
+  filehandler.writeStart(out_file);
+  filehandler.writeHeader("Test ftVolume", out_file);
+  filehandler.writeVolume(curr_vol, out_file);
+  filehandler.writeEnd(out_file);
+
+  VolumeModelFileHandler filehandler2;
+  shared_ptr<ftVolume> curr_vol2 = filehandler2.readVolume("volmodel2.g22");
+
   // Number of elements in underlying volume
-  SplineVolume* curr_under = curr_vol->getVolume()->asSplineVolume();
+  SplineVolume* curr_under = curr_vol2->getVolume()->asSplineVolume();
   int nmb_elem = curr_under->numElem();
   std::cout << "No of elements: " << nmb_elem << std::endl;
 
@@ -173,7 +184,7 @@ int main( int argc, char* argv[] )
   std::ofstream of6("tmp6.g2");
   for (int ki=0; ki<nmb_elem; ++ki)
     {
-      int elem_stat = curr_vol->ElementBoundaryStatus(ki);
+      int elem_stat = curr_vol2->ElementBoundaryStatus(ki);
       std::cout << "Boundary status, element " << ki+1 << ": " << elem_stat << std::endl;
 
       if (elem_stat == 1)
@@ -181,7 +192,7 @@ int main( int argc, char* argv[] )
 	  // Element intersects trimming surface
 	  // Split element with trimming shell
 	  vector<shared_ptr<ftVolume> > sub_elem;
-	  curr_vol->splitElementByTrimSfs(ki, eps, sub_elem);
+	  curr_vol2->splitElementByTrimSfs(ki, eps, sub_elem);
 
 	  std::ofstream of4("tmp4.g2");
 	  for (size_t kj=0; kj<sub_elem.size(); ++kj)

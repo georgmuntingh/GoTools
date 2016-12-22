@@ -37,7 +37,7 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-//#define DEBUG1
+#define DEBUG1
 
 #include "GoTools/geometry/BoundedUtils.h"
 #include <fstream>
@@ -468,6 +468,13 @@ BoundedUtils::getSurfaceIntersections(const shared_ptr<ParamSurface>& surf1,
     shared_ptr<ParamSurface> under_sf1 = bounded_sf1->underlyingSurface();
     shared_ptr<ParamSurface> under_sf2 = bounded_sf2->underlyingSurface();
 
+#ifdef DEBUG1
+    std::ofstream debug("int_crv_surf.g2");
+    bounded_sf1->writeStandardHeader(debug);
+    bounded_sf1->write(debug);
+    bounded_sf2->writeStandardHeader(debug);
+    bounded_sf2->write(debug);
+#endif
     try {
       getIntersectionCurve(under_sf1, under_sf2, int_segments1, int_segments2, 
 			   epsge);
@@ -476,11 +483,6 @@ BoundedUtils::getSurfaceIntersections(const shared_ptr<ParamSurface>& surf1,
     }
 
 #ifdef DEBUG1
-    std::ofstream debug("int_crv_surf.g2");
-    bounded_sf1->writeStandardHeader(debug);
-    bounded_sf1->write(debug);
-    bounded_sf2->writeStandardHeader(debug);
-    bounded_sf2->write(debug);
     for (int ki=0; ki<int(int_segments1.size()); ++ki)
       {
 	int_segments1[ki]->spaceCurve()->writeStandardHeader(debug);
@@ -1978,43 +1980,59 @@ BoundedUtils::getIntersectionCurve(shared_ptr<ParamSurface>& sf1,
     double maxstep = (double)0;
     int makecurv = 2; // Make both geometric and parametric curves.
     int draw = 0;
-    for (ki = 0; ki < nmb_int_cvs; ++ki) {
-	s1310(sisl_sf1, sisl_sf2, intcurves[ki], march_eps, maxstep, makecurv, draw, &status);
-	ALWAYS_ERROR_IF(status < 0,
-		    "Failed intersecting surfs.");
-	MESSAGE_IF(status != 0, "Returned status value: " << status);
+    for (ki = 0; ki < nmb_int_cvs; ++ki) 
+      {
+	shared_ptr<SplineCurve> pcurve1, pcurve2;
+	if (intcurves[ki]->pgeom == NULL)
+	  {
+	    s1310(sisl_sf1, sisl_sf2, intcurves[ki], march_eps, maxstep, makecurv, draw, &status);
+	    ALWAYS_ERROR_IF(status < 0,
+			    "Failed intersecting surfs.");
+	    MESSAGE_IF(status != 0, "Returned status value: " << status);
+	  }
 
-	shared_ptr<SplineCurve> pcurve1(SISLCurve2Go(intcurves[ki]->ppar1));
-	shared_ptr<SplineCurve> pcurve2(SISLCurve2Go(intcurves[ki]->ppar2));
+	if (intcurves[ki]->ppar1 && intcurves[ki]->ppar2)
+	  {
+	    pcurve1 = shared_ptr<SplineCurve>(SISLCurve2Go(intcurves[ki]->ppar1));
+	    pcurve2 = shared_ptr<SplineCurve>(SISLCurve2Go(intcurves[ki]->ppar2));
+	  }
 	shared_ptr<SplineCurve> space_curve1(SISLCurve2Go(intcurves[ki]->pgeom));
 	//shared_ptr<SplineCurve> space_curve2(new SplineCurve(*space_curve1));
 	shared_ptr<SplineCurve> space_curve2(space_curve1->clone());
 
 	// Make sure that the curves are k-regular
-	pcurve1->makeKnotStartRegular();
-	pcurve1->makeKnotEndRegular();
-	pcurve2->makeKnotStartRegular();
-	pcurve2->makeKnotEndRegular();
 	space_curve1->makeKnotStartRegular();
 	space_curve1->makeKnotEndRegular();
 	space_curve2->makeKnotStartRegular();
 	space_curve2->makeKnotEndRegular();
+	if (pcurve1.get() && pcurve2.get())
+	  {
+	    pcurve1->makeKnotStartRegular();
+	    pcurve1->makeKnotEndRegular();
+	    pcurve2->makeKnotStartRegular();
+	    pcurve2->makeKnotEndRegular();
 
-	// We make sure the intersection cvs have the right direction (area below sfs
-	// to be trimmed away).
-	consistentIntersectionDir(*pcurve1, *space_curve1, *sf1,
-				  *pcurve2, *space_curve2, *sf2, epsgeo);
-	consistentIntersectionDir(*pcurve2, *space_curve2, *sf2,
-				  *pcurve1, *space_curve1, *sf1, epsgeo);
-
+	    // We make sure the intersection cvs have the right direction 
+	    // (area below sfs to be trimmed away).
+	    consistentIntersectionDir(*pcurve1, *space_curve1, *sf1,
+				      *pcurve2, *space_curve2, *sf2, epsgeo);
+	    consistentIntersectionDir(*pcurve2, *space_curve2, *sf2,
+				      *pcurve1, *space_curve1, *sf1, epsgeo);
+	  }
 	// int_segments1.push_back(shared_ptr<CurveOnSurface>
 	// 			(new CurveOnSurface(sf1, pcurve1, space_curve1, true)));
 	// int_segments2.push_back(shared_ptr<CurveOnSurface>
 	// 			(new CurveOnSurface(sf2, pcurve2, space_curve2, true)));
-	int_segments1.push_back(shared_ptr<CurveOnSurface>
-				(new CurveOnSurface(sf1, pcurve1, space_curve1, false)));
-	int_segments2.push_back(shared_ptr<CurveOnSurface>
-				(new CurveOnSurface(sf2, pcurve2, space_curve2, false)));
+	shared_ptr<CurveOnSurface> curr_seg1
+	  (new CurveOnSurface(sf1, pcurve1, space_curve1, false));
+	if (!pcurve1.get())
+	  curr_seg1->ensureParCrvExistence(epsgeo);
+	int_segments1.push_back(curr_seg1);
+	shared_ptr<CurveOnSurface> curr_seg2
+	  (new CurveOnSurface(sf2, pcurve2, space_curve2, false));
+	if (!pcurve2.get())
+	  curr_seg2->ensureParCrvExistence(epsgeo);
+	int_segments2.push_back(curr_seg2);
     }
 
     // As we're using SISL we must not forget to release memory.

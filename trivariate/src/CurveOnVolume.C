@@ -41,6 +41,7 @@
 #include "GoTools/trivariate/VolumeTools.h"
 #include "GoTools/geometry/SplineCurve.h"
 #include "GoTools/geometry/RectDomain.h"
+#include "GoTools/geometry/Factory.h"
 #include <fstream>
 
 using namespace Go;
@@ -48,6 +49,8 @@ using std::vector;
 using std::pair;
 using std::max;
 using std::min;
+using std::streamsize;
+using std::endl;
 
 //===========================================================================
 CurveOnVolume::CurveOnVolume()
@@ -140,18 +143,96 @@ CurveOnVolume::~CurveOnVolume()
 void CurveOnVolume::read(std::istream& is)
 //===========================================================================
 {
-  // Must be implemented
+  bool is_good = is.good();
+  if (!is_good) {
+    THROW("Invalid geometry file!");
+  }
+  // Do not care about surface...
+  ALWAYS_ERROR_IF(pcurve_.get() != NULL,
+		  "Parameter curve already exists!");
+
+  ALWAYS_ERROR_IF(spacecurve_.get() != NULL,
+		  "Space curve already exists!");
+
+  bool prefer_parameter;
+  int  prefer_parameter_int;
+  int  pcurve_type;
+  int  spacecurve_type;
+  shared_ptr<ParamCurve> pcurve;
+  shared_ptr<ParamCurve> spacecurve;
+
+  is >> prefer_parameter_int;
+  if (prefer_parameter_int == 0)
+    prefer_parameter = false;
+  else if (prefer_parameter_int == 1)
+    prefer_parameter = true;
+  else 
+    THROW("Unknown input for preferred CurveOnSurface parameter");
+
+  is >> pcurve_type;
+  is >> spacecurve_type;
+
+  if (pcurve_type == 0) {
+    // Do nothing - continue
+  }
+  else {
+    ClassType type = ClassType(pcurve_type); // Needs this conversion
+    shared_ptr<GeomObject> goobject(Factory::createObject(type));
+    pcurve = dynamic_pointer_cast<ParamCurve, GeomObject>(goobject);
+    ALWAYS_ERROR_IF(pcurve.get() == 0,
+		    "Can not read this instance type");
+    pcurve->read(is);
+  }
+
+  if (spacecurve_type == 0) {
+    // Do nothing - continue
+  }
+  else {
+    ClassType type = ClassType(spacecurve_type); // Needs this conversion
+    shared_ptr<GeomObject> goobject(Factory::createObject(type));
+    spacecurve = dynamic_pointer_cast<ParamCurve, GeomObject>(goobject);
+    ALWAYS_ERROR_IF(spacecurve.get() == 0,
+		    "Can not read this instance type");
+    spacecurve->read(is);
+  }
+
+  prefer_parameter_ = prefer_parameter;
+  pcurve_ = pcurve;
+  spacecurve_ = spacecurve;
 }
 
 //===========================================================================
 void CurveOnVolume::write(std::ostream& os) const
 //===========================================================================
 {
-  // Not final. Just for debugging
-  if (spacecurve_.get())
-    spacecurve_->write(os);
-  else
-    pcurve_->write(os);
+  streamsize prev = os.precision(15);
+
+  // We do not write the volume. It must be reconnected while reading
+    if (!prefer_parameter_)
+	os << "0";
+    else
+	os << "1";
+    os << ' ';
+
+    if (pcurve_.get() == NULL)
+	os << "0";
+    else
+	os << pcurve_->instanceType();
+    os << ' ';
+
+    if (spacecurve_.get() == NULL)
+	os << "0";
+    else
+	os << spacecurve_->instanceType();
+    os << endl;
+
+    if (pcurve_.get() != NULL)
+	pcurve_->write(os);
+
+    if (spacecurve_.get() != NULL)
+	spacecurve_->write(os);
+
+    os.precision(prev);   // Reset precision to it's previous value
 }
 
 //===========================================================================
@@ -182,7 +263,12 @@ DirectionCone CurveOnVolume::directionCone() const
 int CurveOnVolume::dimension() const
 //===========================================================================
 {
-  return volume_->dimension();
+  if (volume_.get())
+    return volume_->dimension();
+  else if (spacecurve_.get())
+    return spacecurve_->dimension();
+  else
+    return 3;  // Should not occur
 }
 
 //===========================================================================

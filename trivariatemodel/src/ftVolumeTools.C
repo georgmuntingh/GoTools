@@ -997,6 +997,13 @@ ftVolumeTools::boundaryStatus(ftVolume* vol,
   shared_ptr<ParamSurface> surf = bd_face->surface();
   shared_ptr<SurfaceOnVolume> vol_sf = 
     dynamic_pointer_cast<SurfaceOnVolume, ParamSurface>(surf);
+  shared_ptr<BoundedSurface> bd_sf = 
+    dynamic_pointer_cast<BoundedSurface, ParamSurface>(surf);
+  if (bd_sf.get())
+    {
+      vol_sf = dynamic_pointer_cast<SurfaceOnVolume, ParamSurface>(bd_sf->underlyingSurface());
+    }
+
   if (vol_sf.get())
     {
       int orientation;

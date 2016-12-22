@@ -66,6 +66,8 @@
 using std::vector;
 using std::make_pair;
 using std::pair;
+using std::min;
+using std::max;
 
 using namespace Go;
 
@@ -2019,6 +2021,7 @@ shared_ptr<ParamVolume> ftVolume::getRegParVol(int degree)
   // First replace the side surfaces by their parameter volume
   // equivalents
   vector<shared_ptr<ParamSurface> > sorted_sfs2(6);
+  vector<shared_ptr<ftSurface> > face2(6);
   for (size_t ki=0; ki<sorted_sfs.size(); ++ki)
     {
       shared_ptr<SurfaceOnVolume> volsf = 
@@ -2074,13 +2077,26 @@ shared_ptr<ParamVolume> ftVolume::getRegParVol(int degree)
 								    loops,
 								    eps,
 								    false));
+
+      // Create also the corresponding face
+      face2[ki] = shared_ptr<ftSurface>(new ftSurface(sorted_sfs2[ki], 
+						      (int)ki));
+      (void)face2[ki]->createInitialEdges();
     }
+
+  // Transfer adjacency information to the set of parameter volume
+  // side surfaces
+  setParameterVolAdjacency(sorted_sfs, face2);
   
   // Create intermediate topological volume
+  // shared_ptr<SurfaceModel> shell(new SurfaceModel(toptol_.gap, toptol_.gap,
+  // 						  10.0*toptol_.neighbour, 
+  // 						  toptol_.kink, toptol_.bend,
+  // 						  sorted_sfs2));
   shared_ptr<SurfaceModel> shell(new SurfaceModel(toptol_.gap, toptol_.gap,
-						  10.0*toptol_.neighbour, 
+						  toptol_.neighbour, 
 						  toptol_.kink, toptol_.bend,
-						  sorted_sfs2));
+						  face2, true));
   shared_ptr<ftVolume> tmp_vol(new ftVolume(vol_, shell));
   result = tmp_vol->createByCoons(sorted_sfs2, classification,
 				  shells_[0]->getTolerances().gap,
@@ -2098,6 +2114,128 @@ shared_ptr<ParamVolume> ftVolume::getRegParVol(int degree)
   return result;
 }
 
+
+//===========================================================================
+// 
+// 
+void 
+ftVolume::setParameterVolAdjacency(vector<shared_ptr<ParamSurface> >& sfs1,
+				   vector<shared_ptr<ftSurface> >& face2) const
+//===========================================================================
+{
+  // Collect faces corresponding to input surfaces
+  vector<shared_ptr<ftSurface> > face1(sfs1.size());
+  shared_ptr<SurfaceModel> shell = getOuterShell();
+  for (size_t ki=0; ki<sfs1.size(); ++ki)
+    {
+      int sf_ix = shell->getIndex(sfs1[ki].get());
+      face1[ki] = shell->getFace(sf_ix);
+    }
+
+  for (size_t ki=0; ki<face1.size(); ++ki)
+    for (size_t kj=ki+1; kj<face1.size(); ++kj)
+      {
+	int adj_ix = 0;
+	shared_ptr<ftEdge> edge1, edge2;
+	bool adjacent = face1[ki]->areNeighbours(face1[kj].get(), edge1,
+						 edge2, adj_ix);
+	while (adjacent)
+	  {
+	    // Adjacent faces. Transfer adjacency to corresponding
+	    // parameter volume faces
+	    // Find corresponding edges in parameter volume
+	    // First find parameter value of end vertices of common edge
+	    Point pos1 = edge1->getVertex(true)->getVertexPoint();
+	    Point pos2 = edge1->getVertex(false)->getVertexPoint();
+
+	    double u1, u2, v1, v2, w1, w2, dd1, dd2, paru1, paru2, parv1, parv2;
+	    Point clo_pt1, clo_pt2;
+	    closestBoundaryPoint(pos1, u1, v1, w1, clo_pt1, dd1, paru1, 
+				 parv1, toptol_.gap);
+	    closestBoundaryPoint(pos2, u2, v2, w2, clo_pt2, dd2, paru2, 
+				 parv2, toptol_.gap);
+	    Point par1(u1, v1, w1);
+	    Point par2(u2, v2, w2);
+
+	    // Identify corresponding edges in parameter faces. First
+	    // check endpoints
+	    vector<shared_ptr<ftEdge> > e1 = face2[ki]->getAllEdges(0);
+	    vector<shared_ptr<ftEdge> > e2 = face2[kj]->getAllEdges(0);
+
+	    vector<double> edgdist1(e1.size());
+	    vector<double> edgdist2(e2.size());
+	    double mindist1 = HUGE, mindist2 = HUGE;
+	    int min_ix1 = -1, min_ix2 = -1;
+	    for (size_t kr=0; kr<e1.size(); ++kr)
+	      {
+		Point vxpos1 = e1[kr]->point(e1[kr]->tMin());		
+		Point vxpos2 = e1[kr]->point(e1[kr]->tMax());
+		edgdist1[kr] = std::min(par1.dist(vxpos1), par1.dist(vxpos2)) +
+		  std::min(par2.dist(vxpos1), par2.dist(vxpos2));
+		if (edgdist1[kr] < mindist1)
+		  {
+		    mindist1 = edgdist1[kr];
+		    min_ix1 = (int)kr;
+		  }
+	      }
+
+	    for (size_t kr=0; kr<e2.size(); ++kr)
+	      {
+		Point vxpos1 = e2[kr]->point(e2[kr]->tMin());		
+		Point vxpos2 = e2[kr]->point(e2[kr]->tMax());
+		edgdist2[kr] = std::min(par1.dist(vxpos1), par1.dist(vxpos2)) +
+		  std::min(par2.dist(vxpos1), par2.dist(vxpos2));
+		if (edgdist2[kr] < mindist2)
+		  {
+		    mindist2 = edgdist2[kr];
+		    min_ix2 = (int)kr;
+		  }
+	      }
+	    int stat;
+	    if (mindist1 < toptol_.neighbour && mindist2 < toptol_.neighbour)
+	      e1[min_ix1]->connectTwin(e2[min_ix2].get(), stat);
+	    else
+	      {
+		// Not exact corner match. Perform closer check
+		double mindist = HUGE;
+		min_ix1 = min_ix2 = -1;
+		for (size_t kr=0; kr<e1.size(); ++kr)
+		  {
+		    Point vxpos1 = e1[kr]->point(e1[kr]->tMin());		
+		    Point vxpos2 = e1[kr]->point(e1[kr]->tMax());
+		    for (size_t kh=0; kh<e2.size(); ++kh)
+		      {
+			Point vxpos3 = e2[kh]->point(e2[kh]->tMin());		
+			Point vxpos4 = e2[kh]->point(e2[kh]->tMax());
+
+			double t1, t2, t3, t4, d1, d2, d3, d4;
+			Point p1, p2, p3, p4;
+			e1[kr]->closestPoint(vxpos3, t1, p1, d1);
+			e1[kr]->closestPoint(vxpos4, t2, p2, d2);
+			e2[kh]->closestPoint(vxpos1, t3, p3, d3);
+			e2[kh]->closestPoint(vxpos2, t4, p4, d4);
+			double dist = min(min(min(d1+d2, d1+d4),
+					      min(d2+d3, d3+d4)),
+					  min(d1+d3,d2+d4));
+			if (dist < mindist)
+			  {
+			    mindist = dist;
+			    min_ix1 = (int)kr;
+			    min_ix2 = (int)kh;
+			  }
+		      }
+		  }
+		e1[min_ix1]->connectTwin(e2[min_ix2].get(), stat);
+	      }
+
+	    // Check for more adjacency between the current faces
+	    adj_ix++;
+	    adjacent = face1[ki]->areNeighbours(face1[kj].get(), edge1,
+						edge2, adj_ix); 
+	  }
+      }
+
+}
 
 //===========================================================================
 // 

@@ -50,21 +50,48 @@ namespace Go
 
 //---------------------------------------------------------------------------
 Body::Body()
-    : toptol_(0.0, 0.0, 0.0, 0.0)
+  : material_id_(-1), toptol_(0.0, 0.0, 0.0, 0.0)
 //---------------------------------------------------------------------------
 {
 }
 
-//---------------------------------------------------------------------------
-Body::Body(const CoordinateSystem<3> xyz)
-    : coordinate_(xyz), toptol_(0.0, 0.0, 0.0, 0.0)
-//---------------------------------------------------------------------------
-{
-}
+// //---------------------------------------------------------------------------
+// Body::Body(const CoordinateSystem<3> xyz)
+//     : coordinate_(xyz), toptol_(0.0, 0.0, 0.0, 0.0)
+// //---------------------------------------------------------------------------
+// {
+// }
 
-//---------------------------------------------------------------------------
-Body::Body(const CoordinateSystem<3> xyz, vector<shared_ptr<SurfaceModel> >& shells)
-    : coordinate_(xyz), shells_(shells), toptol_(0.0, 0.0, 0.0, 0.0)
+// //---------------------------------------------------------------------------
+// Body::Body(const CoordinateSystem<3> xyz, vector<shared_ptr<SurfaceModel> >& shells)
+//     : coordinate_(xyz), shells_(shells), toptol_(0.0, 0.0, 0.0, 0.0)
+// //---------------------------------------------------------------------------
+// {
+//     double gap=0.0, neighbour=0.0, kink=0.0, bend=0.0;
+//     for (size_t ki=0; ki<shells.size(); ki++)
+//     {
+// 	tpTolerances toptol = shells[ki]->getTolerances();
+// 	gap = std::max(toptol.gap, gap);
+// 	neighbour = std::max(toptol.neighbour, neighbour);
+// 	kink = std::max(toptol.kink, kink);
+// 	bend = std::max(toptol.bend, bend);
+//     }
+//     toptol_ = tpTolerances(gap, neighbour, kink, bend);
+
+//     addBodyPointers();
+// }
+
+// //---------------------------------------------------------------------------
+// Body::Body(const CoordinateSystem<3> xyz, shared_ptr<SurfaceModel>  shell)
+//     : coordinate_(xyz), toptol_(shell->getTolerances())
+// //---------------------------------------------------------------------------
+// {
+//     shells_.push_back(shell);
+//     addBodyPointers();
+// }
+
+  Body::Body(vector<shared_ptr<SurfaceModel> >& shells, int material_id)
+    : shells_(shells), material_id_(material_id), toptol_(0.0, 0.0, 0.0, 0.0)
 //---------------------------------------------------------------------------
 {
     double gap=0.0, neighbour=0.0, kink=0.0, bend=0.0;
@@ -82,35 +109,8 @@ Body::Body(const CoordinateSystem<3> xyz, vector<shared_ptr<SurfaceModel> >& she
 }
 
 //---------------------------------------------------------------------------
-Body::Body(const CoordinateSystem<3> xyz, shared_ptr<SurfaceModel>  shell)
-    : coordinate_(xyz), toptol_(shell->getTolerances())
-//---------------------------------------------------------------------------
-{
-    shells_.push_back(shell);
-    addBodyPointers();
-}
-
-Body::Body(vector<shared_ptr<SurfaceModel> >& shells)
-    : shells_(shells), toptol_(0.0, 0.0, 0.0, 0.0)
-//---------------------------------------------------------------------------
-{
-    double gap=0.0, neighbour=0.0, kink=0.0, bend=0.0;
-    for (size_t ki=0; ki<shells.size(); ki++)
-    {
-	tpTolerances toptol = shells[ki]->getTolerances();
-	gap = std::max(toptol.gap, gap);
-	neighbour = std::max(toptol.neighbour, neighbour);
-	kink = std::max(toptol.kink, kink);
-	bend = std::max(toptol.bend, bend);
-    }
-    toptol_ = tpTolerances(gap, neighbour, kink, bend);
-
-    addBodyPointers();
-}
-
-//---------------------------------------------------------------------------
-Body::Body(shared_ptr<SurfaceModel>  shell)
-    : toptol_(shell->getTolerances())
+  Body::Body(shared_ptr<SurfaceModel>  shell, int material_id)
+    : material_id_(material_id), toptol_(shell->getTolerances())
 //---------------------------------------------------------------------------
 {
     shells_.push_back(shell);
@@ -228,6 +228,22 @@ bool Body::areNeighbours(Body *other, shared_ptr<ftSurface>& bd_face1,
 	}
     }
   return false;
+}
+
+//---------------------------------------------------------------------------
+void Body::eraseBodyAdjacency()
+//---------------------------------------------------------------------------
+{
+  for (size_t ki=0; ki<shells_.size(); ++ki)
+    {
+      int nmb_faces = shells_[ki]->nmbEntities();
+      for (int kj=0; kj<nmb_faces; ++kj)
+	{
+	  shared_ptr<ftSurface> curr = shells_[ki]->getFace(kj);
+	  if (curr->hasTwin())
+	    curr->disconnectTwin();
+	}
+    }
 }
 
 //---------------------------------------------------------------------------

@@ -43,6 +43,7 @@
 #include "GoTools/compositemodel/CompositeModelFactory.h"
 #include "GoTools/compositemodel/SurfaceModel.h"
 #include "GoTools/compositemodel/RegularizeFaceSet.h"
+#include "GoTools/trivariatemodel/VolumeModelFileHandler.h"
 
 using namespace Go;
 using std::cout;
@@ -113,8 +114,20 @@ int main(int argc, char* argv[] )
 
   // shared_ptr<ftVolume> ftvol = 
   //   shared_ptr<ftVolume>(new ftVolume(sfmodel2));
+   // Write shell to file
+  std::ofstream out_file0("shell.g22");
+  CompositeModelFileHandler filehandler0;
+  filehandler0.writeStart(out_file0);
+  filehandler0.writeHeader("Input shell", out_file0);
+  filehandler0.writeSurfModel(*sfmodel, out_file0);
+  filehandler0.writeEnd(out_file0);
+
+  // Read the file back
+  CompositeModelFileHandler filehandler02;
+  shared_ptr<SurfaceModel> sfmodel2 = filehandler02.readShell("shell.g22");
+
   shared_ptr<ftVolume> ftvol = 
-    shared_ptr<ftVolume>(new ftVolume(sfmodel));
+    shared_ptr<ftVolume>(new ftVolume(sfmodel2));
 
   int nmb;
   int ki;
@@ -187,18 +200,48 @@ int main(int argc, char* argv[] )
 
 
   std::cout << "Number of volumes: " << volmod->nmbEntities() << std::endl;
-	  
-  std::ofstream of6("output_volumes.g2");
-  int nmb_vols = volmod->nmbEntities();
-  for (int kr=0; kr<nmb_vols; ++kr)
+  int nmb_vols0 = volmod->nmbEntities();
+  for (int kr=0; kr<nmb_vols0; ++kr)
     {
       shared_ptr<ftVolume> curr_vol = volmod->getBody(kr);
       bool bd_trim = curr_vol->isBoundaryTrimmed();
       bool iso_trim = curr_vol->isIsoTrimmed();
       bool reg = curr_vol->isRegularized();
 
+      vector<ftVolume*> ng0;
+      curr_vol->getAdjacentBodies(ng0);
+
       std::cout << "Volume nr " << kr << ": " << bd_trim;
-      std::cout << " " << iso_trim << " " << reg << std::endl;
+      std::cout << " " << iso_trim << " " << reg;
+      std::cout << ", no of neighbours: " << ng0.size() << std::endl;
+    }
+	  
+  std::ofstream out_file("volmodel3.g22");
+  VolumeModelFileHandler filehandler;
+  filehandler.writeStart(out_file);
+  filehandler.writeHeader("Test VolumeModel", out_file);
+  filehandler.writeVolumeModel(*volmod, out_file);
+  filehandler.writeEnd(out_file);
+
+  VolumeModelFileHandler filehandler2;
+  shared_ptr<VolumeModel> volmod2 = filehandler2.readVolumeModel("volmodel3.g22");
+  std::cout << "Number of volumes: " << volmod2->nmbEntities() << std::endl;
+
+  std::ofstream of6("output_volumes.g2");
+  int nmb_vols = volmod2->nmbEntities();
+  for (int kr=0; kr<nmb_vols; ++kr)
+    {
+      shared_ptr<ftVolume> curr_vol = volmod2->getBody(kr);
+      bool bd_trim = curr_vol->isBoundaryTrimmed();
+      bool iso_trim = curr_vol->isIsoTrimmed();
+      bool reg = curr_vol->isRegularized();
+
+      vector<ftVolume*> ng0;
+      curr_vol->getAdjacentBodies(ng0);
+
+      std::cout << "Volume nr " << kr << ": " << bd_trim;
+      std::cout << " " << iso_trim << " " << reg;
+      std::cout << ", no of neighbours: " << ng0.size() << std::endl;
 
       std::ofstream of7("Curr_vol.g2");
       shared_ptr<SurfaceModel> mod = curr_vol->getOuterShell();
@@ -242,21 +285,21 @@ int main(int argc, char* argv[] )
 		}
 	    }
 	      
-	  shared_ptr<ParamVolume> curr_vol2 = volmod->getVolume(kr);
+	  shared_ptr<ParamVolume> curr_vol2 = volmod2->getVolume(kr);
 	  curr_vol2->writeStandardHeader(of6);
 	  curr_vol2->write(of6);
 	}
     }
     
-  volmod->makeCommonSplineSpaces();
-  volmod->averageCorrespondingCoefs();
+  volmod2->makeCommonSplineSpaces();
+  volmod2->averageCorrespondingCoefs();
 
-  nmb_vols = volmod->nmbEntities();
+  nmb_vols = volmod2->nmbEntities();
   for (int kr=0; kr<nmb_vols; ++kr)
     {
-      shared_ptr<ParamVolume> curr_vol2 = volmod->getVolume(kr);
+      shared_ptr<ParamVolume> curr_vol2 = volmod2->getVolume(kr);
       vector<ftVolume*> ng3;
-      volmod->getBody(kr)->getAdjacentBodies(ng3);
+      volmod2->getBody(kr)->getAdjacentBodies(ng3);
       std::cout << "Vol nr" << kr << ", nmb neighbours: " << ng3.size() << std::endl;
       curr_vol2->writeStandardHeader(outfile);
       curr_vol2->write(outfile);

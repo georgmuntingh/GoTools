@@ -42,11 +42,22 @@
 #include "GoTools/trivariate/VolumeTools.h"
 #include "GoTools/geometry/SplineSurface.h"
 #include "GoTools/geometry/CurveOnSurface.h"
+#include "GoTools/geometry/Factory.h"
 #include <fstream>
 
 using namespace Go;
 using std::vector;
 using std::pair;
+using std::streamsize;
+using std::endl;
+
+//===========================================================================
+SurfaceOnVolume::SurfaceOnVolume()
+  : prefer_parameter_(false), constdir_(0), constval_(0.0),
+    at_bd_(-1), orientation_(-1), swap_(false)
+//===========================================================================
+{
+}
 
 //===========================================================================
 SurfaceOnVolume::SurfaceOnVolume(shared_ptr<ParamVolume> vol,
@@ -188,18 +199,103 @@ SurfaceOnVolume::~SurfaceOnVolume()
 void SurfaceOnVolume::read(std::istream& is)
 //===========================================================================
 {
-  // Must be implemented
+  bool is_good = is.good();
+  if (!is_good) {
+    THROW("Invalid geometry file!");
+  }
+  // Do not care about surface...
+  ALWAYS_ERROR_IF(psurf_.get() != NULL,
+		  "Parameter surf already exists!");
+
+  ALWAYS_ERROR_IF(spacesurf_.get() != NULL,
+		  "Space surf already exists!");
+
+  bool prefer_parameter;
+  int  prefer_parameter_int;
+  int  psurf_type;
+  int  spacesurf_type;
+  shared_ptr<ParamSurface> psurf;
+  shared_ptr<ParamSurface> spacesurf;
+
+  is >> prefer_parameter_int;
+  if (prefer_parameter_int == 0)
+    prefer_parameter = false;
+  else if (prefer_parameter_int == 1)
+    prefer_parameter = true;
+  else 
+    THROW("Unknown input for preferred SurfaceOnVolume parameter");
+
+  is >> psurf_type;
+  is >> spacesurf_type;
+
+  if (psurf_type == 0) {
+    // Do nothing - continue
+  }
+  else {
+    ClassType type = ClassType(psurf_type); // Needs this conversion
+    shared_ptr<GeomObject> goobject(Factory::createObject(type));
+    psurf = dynamic_pointer_cast<ParamSurface, GeomObject>(goobject);
+    ALWAYS_ERROR_IF(psurf.get() == 0,
+		    "Can not read this instance type");
+    psurf->read(is);
+  }
+
+  if (spacesurf_type == 0) {
+    // Do nothing - continue
+  }
+  else {
+    ClassType type = ClassType(spacesurf_type); // Needs this conversion
+    shared_ptr<GeomObject> goobject(Factory::createObject(type));
+    spacesurf = dynamic_pointer_cast<ParamSurface, GeomObject>(goobject);
+    ALWAYS_ERROR_IF(spacesurf.get() == 0,
+		    "Can not read this instance type");
+    spacesurf->read(is);
+  }
+
+  prefer_parameter_ = prefer_parameter;
+  psurf_ = psurf;
+  spacesurf_ = spacesurf;
+  is >> constdir_;
+  is >> constval_;
+  is >> at_bd_;
+  is >> orientation_;
+  is >> swap_;
 }
 
 //===========================================================================
 void SurfaceOnVolume::write(std::ostream& os) const
 //===========================================================================
 {
-  // Not final. Just for debugging
-  if (spacesurf_.get())
-    spacesurf_->write(os);
-  else
-    psurf_->write(os);
+  streamsize prev = os.precision(15);
+
+  // We do not write the volume. It must be reconnected while reading
+    if (!prefer_parameter_)
+	os << "0";
+    else
+	os << "1";
+    os << ' ';
+
+    if (psurf_.get() == NULL)
+	os << "0";
+    else
+	os << psurf_->instanceType();
+    os << ' ';
+
+    if (spacesurf_.get() == NULL)
+	os << "0";
+    else
+	os << spacesurf_->instanceType();
+    os << endl;
+
+    if (psurf_.get() != NULL)
+	psurf_->write(os);
+
+    if (spacesurf_.get() != NULL)
+	spacesurf_->write(os);
+
+    os << constdir_ << " " << constval_ << " " << at_bd_ << " ";
+    os << orientation_ << " " << swap_ << std::endl;
+    os.precision(prev);   // Reset precision to it's previous value
 }
 
 //===========================================================================
@@ -216,7 +312,12 @@ BoundingBox SurfaceOnVolume::boundingBox() const
 int SurfaceOnVolume::dimension() const
 //===========================================================================
 {
-  return volume_->dimension();
+  if (volume_.get())
+    return volume_->dimension();
+  else if (spacesurf_.get())
+    return spacesurf_->dimension();
+  else
+    return 3;  // Should not occur
 }
 
 //===========================================================================

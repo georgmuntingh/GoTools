@@ -507,6 +507,9 @@ namespace Go
 			shared_ptr<Vertex> vx1,shared_ptr<Vertex> vx2,
 			double& len_frac, double& other_frac, double& sf_reg);
 
+   void setParameterVolAdjacency(std::vector<shared_ptr<ParamSurface> >& sfs1,
+				 std::vector<shared_ptr<ftSurface> >& face2) const;
+
    // This class inherits SurfaceOnVolume and overrules the point evaluator
    // to return the volume parameter value corresponding to a point on
    // the surface
