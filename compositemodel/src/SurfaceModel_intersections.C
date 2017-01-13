@@ -681,8 +681,7 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 // The input surface models are expected to be connected in order to
 // get a consistent result
   vector<shared_ptr<SurfaceModel> > 
-  SurfaceModel::splitSurfaceModels(shared_ptr<SurfaceModel>& model2,
-				   int split_all)
+  SurfaceModel::splitSurfaceModels(shared_ptr<SurfaceModel>& model2)
 
 //===========================================================================
 {
@@ -960,25 +959,25 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
     }
  
   vector<shared_ptr<SurfaceModel> > split_models(4);
-  if (inside1.size() > 0 && (split_all == 1 || split_all == 3))
+  if (inside1.size() > 0)
     split_models[0] = 
       shared_ptr<SurfaceModel>(new SurfaceModel(approxtol_, toptol_.gap,
 						toptol_.neighbour,
 						toptol_.kink, toptol_.bend,
 						inside1));
-  if (outside1.size() > 0 && (split_all == 1 || split_all == 3))
+  if (outside1.size() > 0)
     split_models[1] = 
       shared_ptr<SurfaceModel>(new SurfaceModel(approxtol_, toptol_.gap,
 						toptol_.neighbour,
 						toptol_.kink, toptol_.bend,
 						outside1));
-  if (inside2.size() > 0 && (split_all == 2 || split_all == 3))
+  if (inside2.size() > 0)
     split_models[2] = 
       shared_ptr<SurfaceModel>(new SurfaceModel(approxtol_, toptol_.gap,
 						toptol_.neighbour,
 						toptol_.kink, toptol_.bend,
 						inside2));
-  if (outside2.size() > 0 && (split_all == 2 || split_all == 3))
+  if (outside2.size() > 0)
     split_models[3] = 
       shared_ptr<SurfaceModel>(new SurfaceModel(approxtol_, toptol_.gap,
 						toptol_.neighbour,
