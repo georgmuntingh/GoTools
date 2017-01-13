@@ -44,13 +44,26 @@
 
 namespace Go
 {
-  /// Utility functionality for splitting of surface models. 
+  /// Utility functionality for surface models/surface collections. 
+
+  class ftSurface;
+
   namespace SurfaceModelUtils
   {
-    // Check if the surface may be closed. In that case split it
-    // into non-closed pieces
+    /// Check if the surface may be closed. In that case split it
+    /// into non-closed pieces
     std::vector<shared_ptr<ParamSurface> > 
       checkClosedFaces(shared_ptr<ParamSurface> surface, double tol);
+
+    /// Extract faces that share the same underlying surface
+    void sameUnderlyingSurf(std::vector<shared_ptr<ftSurface> >& sf_set,
+			    double tol, double angtol,
+			    std::vector<std::vector<shared_ptr<ftSurface> > >& faces,
+			    std::vector<shared_ptr<ParamSurface> >& under_sfs);
+
+    shared_ptr<ParamSurface>
+      extendedUnderlyingSurface(std::vector<shared_ptr<ftSurface> >& sf_set,
+				double tol, double angtol);
   }
 }
 #endif

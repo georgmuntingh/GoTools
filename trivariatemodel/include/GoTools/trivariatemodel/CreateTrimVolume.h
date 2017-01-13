@@ -41,11 +41,15 @@
 #define _CREATETRIMVOLUME_H
 
 #include "GoTools/compositemodel/SurfaceModel.h"
+#include "GoTools/utils/BoundingBox.h"
+#include "GoTools/utils/DirectionCone.h"
 
 namespace Go
 {
+  class ftSurface;
   class ftVolume;
   class ParamVolume;
+  class ParamSurface;
 
   class CreateTrimVolume
   {
@@ -61,18 +65,42 @@ namespace Go
   private:
     shared_ptr<SurfaceModel> model_;
 
-    void identifyBoundaryFaces(std::vector<shared_ptr<ftSurface> >& bd_faces,
-			       std::vector<shared_ptr<ftSurface> >& trim_faces);
-    shared_ptr<ParamVolume> 
-      createVolume(std::vector<shared_ptr<ftSurface> >& bd_faces);
+    vector<vector<shared_ptr<ftSurface> > > face_grp_;
+    vector<shared_ptr<ParamSurface> > under_sf_;
+    vector<BoundingBox> bbox_;
+    vector<DirectionCone> cone_;
+    vector<double> sfsize_;
+
+    void identifyBoundaryFaces(std::vector<std::pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> > >& side_sfs);
+
+    void extractMaxSet(std::vector<shared_ptr<ftSurface> >& bd_faces,
+		       std::vector<shared_ptr<ftSurface> >& trim_faces);
 
     shared_ptr<ftVolume> 
       createTrimVolume(shared_ptr<ParamVolume> vol, 
-		       std::vector<shared_ptr<ftSurface> >& trim_faces);
+		       std::vector<std::pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> > >& side_sfs);
     
     void identifyInnerTrim(std::vector<shared_ptr<ftSurface> >& bd_faces,
 			   std::vector<shared_ptr<ftSurface> >& trim_faces);
 
+    void computeGroupInfo();
+
+    void findSideSfs(double tol, double angtol,
+		     std::vector<std::pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> > >& side_sfs);
+
+    int
+      checkCandPair(Point vec, shared_ptr<ParamSurface> sf1, int bd_type1, 
+		    BoundingBox& box1, shared_ptr<ParamSurface> sf2,
+		    int bd_type2, BoundingBox& box2, 
+		    double tol);
+
+    void
+      oneSideSf(int bd_type, std::vector<int>& face_group_ix, 
+		Point bd_vec, Point dir, double tol, double angtol,
+		std::pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> >& side_sf);
+    void extendSurfaces(std::vector<std::pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> > >& side_sfs);
+
+    void trimSideSurfaces(std::vector<std::pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> > >& side_sfs);
   };
 } // namespace Go
 

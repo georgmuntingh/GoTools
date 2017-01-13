@@ -496,7 +496,7 @@ public:
     /// Query the number of elements in the SplineVolume
     int numElem() const
     {
-      return basis_u_.numElem()*basis_v_.numElem()*basis_v_.numElem();
+      return basis_u_.numElem()*basis_v_.numElem()*basis_w_.numElem();
     }
     
     /// Query the number of elements in one parameter direction of 

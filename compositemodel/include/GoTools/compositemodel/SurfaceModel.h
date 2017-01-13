@@ -435,7 +435,8 @@ class GO_API SurfaceModel : public CompositeModel
   /// \param model2 The other model.
   /// \return Vector of new surface models.
   std::vector<shared_ptr<SurfaceModel> > 
-    splitSurfaceModels(shared_ptr<SurfaceModel>& model2);
+    splitSurfaceModels(shared_ptr<SurfaceModel>& model2,
+		       int split_all=3);
 
   /// Split a surface models according to a set of faces belonging to
   /// a specified surface model

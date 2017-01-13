@@ -1371,6 +1371,8 @@ void SurfaceModel::swapFaces(int idx1, int idx2)
 	
 	// Handle neighbours to neighbour
 	shared_ptr<ftSurface> curr_face = fetchAsSharedPtr(neighbours[ki]);
+	if (!curr_face.get())
+	  continue;
 	getCurrConnectedModel(curr_face, curr_set, all_sets);
       }
   }

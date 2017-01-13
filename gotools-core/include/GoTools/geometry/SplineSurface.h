@@ -1297,6 +1297,12 @@ class GO_API SplineSurface : public ParamSurface
     /// checkElementarySurface().
     shared_ptr<ElementarySurface> getElementarySurface();
 
+    /// Return associated elementary surface, if any
+    virtual ElementarySurface* elementarySurface()
+    {
+      return elementary_surface_.get();
+    }
+      
     /// Set shared pointer to the ElementarySurface that is
     /// represented by \c this.
     ///

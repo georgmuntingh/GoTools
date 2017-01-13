@@ -36,7 +36,7 @@
  * This file may be used in accordance with the terms contained in a
  * written agreement between you and SINTEF ICT. 
  */
-//#define DEBUG
+#define DEBUG
 
 #include "GoTools/compositemodel/CellDivision.h"
 #include "GoTools/utils/Point.h"
@@ -681,7 +681,8 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 // The input surface models are expected to be connected in order to
 // get a consistent result
   vector<shared_ptr<SurfaceModel> > 
-  SurfaceModel::splitSurfaceModels(shared_ptr<SurfaceModel>& model2)
+  SurfaceModel::splitSurfaceModels(shared_ptr<SurfaceModel>& model2,
+				   int split_all)
 
 //===========================================================================
 {
@@ -777,7 +778,7 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
     }
 #endif
 
-  // Make trimmed surfaces and sort trimmed an non-trimmed surface according
+  // Make trimmed surfaces and sort trimmed and non-trimmed surface according
   // to whether they are inside or outside the other surface model
   // First this surface model
   for (ki=0; ki<nmb1; ki++)
@@ -959,25 +960,25 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
     }
  
   vector<shared_ptr<SurfaceModel> > split_models(4);
-  if (inside1.size() > 0)
+  if (inside1.size() > 0 && (split_all == 1 || split_all == 3))
     split_models[0] = 
       shared_ptr<SurfaceModel>(new SurfaceModel(approxtol_, toptol_.gap,
 						toptol_.neighbour,
 						toptol_.kink, toptol_.bend,
 						inside1));
-  if (outside1.size() > 0)
+  if (outside1.size() > 0 && (split_all == 1 || split_all == 3))
     split_models[1] = 
       shared_ptr<SurfaceModel>(new SurfaceModel(approxtol_, toptol_.gap,
 						toptol_.neighbour,
 						toptol_.kink, toptol_.bend,
 						outside1));
-  if (inside2.size() > 0)
+  if (inside2.size() > 0 && (split_all == 2 || split_all == 3))
     split_models[2] = 
       shared_ptr<SurfaceModel>(new SurfaceModel(approxtol_, toptol_.gap,
 						toptol_.neighbour,
 						toptol_.kink, toptol_.bend,
 						inside2));
-  if (outside2.size() > 0)
+  if (outside2.size() > 0 && (split_all == 2 || split_all == 3))
     split_models[3] = 
       shared_ptr<SurfaceModel>(new SurfaceModel(approxtol_, toptol_.gap,
 						toptol_.neighbour,

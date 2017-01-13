@@ -76,71 +76,84 @@ using std::ofstream;
 
 int main( int argc, char* argv[] )
 {
-  if (argc != 2)
+  if (argc != 3)
     {
-      cout << "Usage: " << "<infile> " << endl;
+      cout << "Usage: " << "<infile> " << " <file type> "<< endl;
       exit(-1);
     }
-   ifstream infile(argv[1]);
-  ALWAYS_ERROR_IF(infile.bad(), "Bad or no input filename");
+  std::string infile(argv[1]);
+  int file_type = atoi(argv[2]);
 
-  // The tolerances must be set according to the properties of the model.
-  // The neighbour tolerance must be smaller than the smallest entity in the
-  // model, but larger than the largest gap.
-  // The gap tolerance must be smaller than the neighbour tolerance
-  double gap = 0.0001; 
-  double neighbour = 0.001; 
-  double kink = 0.01;
-  double approxtol = 0.001;
+  shared_ptr<ftVolume> curr_vol;
   int degree = 3;
-
-  CompositeModelFactory factory(approxtol, gap, neighbour, kink, 10.0*kink);
-
-  CompositeModel *model = factory.createFromG2(infile);
-
-  shared_ptr<SurfaceModel> sfmodel = 
-    shared_ptr<SurfaceModel>(dynamic_cast<SurfaceModel*>(model));
-  if (!sfmodel.get())
+  if (file_type == 1)
     {
-      std::cout << "No input model read" << std::endl;
-      exit(-1);
-    }
+      // The tolerances must be set according to the properties of the model.
+      // The neighbour tolerance must be smaller than the smallest entity in the
+      // model, but larger than the largest gap.
+      // The gap tolerance must be smaller than the neighbour tolerance
+      double gap = 0.0001; 
+      double neighbour = 0.001; 
+      double kink = 0.01;
+      double approxtol = 0.001;
+
+      CompositeModelFactory factory(approxtol, gap, neighbour, kink, 10.0*kink);
+
+      ifstream is(infile);
+      CompositeModel *model = factory.createFromG2(is);
+
+      shared_ptr<SurfaceModel> sfmodel = 
+	shared_ptr<SurfaceModel>(dynamic_cast<SurfaceModel*>(model));
+      if (!sfmodel.get())
+	{
+	  std::cout << "No input model read" << std::endl;
+	  exit(-1);
+	}
  
-  if (sfmodel->nmbBoundaries() > 0)
-    {
-      std::cout << "Not a brep solid. Consider increasing the neighbour tolerance" << std::endl;
-      exit(-1);
-    }
+      if (sfmodel->nmbBoundaries() > 0)
+	{
+	  std::cout << "Not a brep solid. Consider increasing the neighbour tolerance" << std::endl;
+	  exit(-1);
+	}
       
-  bool isOK = sfmodel->checkShellTopology();
-  std::cout << "Shell topology: " << isOK << std::endl;
+      bool isOK = sfmodel->checkShellTopology();
+      std::cout << "Shell topology: " << isOK << std::endl;
 
  
-  // Select the first volume and pass through all elements and check if
-  // they intersect the non-boundary trimming surface
-  shared_ptr<ftVolume> curr_vol = shared_ptr<ftVolume>(new ftVolume(sfmodel));
-  
-  std::ofstream out_file("volmodel.g22");
-  VolumeModelFileHandler filehandler;
-  filehandler.writeStart(out_file);
-  filehandler.writeHeader("Test ftVolume", out_file);
-  filehandler.writeVolume(curr_vol, out_file);
-  filehandler.writeEnd(out_file);
+      // Select the first volume and pass through all elements and check if
+      // they intersect the non-boundary trimming surface
+      curr_vol = shared_ptr<ftVolume>(new ftVolume(sfmodel));
 
-  // Number of elements in underlying volume
-  SplineVolume* curr_under = curr_vol->getVolume()->asSplineVolume();
-  curr_under->raiseOrder(2, 2, 2);
-  int nn = 8;
-  for (int dir=0; dir<3; ++dir)
-    {
-      double tstart = curr_under->startparam(dir);
-      double tend = curr_under->endparam(dir);
-      double tdel = (tend - tstart)/(double)(nn+1);
-      vector<double> newknots(nn);
-      for (int ka=0; ka<nn; ++ka)
-	newknots[ka] = tstart + (ka+1)*tdel;
-      curr_under->insertKnot(dir, newknots);
+      std::ofstream out_file("volmodel.g22");
+      VolumeModelFileHandler filehandler;
+      filehandler.writeStart(out_file);
+      filehandler.writeHeader("Test ftVolume", out_file);
+      filehandler.writeVolume(curr_vol, out_file);
+      filehandler.writeEnd(out_file);
+
+      // Number of elements in underlying volume
+      SplineVolume* curr_under = curr_vol->getVolume()->asSplineVolume();
+      curr_under->raiseOrder(2, 2, 2);
+      int nn = 8;
+      for (int dir=0; dir<3; ++dir)
+	{
+	  double tstart = curr_under->startparam(dir);
+	  double tend = curr_under->endparam(dir);
+	  double tdel = (tend - tstart)/(double)(nn+1);
+	  vector<double> newknots(nn);
+	  for (int ka=0; ka<nn; ++ka)
+	    newknots[ka] = tstart + (ka+1)*tdel;
+	  curr_under->insertKnot(dir, newknots);
+	}
     }
+  else
+    {
+      VolumeModelFileHandler filehandler;
+      curr_vol = filehandler.readVolume(infile.c_str());
+     }
+
+  SplineVolume* curr_under = curr_vol->getVolume()->asSplineVolume();
+  double gap = curr_vol->getTolerances().gap;
   
   int nmb_elem = curr_under->numElem();
   std::cout << "No of elements: " << nmb_elem << std::endl;
@@ -183,8 +196,6 @@ int main( int argc, char* argv[] )
 	      std::cout << "Sub element nr " << kj+1 << ": " << regular << std::endl;
 	      if (regular)
 		{
-		  if (false)
-		    {
 		  // Create non-trimmed parameter element
 		  shared_ptr<ParamVolume> reg_vol = 
 		    sub_elem[kj]->getRegParVol(degree);
@@ -199,7 +210,6 @@ int main( int argc, char* argv[] )
 		  shared_ptr<ParamVolume> tmp_vol = sub_elem[kj]->getVolume();
 		  tmp_vol->writeStandardHeader(of6);
 		  tmp_vol->write(of6);
-		    }
 		}
 	      else
 		{
