@@ -84,7 +84,7 @@ SurfaceOnVolume::SurfaceOnVolume(shared_ptr<ParamVolume> vol,
   // Make parameter surface
   // @@@ This construction may not be sufficient when trimmed volumes are
   // introduced
-  if (constdir > 0)
+  if (constdir > 0 && volume_.get())
     {
       Array<double,6> domain = volume_->parameterSpan();
       RectDomain pardom = spacesurf_->containingDomain();

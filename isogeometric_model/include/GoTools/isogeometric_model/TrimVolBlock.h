@@ -37,33 +37,30 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef __SURFACEMODELUTILS_H
-#define __SURFACEMODELUTILS_H
+#ifndef __TRIMVOLBLOCK_H
+#define __TRIMVOLBLOCK_H
 
-#include "GoTools/geometry/ParamSurface.h"
+#include "GoTools/isogeometric_model/IsogeometricVolBlock.h"
+#include "GoTools/trivariatemodel/ftVolume.h"
 
-namespace Go
+using namespace Go;
+
+// This class represents one trimmed block in a block-structured isogeometric volume model
+class TrimVolBlock: public IsogeometricVolBlock 
 {
-  /// Utility functionality for surface models/surface collections. 
+ public:
+  
+  // Constructor
+  TrimVolBlock(IsogeometricModel* model,
+	       shared_ptr<ftVolume> vol,
+	       std::vector<int> solution_space_dimension,
+	       int index);
+  
+  // Destructor
+  virtual ~TrimVolBlock();
+  
+ private:
+  shared_ptr<ftVolume> vol_;
+};
 
-  class ftSurface;
-
-  namespace SurfaceModelUtils
-  {
-    /// Check if the surface may be closed. In that case split it
-    /// into non-closed pieces
-    std::vector<shared_ptr<ParamSurface> > 
-      checkClosedFaces(shared_ptr<ParamSurface> surface, double tol);
-
-    /// Extract faces that share the same underlying surface
-    void sameUnderlyingSurf(std::vector<shared_ptr<ftSurface> >& sf_set,
-			    double tol, double angtol,
-			    std::vector<std::vector<shared_ptr<ftSurface> > >& faces,
-			    std::vector<shared_ptr<ParamSurface> >& under_sfs);
-
-    shared_ptr<ParamSurface>
-      extendedUnderlyingSurface(std::vector<shared_ptr<ftSurface> >& sf_set,
-				double tol, double angtol);
-  }
-}
-#endif
+#endif    // #ifndef __TRIMVOLBLOCK_H

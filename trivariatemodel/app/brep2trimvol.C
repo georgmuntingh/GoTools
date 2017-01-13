@@ -38,10 +38,11 @@
  */
 
 #include <fstream>
-#include "GoTools/trivariatemodel/VolumeModel.h"
-#include "GoTools/trivariatemodel/VolumeModelCreator.h"
+#include "GoTools/trivariatemodel/ftVolume.h"
+#include "GoTools/trivariatemodel/CreateTrimVolume.h"
 #include "GoTools/compositemodel/CompositeModelFactory.h"
-#include "GoTools/compositemodel/CompositeModelFileHandler.h"
+#include "GoTools/compositemodel/SurfaceModel.h"
+#include "GoTools/trivariatemodel/VolumeModelFileHandler.h"
 
 using namespace Go;
 using std::cout;
@@ -52,43 +53,32 @@ using std::vector;
 
 int main(int argc, char* argv[] )
 {
-  if (argc != 3 && argc != 4)
+  if (argc != 3)
     {
-      cout << "Usage: " << "<infile> <outfile> (use g22)" << endl;
+      cout << "Usage: " << "<infile> <outfile>" << endl;
       exit(-1);
     }
 
-  std::string infile(argv[1]);
+  ifstream infile(argv[1]);
+  ALWAYS_ERROR_IF(infile.bad(), "Bad or no input filename");
 
   ofstream outfile(argv[2]);
-  int useg22 = 0;
-  if (argc == 4)
-    useg22 = atoi(argv[3]);
 
-  shared_ptr<SurfaceModel> sfmodel;
-  if (useg22)
-    {
-      CompositeModelFileHandler filehandler;
-      sfmodel = filehandler.readShell(infile.c_str());
-    }
-  else
-    {
-      // The tolerances must be set according to the properties of the model.
-      // The neighbour tolerance must be smaller than the smallest entity in the
-      // model, but larger than the largest gap.
-      // The gap tolerance must be smaller than the neighbour tolerance
-      double gap = 0.001;
-      double neighbour = 0.01;
-      double kink = 0.01;
-      double approxtol = 0.01;
+  // The tolerances must be set according to the properties of the model.
+  // The neighbour tolerance must be smaller than the smallest entity in the
+  // model, but larger than the largest gap.
+  // The gap tolerance must be smaller than the neighbour tolerance
+  double gap = 0.0001; //0.001;
+  double neighbour = 0.001; //0.01;
+  double kink = 0.01;
+  double approxtol = 0.001;
 
-      CompositeModelFactory factory(approxtol, gap, neighbour, kink, 10.0*kink);
+  CompositeModelFactory factory(approxtol, gap, neighbour, kink, 10.0*kink);
 
-      std::ifstream is(infile);
-      CompositeModel *model = factory.createFromG2(is);
+  CompositeModel *model = factory.createFromG2(infile);
 
-      sfmodel = shared_ptr<SurfaceModel>(dynamic_cast<SurfaceModel*>(model));
-    }
+  shared_ptr<SurfaceModel> sfmodel = 
+    shared_ptr<SurfaceModel>(dynamic_cast<SurfaceModel*>(model));
   if (!sfmodel.get())
     {
       std::cout << "No input model read" << std::endl;
@@ -101,20 +91,17 @@ int main(int argc, char* argv[] )
       exit(-1);
     }
       
-  shared_ptr<VolumeModel> volmod;
-  bool rotational = VolumeModelCreator::createRotationalModel(sfmodel, volmod);
-  std::cout << "Rotational: " << rotational << std::endl;
+  bool isOK = sfmodel->checkShellTopology();
+  std::cout << "Shell topology: " << isOK << std::endl;
 
-  if (rotational)
-    {
-        int nmb_vols = volmod->nmbEntities();
-	for (int kr=0; kr<nmb_vols; ++kr)
-	  {
-	    shared_ptr<ParamVolume> curr_vol2 = volmod->getVolume(kr);
-	    curr_vol2->writeStandardHeader(outfile);
-	    curr_vol2->write(outfile);
-	  }
-    }
+  CreateTrimVolume trim(sfmodel);
 
+  shared_ptr<ftVolume> vol = trim.fetchOneTrimVol();
+
+  VolumeModelFileHandler filehandler;
+  filehandler.writeStart(outfile);
+  filehandler.writeHeader("Trimmed volume", outfile);
+  filehandler.writeVolume(vol, outfile);
+  filehandler.writeEnd(outfile);
+  int stop_break = 1;
 }
-

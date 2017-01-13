@@ -189,6 +189,12 @@ public:
         z_axis = z_axis_;
     }
 
+    /// Cone axis
+    Point getAxis() const
+    {
+      return z_axis_;
+    }
+
     /// The opening angle of the cone
     double getConeAngle() const
     { return cone_angle_; }
@@ -213,8 +219,6 @@ public:
     /// Check if the surface is closed.
     bool isClosed(bool& closed_dir_u, bool& closed_dir_v) const;
 
-   shared_ptr<Circle> getCircle(double par) const;
-
     /// Return the part of the cone surface limited by the parameter bounds
     Cone* subSurface(double from_upar, double from_vpar,
                          double to_upar, double to_vpar,
@@ -228,6 +232,8 @@ public:
 
     shared_ptr<Line> getLine(double upar) const; 
 
+    shared_ptr<Circle> getCircle(double par) const;
+
     shared_ptr<ElementaryCurve> 
       getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
 			      const Point* start_par_pt = NULL, const Point* end_par_pt = NULL) const;
@@ -235,6 +241,27 @@ public:
     // Confirm that this surface is axis rotational
     virtual bool isAxisRotational(Point& centre, Point& axis, Point& vec,
 				  double& angle);
+
+    
+    /// Radius in a specified location, 
+    virtual double radius(double u, double v) const;
+
+    virtual Point location() const
+    {
+      return location_;
+    }
+
+    virtual Point direction() const
+    {
+      return z_axis_;
+    }
+
+    virtual Point direction2() const
+    {
+      return x_axis_;
+    }
+
+    virtual void enlarge(double len1, double len2, double len3, double len4);
 
 protected:
 

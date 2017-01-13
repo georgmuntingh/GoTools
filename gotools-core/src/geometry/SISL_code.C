@@ -50989,8 +50989,10 @@ void s1310_s9constline(SISLSurf *ps1,SISLSurf *ps2,SISLIntcurve *pintcr,
 
 	      tdist = s6dist(sders,sderc,3);
 
-	      if (DNEQUAL(tdist+tmax,tmax))
+	      if (tdist > aepsge)
 		break;
+	      // if (DNEQUAL(tdist+tmax,tmax))
+	      // 	break;
 		//goto war00;
 
 	      /* Distance within tolerance, check that the angle between surface

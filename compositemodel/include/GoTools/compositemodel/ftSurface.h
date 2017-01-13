@@ -317,6 +317,9 @@ public:
     /// the half edges in this face
     std::vector<shared_ptr<ftEdge> > getCommonEdges(ftSurface *other) const;
 
+    /// Check if there is a smooth connection between two faces
+    bool isAdjacent(ftSurface *other, bool& smooth) const;
+
     /// Get the vertex closest to a given point
     shared_ptr<Vertex> getClosestVertex(const Point& pnt) const;
 
@@ -591,7 +594,6 @@ public:
     /// Debug functionality
     bool checkFaceTopology();
 
- protected:
     void replaceSurf(shared_ptr<ParamSurface> sf)
 	{ surf_ = sf;}
 

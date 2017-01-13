@@ -2532,7 +2532,7 @@ BoundedSurface::orderBoundaryLoops(bool analyze, double degenerate_epsilon)
     std::ofstream debug("tmp/debug.g2");
     surface_->writeStandardHeader(debug);
     surface_->write(debug);
-    for (size_t ki = 0; ki < boundary_loops_.size(); ++ki)
+    for (size_t ki = 0; ki < (int)boundary_loops_.size(); ++ki)
 	for (size_t kj = 0; kj < boundary_loops_[ki]->size(); ++kj) {
 	    shared_ptr<ParamCurve> cv = (*boundary_loops_[ki])[kj];
 	    if (cv->instanceType() == Class_CurveOnSurface) {
@@ -3409,3 +3409,23 @@ bool BoundedSurface::isAxisRotational(Point& centre, Point& axis, Point& vec,
   return true;
 }
 
+//===========================================================================
+void BoundedSurface:: replaceSurf(shared_ptr<ParamSurface> sf)
+//===========================================================================
+{
+  // Update pointers to surface 
+  for (size_t ki=0; ki<boundary_loops_.size(); ++ki)
+    {
+      int nmb = boundary_loops_[ki]->size();
+      for (int kr=0; kr<nmb; ++kr)
+	{
+	  shared_ptr<ParamCurve> cv = (*boundary_loops_[ki])[kr];
+	  shared_ptr<CurveOnSurface> sf_cv = 
+	    dynamic_pointer_cast<CurveOnSurface, ParamCurve>(cv);
+	  if (sf_cv.get())
+	    sf_cv->setUnderlyingSurface(sf);
+	}
+    }
+
+  surface_ = sf;
+}

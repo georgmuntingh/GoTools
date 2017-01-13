@@ -994,75 +994,34 @@ BoundedSurface* BoundedUtils::convertToBoundedSurface(const SplineSurface& surf,
 							  double space_epsilon)
 //===========================================================================
 {
-//   int i;
-
-//     // We extract both parametric and geometric boundary curves.
-// // #if ((_MSC_VER > 0) && (_MSC_VER < 1300))
-// //     const RectDomain& domain = static_cast<const RectDomain&>(surf.parameterDomain());
-// // #else
-//     const RectDomain& domain = surf.parameterDomain();
-// // #endif
-
-//     CurveLoop space_loop = surf.outerBoundaryLoop(space_epsilon);
-//     vector<shared_ptr<ParamCurve> > space_curves;
-//     for (i = 0; i < space_loop.size(); ++i)
-// 	space_curves.push_back(space_loop[i]);
-
-//     vector<Point> par_pts;
-//     par_pts.push_back(Point(domain.umin(), domain.vmin()));
-//     par_pts.push_back(Point(domain.umax(), domain.vmin()));
-//     par_pts.push_back(Point(domain.umax(), domain.vmax()));
-//     par_pts.push_back(Point(domain.umin(), domain.vmax()));
-
-//     // If surface is degenerate, we must create degenerate space_curve.
-//     if (space_curves.size() < 4) {
-// 	vector<Point> space_pts;
-// 	for (i = 0; i < int(par_pts.size()); ++i)
-// 	    space_pts.push_back(surf.ParamSurface::point
-// 				(par_pts[i][0], par_pts[i][1]));
-// 	bool deg[4];
-// 	surf.isDegenerate(deg[0], deg[1], deg[2], deg[3], space_epsilon);
-// 	for (i = 0; i < 4; ++i)
-// 	    if (deg[i]) {
-// // 	int nmb_missing_crvs = 4 - space_curves.size();
-// // 	for (int i = 0; i < space_pts.size(); ++i)
-// // 	    if (space_pts[i].dist(space_pts[(i+1)%4]) < space_epsilon)
-// 		space_curves.insert(space_curves.begin() + i,
-// 				    shared_ptr<ParamCurve>
-// 				    (new SplineCurve(space_pts[i],
-// 						       space_pts[(i+1)%4])));
-// 	    }
-//     }
-//     ASSERT(space_curves.size() == 4);
-
-//     vector<shared_ptr<SplineCurve> > param_curves;
-//     for (i = 0; i < int(par_pts.size()); ++i)
-// 	param_curves.push_back(shared_ptr<SplineCurve>
-// 			       (new SplineCurve(par_pts[i], 
-// 						  space_curves[i]->startparam(),
-// 						  par_pts[(i+1)%4],
-// 						  space_curves[i]->endparam())));
-
     shared_ptr<ParamSurface> under_surf;
-// #if _MSC_VER > 0 && _MSC_VER < 1300
-//     under_surf = shared_ptr<SplineSurface>
-//       (dynamic_cast<SplineSurface*>(surf.clone()));
-// #else
     under_surf = shared_ptr<ParamSurface>(surf.clone());
-// #endif
     vector<CurveLoop> loops = SurfaceTools::absolutelyAllBoundarySfLoops(under_surf,
 							 space_epsilon);
-//     vector<shared_ptr<CurveOnSurface> > surf_curves;
-//     for (i = 0; i < 4; ++i)
-// 	surf_curves.push_back // We prefer parameter curves.
-// 	    (shared_ptr<CurveOnSurface>(new CurveOnSurface(under_surf,
-// 							       param_curves[i],
-// 							       space_curves[i],
-// 							       true)));
 
     return new BoundedSurface(under_surf, loops);
 }
 
+//===========================================================================
+  shared_ptr<BoundedSurface> 
+  BoundedUtils::convertToBoundedSurface(shared_ptr<ParamSurface> surf,
+					double space_epsilon)
+//===========================================================================
+{
+  shared_ptr<BoundedSurface> bounded_sf;
+  if (surf->instanceType() == Class_BoundedSurface) 
+    {
+      bounded_sf = dynamic_pointer_cast<BoundedSurface, ParamSurface>(surf);
+    }
+  else
+    {
+      shared_ptr<ParamSurface> surf2(surf->clone());
+      vector<CurveLoop> loops = 
+	SurfaceTools::absolutelyAllBoundarySfLoops(surf2, space_epsilon);
+      bounded_sf = shared_ptr<BoundedSurface>(new BoundedSurface(surf2, loops));
+    }
+  return bounded_sf;
+}
 
 //===========================================================================
 vector<shared_ptr<BoundedSurface> >
@@ -2360,6 +2319,152 @@ BoundedUtils::trimSurfsWithSurfs(const vector<shared_ptr<ParamSurface> >& sfs1,
     return trimmed_sfs;
 }
 
+//===========================================================================
+vector<shared_ptr<BoundedSurface> > 
+BoundedUtils::trimSurfWithSurfs(shared_ptr<ParamSurface>& sf,
+				const vector<shared_ptr<ParamSurface> >& sfs2, 
+				double epsge)
+//===========================================================================
+{
+  size_t ki, kj;
+    int nmb2 = (int)sfs2.size();
+ 
+    // Represent the surfaces as bounded
+    shared_ptr<BoundedSurface> bd_sf = convertToBoundedSurface(sf, epsge);
+    shared_ptr<ParamSurface> under_sf = bd_sf->underlyingSurface();
+    vector<shared_ptr<BoundedSurface> > bd_sfs2(nmb2);
+    vector<shared_ptr<ParamSurface> > under_sfs2(nmb2);
+    for (kj = 0; kj < sfs2.size(); ++kj) 
+      {
+	bd_sfs2[kj] = convertToBoundedSurface(sfs2[kj], epsge);
+	under_sfs2[kj] = bd_sfs2[kj]->underlyingSurface();
+      }
+    
+
+    // We intersect the given surface with all members of the other set
+    vector<shared_ptr<CurveOnSurface> >  all_int_segments;
+    for (kj = 0; kj < sfs2.size(); ++kj) 
+      {
+	vector<shared_ptr<CurveOnSurface> > int_segments1, int_segments2;
+	try {
+	  getIntersectionCurve(under_sf, under_sfs2[kj], 
+			       int_segments1, int_segments2, epsge);
+	} catch (...) {
+	  THROW("Failed intersecting the two spline surfaces.");
+	}
+	if (int_segments1.size() != 0) 
+	  {
+	  // We must then extract parts lying on both the actual sfs.
+	  intersectWithSurfaces(int_segments1, bd_sf,
+				int_segments2, bd_sfs2[kj], epsge);
+
+	  all_int_segments.insert(all_int_segments.end(),
+				  int_segments1.begin(), int_segments1.end());
+	  }
+      }
+
+#ifdef DEBUG1
+    std::ofstream out1("int_seg1.g2");
+    for (ki=0; ki<all_int_segments.size(); ++ki)
+      {
+	out1 << "100 1 0 4 255 0 0 255" << std::endl;
+	shared_ptr<SplineCurve> tmp1 = 
+	  shared_ptr<SplineCurve>(all_int_segments[ki]->geometryCurve());
+	tmp1->write(out1);
+      }
+#endif
+
+    // Split intersection curves where they intersect (in case the surfaces
+    // in the set is a possibly intersecting collection)
+    vector<vector<double> > par(all_int_segments.size());
+    for (ki=0; ki<all_int_segments.size(); ++ki)
+      {
+	for (kj=ki+1; kj<all_int_segments.size(); ++kj)
+	  {
+	    vector<pair<double,double> > int_pars;
+	    intersectParamCurves(all_int_segments[ki].get(), 
+				 all_int_segments[kj].get(), epsge, int_pars);
+	    if (int_pars.size() > 0)
+	      {
+		// Split intersection curves
+		// First represent in independent vectors and add endpoints
+		for (size_t kr=0; kr<int_pars.size(); ++kr)
+		  {
+		    par[ki].push_back(int_pars[kr].first);
+		    par[kj].push_back(int_pars[kr].second);
+		  }
+	      }
+	  }
+      }
+
+    for (ki=0; ki<par.size();)
+      {
+	std::sort(par[ki].begin(), par[ki].end());
+
+	// Extend with endpoints if necessary
+	// if (fabs(par[ki][0]-all_int_segments[ki]->startparam()) < epsge)
+	//   par[ki][0] = all_int_segments[ki]->startparam();
+	// else
+	//   par[ki].insert(par[ki].begin(), all_int_segments[ki]->startparam());
+	// if (fabs(all_int_segments[ki]->endparam()-par[ki][par[ki].size()-1]) < epsge)
+	//   par[ki][par[ki].size()-1] = all_int_segments[ki]->endparam();
+	// else
+	//   par[ki].push_back(all_int_segments[ki]->endparam());
+
+	// Split intersection curves in found parameters
+	vector<shared_ptr<CurveOnSurface> > sub_int;
+	for (size_t kr=1; kr<par[ki].size(); ++kr)
+	  {
+	    if (par[ki][kr]-par[ki][kr-1] > epsge)
+	      {
+		shared_ptr<CurveOnSurface> sub(all_int_segments[ki]->subCurve(par[ki][kr-1], par[ki][kr]));
+		sub_int.push_back(sub);
+	      }
+	  }
+	if (sub_int.size() > 0)
+	  {
+	    all_int_segments.erase(all_int_segments.begin()+ki);
+	    all_int_segments.insert(all_int_segments.end(), 
+				    sub_int.begin(), sub_int.end());
+	    par.erase(par.begin()+ki);
+	  }
+	else
+	  ki++;
+      }
+
+#ifdef DEBUG1
+    std::ofstream out2("int_seg2.g2");
+    for (ki=0; ki<all_int_segments.size(); ++ki)
+      {
+	out2 << "100 1 0 4 0 255 0 255" << std::endl;
+	shared_ptr<SplineCurve> tmp1 = 
+	  shared_ptr<SplineCurve>(all_int_segments[ki]->geometryCurve());
+	tmp1->write(out2);
+      }
+#endif
+
+    // Extend intersection curve pool with oppositely oriented curves to
+    // ensure that a closed loop can be extracted
+    size_t nmb_seg = all_int_segments.size();
+    for (kj=0; kj<nmb_seg; ++kj)
+      {
+	shared_ptr<CurveOnSurface> cv(all_int_segments[kj]->clone());
+	cv->reverseParameterDirection();
+	all_int_segments.push_back(cv);
+      }
+
+    // Finally we extract BoundedSurface's from segments.
+    vector<vector<shared_ptr<CurveOnSurface> > > loop_curves;
+    try {
+      loop_curves =
+	getBoundaryLoops(*bd_sf, all_int_segments, epsge);
+    } catch (...) {
+      MESSAGE("Failed extracting boundary loop.");
+    }
+    vector<shared_ptr<BoundedSurface> > trim_sfs =
+      createTrimmedSurfs(loop_curves, under_sf, epsge);
+    return trim_sfs;
+}
 
 
 //===========================================================================
@@ -3186,7 +3291,7 @@ bool BoundedUtils::createMissingParCvs(vector<CurveLoop>& bd_loops)
 	vector<int> loop_cv_ind(num_segments);
 	vector<bool> failed_once(num_segments, false);
 	for (size_t ki = 0; ki < bd_loops[kj].size(); ++ki)
-		loop_cv_ind[ki] = ki;
+	  loop_cv_ind[ki] = (int)ki;
 	for (size_t ki=0; ki< loop_cv_ind.size(); ++ki) {
 	    // Try to generate the parameter curve if it does not
 	    // exist already

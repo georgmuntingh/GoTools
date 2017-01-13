@@ -37,33 +37,32 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef __SURFACEMODELUTILS_H
-#define __SURFACEMODELUTILS_H
+#include "GoTools/compositemodel/SurfaceModel.h"
+#include "GoTools/compositemodel/CompositeModelFileHandler.h"
+#include <fstream>
 
-#include "GoTools/geometry/ParamSurface.h"
+using namespace Go;
 
-namespace Go
+int main( int argc, char* argv[] )
 {
-  /// Utility functionality for surface models/surface collections. 
-
-  class ftSurface;
-
-  namespace SurfaceModelUtils
-  {
-    /// Check if the surface may be closed. In that case split it
-    /// into non-closed pieces
-    std::vector<shared_ptr<ParamSurface> > 
-      checkClosedFaces(shared_ptr<ParamSurface> surface, double tol);
-
-    /// Extract faces that share the same underlying surface
-    void sameUnderlyingSurf(std::vector<shared_ptr<ftSurface> >& sf_set,
-			    double tol, double angtol,
-			    std::vector<std::vector<shared_ptr<ftSurface> > >& faces,
-			    std::vector<shared_ptr<ParamSurface> >& under_sfs);
-
-    shared_ptr<ParamSurface>
-      extendedUnderlyingSurface(std::vector<shared_ptr<ftSurface> >& sf_set,
-				double tol, double angtol);
+  if (argc != 2) {
+    std::cout << "Input parameters : Input file on g22 format," << std::endl;
+    exit(-1);
   }
+
+  // Read input arguments
+  std::string file1(argv[1]);
+
+  CompositeModelFileHandler filehandler;
+  SurfaceModel sfmod = filehandler.readSurfModel(file1.c_str());
+  shared_ptr<Body> body = filehandler.readBody(file1.c_str());
+  
+  tpTolerances toptol = sfmod.getTolerances();
+  std::cout << "Gap: " << toptol.gap << std::endl;
+  std::cout << "Neighbour: " << toptol.neighbour << std::endl;
+  std::cout << "Kink: " << toptol.kink << std::endl;
+  std::cout << "Bend: " << toptol.bend << std::endl;
+  std::cout << "Material: " << body->getMaterial() << std::endl;
 }
-#endif
+ 
+

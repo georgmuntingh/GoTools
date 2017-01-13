@@ -777,7 +777,7 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
     }
 #endif
 
-  // Make trimmed surfaces and sort trimmed an non-trimmed surface according
+  // Make trimmed surfaces and sort trimmed and non-trimmed surface according
   // to whether they are inside or outside the other surface model
   // First this surface model
   for (ki=0; ki<nmb1; ki++)

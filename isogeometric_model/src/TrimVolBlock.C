@@ -9,11 +9,6 @@
  *
  * This file is part of GoTools.
  *
- * GoTools is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version. 
- *
  * GoTools is distributed in the hope that it will be useful,        
  * but WITHOUT ANY WARRANTY; without even the implied warranty of         
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          
@@ -37,33 +32,27 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef __SURFACEMODELUTILS_H
-#define __SURFACEMODELUTILS_H
+#include "GoTools/isogeometric_model/TrimVolBlock.h"
 
-#include "GoTools/geometry/ParamSurface.h"
+using namespace Go;
 
-namespace Go
+//===========================================================================
+TrimVolBlock::TrimVolBlock(IsogeometricModel* model,
+			   shared_ptr<ftVolume> vol,
+			   vector<int> solution_space_dimension,
+			   int index)
+  : IsogeometricVolBlock(model, 
+			 dynamic_pointer_cast<SplineVolume, ParamVolume>(vol->getVolume()), 
+			 solution_space_dimension, index),
+    vol_(vol)
+//===========================================================================
 {
-  /// Utility functionality for surface models/surface collections. 
 
-  class ftSurface;
-
-  namespace SurfaceModelUtils
-  {
-    /// Check if the surface may be closed. In that case split it
-    /// into non-closed pieces
-    std::vector<shared_ptr<ParamSurface> > 
-      checkClosedFaces(shared_ptr<ParamSurface> surface, double tol);
-
-    /// Extract faces that share the same underlying surface
-    void sameUnderlyingSurf(std::vector<shared_ptr<ftSurface> >& sf_set,
-			    double tol, double angtol,
-			    std::vector<std::vector<shared_ptr<ftSurface> > >& faces,
-			    std::vector<shared_ptr<ParamSurface> >& under_sfs);
-
-    shared_ptr<ParamSurface>
-      extendedUnderlyingSurface(std::vector<shared_ptr<ftSurface> >& sf_set,
-				double tol, double angtol);
-  }
 }
-#endif
+
+//===========================================================================
+TrimVolBlock::~TrimVolBlock()
+//===========================================================================
+{
+}
+
