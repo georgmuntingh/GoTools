@@ -50646,15 +50646,15 @@ void s1310_s9constline(SISLSurf *ps1,SISLSurf *ps2,SISLIntcurve *pintcr,
   int kdir2;
   int knbpnt;              /* Number of points on constant parameter line */
   int kleft1=0,kleft2=0;   /* Pointers into knot vectors                */
-  //int kstop;               /* Stop value in loop                        */
+  int kstop;               /* Stop value in loop                        */
   double *sp=SISL_NULL;         /* Array for storage of points in
 			      parameter plane */
   double *sv=SISL_NULL;         /* Array for storage of tangents in
 			      parameter plane*/
   double *spar=SISL_NULL;       /* Array for storage of parameter values     */
   double *stp,*stv,*stpar; /* Pointers to sp,sv and spar                */
-  //double tdistp,tdistc;    /* Distances between points                  */
-  //double tfak;             /* Scaling factor                            */
+  double tdistp,tdistc;    /* Distances between points                  */
+  double tfak;             /* Scaling factor                            */
   double sstart[4];        /* Lower boundary of parameter intervals     */
   double send[4];          /* Upper bounadry of parameter intervals     */
   double snext[3];         /* Existing iteration point on  surface      */
@@ -51065,24 +51065,21 @@ void s1310_s9constline(SISLSurf *ps1,SISLSurf *ps2,SISLIntcurve *pintcr,
 	     remember that first and second points are equal and that first point
 	     is not used futher on */
 
-	  // @@@ VSK, June 2012. This scaling seems already to be done in
-	  // s1379. Double scaling creates an overshoot in the computation
-	  // of coefficients
-	  // tdistp = s6dist(sp+2,sp+4,2);
-	  // *(sv+2) *= tdistp;
-	  // *(sv+3) *= tdistp;
+	  tdistp = s6dist(sp+2,sp+4,2);
+	  *(sv+2) *= tdistp;
+	  *(sv+3) *= tdistp;
 
-	  // for (ki=2,stp=sp+4,stv=sv+4,kstop=kn+kn-1 ; ki < kstop ;
-	  // 	   ki++,stp+=2,stv+=2)
-	  // 	{
-	  // 	  tdistc = s6dist(stp,stp+2,2);
-	  // 	  tfak = (tdistp+tdistc)/(double)2.0;
-	  // 	  *stv     *= tfak,
-	  // 	  *(stv+1) *= tfak;
-	  // 	  tdistp = tdistc;
-	  // 	}
-	  // *stv     *= tdistp;
-	  // *(stv+1) *= tdistp;
+	  for (ki=2,stp=sp+4,stv=sv+4,kstop=kn+kn-1 ; ki < kstop ;
+	  	   ki++,stp+=2,stv+=2)
+	  	{
+	  	  tdistc = s6dist(stp,stp+2,2);
+	  	  tfak = (tdistp+tdistc)/(double)2.0;
+	  	  *stv     *= tfak,
+	  	  *(stv+1) *= tfak;
+	  	  tdistp = tdistc;
+	  	}
+	  *stv     *= tdistp;
+	  *(stv+1) *= tdistp;
 
 
 	  /* The first parameter pair is doubly represented */

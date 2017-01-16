@@ -150,12 +150,34 @@ int main( int argc, char* argv[] )
     {
       VolumeModelFileHandler filehandler;
       curr_vol = filehandler.readVolume(infile.c_str());
+      SplineVolume* curr_under = curr_vol->getVolume()->asSplineVolume();
+      for (int dir=0; dir<3; ++dir)
+	{
+	  int num_el = curr_under->numElem(dir);
+	  if (num_el < 10)
+	    {
+	      int nmb = 10/num_el + 1;
+	      vector<double> knots;
+	      curr_under->basis(dir).knotsSimple(knots);
+	      vector<double> newknots;
+	      for (size_t kj=1; kj<knots.size(); ++kj)
+		{
+		  double del = (knots[kj] - knots[kj-1])/(double)(nmb+1);
+		  int kr;
+		  double par;
+		  for (kr=0, par=knots[kj-1]+del; kr<nmb; ++kr, par+=del)
+		    newknots.push_back(par);
+		}
+
+	      curr_under->insertKnot(dir, newknots);
+	    }
+	}
      }
 
-  SplineVolume* curr_under = curr_vol->getVolume()->asSplineVolume();
+  SplineVolume* under = curr_vol->getVolume()->asSplineVolume();
   double gap = curr_vol->getTolerances().gap;
   
-  int nmb_elem = curr_under->numElem();
+  int nmb_elem = under->numElem();
   std::cout << "No of elements: " << nmb_elem << std::endl;
 
   std::ofstream of5("tmp5.g2");
@@ -196,6 +218,8 @@ int main( int argc, char* argv[] )
 	      std::cout << "Sub element nr " << kj+1 << ": " << regular << std::endl;
 	      if (regular)
 		{
+		  if (false)
+		    {
 		  // Create non-trimmed parameter element
 		  shared_ptr<ParamVolume> reg_vol = 
 		    sub_elem[kj]->getRegParVol(degree);
@@ -210,6 +234,7 @@ int main( int argc, char* argv[] )
 		  shared_ptr<ParamVolume> tmp_vol = sub_elem[kj]->getVolume();
 		  tmp_vol->writeStandardHeader(of6);
 		  tmp_vol->write(of6);
+		    }
 		}
 	      else
 		{
