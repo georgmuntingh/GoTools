@@ -1266,7 +1266,7 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 		//   {
 		    space_end_dist = dist_close_end;
 		    end_t = par_close_end;
-		  }
+		  // }
 		// min_loop_tol = std::max(min_loop_tol, dist_close_end+a_tol);
 	      }
 
