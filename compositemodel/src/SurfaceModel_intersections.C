@@ -1150,6 +1150,9 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	    {
 	      std::cout << "Trimmed surfaces missing" << std::endl;
 	    }
+#ifdef DEBUG
+	  std::ofstream of1("curr1_split.g2");
+#endif
 	  for (size_t kr=0; kr<trim_sfs.size(); ++kr)
 	    {
 #ifdef DEBUG
@@ -1158,6 +1161,8 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	      bool valid = trim_sfs[kr]->isValid(state);
 	      if (!valid)
 		std::cout << "Surface not valid: " << state << std::endl;
+	      trim_sfs[kr]->writeStandardHeader(of1);
+	      trim_sfs[kr]->write(of1);
 #endif
 
 	  // Check if the trimmed surface lies inside or outside the 
@@ -1233,6 +1238,9 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	    {
 	      std::cout << "Trimmed surfaces missing" << std::endl;
 	    }
+#ifdef DEBUG
+	  std::ofstream of1("curr2_split.g2");
+#endif
 	  for (size_t kr=0; kr<trim_sfs.size(); ++kr)
 	    {
 #ifdef DEBUG
@@ -1241,6 +1249,8 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	      bool valid = trim_sfs[kr]->isValid(state);
 	      if (!valid)
 		std::cout << "Surface not valid: " << state << std::endl;
+	      trim_sfs[kr]->writeStandardHeader(of1);
+	      trim_sfs[kr]->write(of1);
 #endif
 
 	  // Check if the trimmed surface lies inside or outside the 

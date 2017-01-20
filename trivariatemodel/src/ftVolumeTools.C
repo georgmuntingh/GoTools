@@ -38,6 +38,7 @@
  */
 
 //#define DEBUG_VOL
+#define DEBUG
 
 #include "GoTools/trivariatemodel/ftVolumeTools.h"
 #include "GoTools/trivariatemodel/ftVolume.h"
@@ -616,6 +617,24 @@ ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
 
   // Fetch shell surrounding element volume
   shared_ptr<SurfaceModel> elem_shell = elem_vol->getOuterShell();
+
+#ifdef DEBUG
+  std::ofstream of1("trim_faces.g2");
+  for (size_t kr=0; kr<faces.size(); ++kr)
+    {
+      shared_ptr<ParamSurface> tmp_sf = faces[kr]->surface();
+      tmp_sf->writeStandardHeader(of1);
+      tmp_sf->write(of1);
+    }
+  std::ofstream of2("elem_faces.g2");
+  int nmb_elem = elem_shell->nmbEntities();
+  for (int kh=0; kh<nmb_elem; ++kh)
+    {
+      shared_ptr<ParamSurface> tmp_sf = elem_shell->getSurface(kh);
+      tmp_sf->writeStandardHeader(of2);
+      tmp_sf->write(of2);
+    }
+#endif
 
   // Split element volume and trim faces
   vector<vector<shared_ptr<ParamSurface> > > split_groups;

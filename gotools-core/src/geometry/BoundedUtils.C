@@ -1246,22 +1246,28 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 	    double space_start_dist = clo_start_pt_space.dist(space_start_pt);
 	    double space_end_dist = clo_end_pt_space.dist(space_end_pt);
 	    if (std::min(space_start_dist, dist_close_start) < min_loop_tol
-		/*true*/ /*dist_close_start < space_start_dist*/)
+		/*true*/ /*dist_close_start <= space_start_dist*/)
 	    // if (!(space_start_dist < min_loop_tol && 
 	    // 	  dist_close_start >= min_loop_tol))
 	      {
-		space_start_dist = dist_close_start;
-		start_t = par_close_start;
+		// if (dist_close_start <= space_start_dist)
+		//   {
+		    space_start_dist = dist_close_start;
+		    start_t = par_close_start;
+		  // }
 		min_loop_tol = std::max(min_loop_tol, dist_close_start+a_tol);
 	      }
 	    if (std::min(space_end_dist, dist_close_end) < min_loop_tol
-		/*true*/ /*dist_close_end < space_end_dist*/)
+		/*true*/ /*dist_close_end <= space_end_dist*/)
 	    // if (!(space_end_dist < min_loop_tol &&
 	    // 	  dist_close_end >= min_loop_tol))
 	      {
-		space_end_dist = dist_close_end;
-		end_t = par_close_end;
-		min_loop_tol = std::max(min_loop_tol, dist_close_end+a_tol);
+		// if (dist_close_end <= space_end_dist)
+		//   {
+		    space_end_dist = dist_close_end;
+		    end_t = par_close_end;
+		  }
+		// min_loop_tol = std::max(min_loop_tol, dist_close_end+a_tol);
 	      }
 
 	    if ((space_start_dist < min_loop_tol) &&
@@ -1432,6 +1438,15 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
     Point total_par_start_pt = curr_crv->parameterCurve()->point(curr_crv->startparam());
     Point curr_par_end_pt = curr_crv->parameterCurve()->point(curr_crv->endparam());
     double par_end_dist = total_par_start_pt.dist(curr_par_end_pt);
+
+    if (space_end_dist >= min_loop_tol && par_end_dist < epspar)
+      {
+	shared_ptr<const ParamSurface> psf = sf.underlyingSurface();
+	Point geom1 = psf->point(total_par_start_pt[0], total_par_start_pt[1]);
+	Point geom2 = psf->point(curr_par_end_pt[0], curr_par_end_pt[1]);
+	double gdist = geom1.dist(geom2);
+	int stop_break = 1;
+      }
 //     bool cw_loop;
 //     double max_angle = -4.0; // Angles are measured on (-pi, pi].
     // We must locate max angle among remaining parts, both new and old.
@@ -1560,6 +1575,15 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 	curr_par_end_pt = curr_crv->parameterCurve()->point(curr_crv->endparam());
 	space_end_dist = total_space_start_pt.dist(curr_space_end_pt);
 	par_end_dist = total_par_start_pt.dist(curr_par_end_pt);
+
+	if (space_end_dist >= min_loop_tol && par_end_dist < epspar)
+	  {
+	    shared_ptr<const ParamSurface> psf = sf.underlyingSurface();
+	    Point geom1 = psf->point(total_par_start_pt[0], total_par_start_pt[1]);
+	    Point geom2 = psf->point(curr_par_end_pt[0], curr_par_end_pt[1]);
+	    double gdist = geom1.dist(geom2);
+	    int stop_break = 1;
+	  }
     }
 
     return new_loops; // We should be done

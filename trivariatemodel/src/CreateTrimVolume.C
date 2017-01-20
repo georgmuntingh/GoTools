@@ -291,7 +291,7 @@ CreateTrimVolume::extendSurfaces(vector<pair<shared_ptr<ftSurface>, shared_ptr<P
       Point high2 = curr.high();
       Point low2 = curr.low();
       double l2 = high2.dist(low2);
-      double len = std::max(l1/l2, l1/5.0);
+      double len = std::max(l1/l2, l1/8.0);
       ElementarySurface *elem = side_sfs[ki].second->elementarySurface();
       if (elem)
 	{

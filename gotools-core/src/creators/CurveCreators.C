@@ -625,7 +625,7 @@ CurveCreators::projectSpaceCurve(shared_ptr<ParamCurve>& space_cv,
     {
 		MESSAGE("Inconsistent input to curve approximation: max_dist = "
 		<< std::max(dist1, dist2) << ", epsge = " << epsge);
-                return NULL;
+                //return NULL;
     }
 #ifdef DEBUG
       std::ofstream out("project.g2");
