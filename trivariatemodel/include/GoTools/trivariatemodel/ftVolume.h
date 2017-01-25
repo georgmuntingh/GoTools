@@ -359,7 +359,8 @@ namespace Go
       updateBoundaryInfo();
 
     void splitElementByTrimSfs(int elem_ix, double eps,
-			       std::vector<shared_ptr<ftVolume> >& sub_elem);
+			       std::vector<shared_ptr<ftVolume> >& sub_elem,
+			       std::vector<int>& is_inside);
 
     /// Debug
     bool checkBodyTopology();
@@ -492,20 +493,20 @@ namespace Go
 
     void simplifyOuterBdShell(int degree);
 
-    int mergeSituation(ftSurface* face1, ftSurface* face2,
-		       shared_ptr<Vertex> vx1, shared_ptr<Vertex> vx2,
-		       int& dir1, double& val1, bool& atstart1, 
-		       int& dir2, double& val2, bool& atstart2, 
-		       std::pair<Point, Point>& co_par1, 
-		       std::pair<Point, Point>& co_par2);
+   /*  int mergeSituation(ftSurface* face1, ftSurface* face2, */
+   /* 		       shared_ptr<Vertex> vx1, shared_ptr<Vertex> vx2, */
+   /* 		       int& dir1, double& val1, bool& atstart1,  */
+   /* 		       int& dir2, double& val2, bool& atstart2,  */
+   /* 		       std::pair<Point, Point>& co_par1,  */
+   /* 		       std::pair<Point, Point>& co_par2); */
 
-   std::vector<ftSurface*> getMergeCandFaces(shared_ptr<ftSurface> curr,
-					     std::vector<std::pair<shared_ptr<Vertex>,
-					      shared_ptr<Vertex> > >& common_vxs);
+   /* std::vector<ftSurface*> getMergeCandFaces(shared_ptr<ftSurface> curr, */
+   /* 					     std::vector<std::pair<shared_ptr<Vertex>, */
+   /* 					      shared_ptr<Vertex> > >& common_vxs); */
 
-   void estMergedSfSize(ftSurface* face1, ftSurface* face2,
-			shared_ptr<Vertex> vx1,shared_ptr<Vertex> vx2,
-			double& len_frac, double& other_frac, double& sf_reg);
+   /* void estMergedSfSize(ftSurface* face1, ftSurface* face2, */
+   /* 			shared_ptr<Vertex> vx1,shared_ptr<Vertex> vx2, */
+   /* 			double& len_frac, double& other_frac, double& sf_reg); */
 
    void setParameterVolAdjacency(std::vector<shared_ptr<ParamSurface> >& sfs1,
 				 std::vector<shared_ptr<ftSurface> >& face2) const;

@@ -68,8 +68,8 @@ int main(int argc, char* argv[] )
   // The neighbour tolerance must be smaller than the smallest entity in the
   // model, but larger than the largest gap.
   // The gap tolerance must be smaller than the neighbour tolerance
-  double gap = 0.0001; //0.001;
-  double neighbour = 0.001; //0.01;
+  double gap = 0.001; //0.0001;
+  double neighbour = 0.01; //0.001;
   double kink = 0.01;
   double approxtol = 0.001;
 
@@ -93,6 +93,8 @@ int main(int argc, char* argv[] )
       
   bool isOK = sfmodel->checkShellTopology();
   std::cout << "Shell topology: " << isOK << std::endl;
+
+  sfmodel->simplifyShell();
 
   CreateTrimVolume trim(sfmodel);
 

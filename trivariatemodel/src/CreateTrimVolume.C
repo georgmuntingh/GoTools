@@ -77,6 +77,19 @@ CreateTrimVolume::~CreateTrimVolume()
 shared_ptr<ftVolume> CreateTrimVolume::fetchOneTrimVol()
 //==========================================================================
 {
+  int degree = 3;
+  SurfaceModelUtils::simplifySurfaceModel(model_, degree);
+#ifdef DEBUG
+  std::ofstream of1("simplified_shell.g2");
+  int nmb = model_->nmbEntities();
+  for (int kj=0; kj<nmb; ++kj)
+    {
+      shared_ptr<ParamSurface> sf = model_->getSurface(kj);
+      sf->writeStandardHeader(of1);
+      sf->write(of1);
+    }
+#endif
+
   // Distinguish between boundary surfaces and trimming surfaces
   vector<pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> > > side_sfs;
   identifyBoundaryFaces(side_sfs);
@@ -100,7 +113,6 @@ shared_ptr<ftVolume> CreateTrimVolume::fetchOneTrimVol()
   // Create intermediate ftVolume and extract parametric volume from this
   shared_ptr<ftVolume> ftvol(new ftVolume(shell));
 
-  int degree = 3;
   if (ftvol->isRegularized())
     ftvol->untrimRegular(degree);
 
@@ -133,11 +145,11 @@ CreateTrimVolume::identifyBoundaryFaces(vector<pair<shared_ptr<ftSurface>, share
 
 #ifdef DEBUG
   std::ofstream of1("bd_faces1.g2");
-for (size_t ki=0; ki<bd_faces.size(); ++ki)
-  {
-    bd_faces[ki]->surface()->writeStandardHeader(of1);
-    bd_faces[ki]->surface()->write(of1);
-  }
+  for (size_t ki=0; ki<bd_faces.size(); ++ki)
+    {
+      bd_faces[ki]->surface()->writeStandardHeader(of1);
+      bd_faces[ki]->surface()->write(of1);
+    }
 #endif
 
   // Divide the remaining faces in compact sets and select the "largest"

@@ -594,10 +594,11 @@ ftVolumeTools::splitVolumes(shared_ptr<ftVolume>& vol,
 // 
 vector<shared_ptr<ftVolume> >
 ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
-			   double eps)
+			   double eps, vector<int>& is_inside)
 //===========================================================================
 {
   vector<shared_ptr<ftVolume> > result;
+  is_inside.clear();
 
   // Fetch trim faces from boundary shells
   vector<shared_ptr<SurfaceModel> > shells = trim_vol->getAllShells();
@@ -678,6 +679,7 @@ ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
   
   // Create surface models
   vector<shared_ptr<SurfaceModel> > surf_mod;
+  vector<int> inside;
   tpTolerances toptol = shells[0]->getTolerances();
   if (split_groups[0].size() > 0)
     {
@@ -686,6 +688,7 @@ ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
 						    toptol.kink, toptol.bend,
 						    split_groups[0]));
       surf_mod.push_back(mod);
+      inside.push_back(1);
     }
 
   if (split_groups[1].size() > 0)
@@ -695,6 +698,7 @@ ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
 						    toptol.kink, toptol.bend,
 						    split_groups[1]));
       surf_mod.push_back(mod);
+      inside.push_back(0);
     }
 
   // Separate surface models into connected sets and make 
@@ -708,6 +712,7 @@ ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
 	shared_ptr<ftVolume> curr(new ftVolume(elem_vol->getVolume(), 
 					       sep_models[kj]));
 	result.push_back(curr);
+	is_inside.push_back(inside[ki]);
       }
     }
   return result;

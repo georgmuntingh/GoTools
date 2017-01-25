@@ -65,7 +65,7 @@ namespace Go
     // surfaces of another volume
     std::vector<shared_ptr<ftVolume> >
       splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
-		  double eps);
+		  double eps, std::vector<int>& is_inside);
 
     /// Split one volume according to intersections with a given face
     std::vector<shared_ptr<ftVolume> >

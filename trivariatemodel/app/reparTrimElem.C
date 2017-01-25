@@ -192,7 +192,9 @@ int main( int argc, char* argv[] )
 	  // Element intersects trimming surface
 	  // Split element with trimming shell
 	  vector<shared_ptr<ftVolume> > sub_elem;
-	  curr_vol->splitElementByTrimSfs(ki, gap, sub_elem);
+	  vector<int> is_inside; // Equal 1 if the sub element is inside
+	  // the trimmed volume
+	  curr_vol->splitElementByTrimSfs(ki, gap, sub_elem, is_inside);
 
 	  std::ofstream of4("tmp4.g2");
 	  for (size_t kj=0; kj<sub_elem.size(); ++kj)
@@ -214,12 +216,15 @@ int main( int argc, char* argv[] )
  	  // Check if the remaining element is hexagonal
 	  for (size_t kj=0; kj<sub_elem.size(); ++kj)
 	    {
+	      if (!is_inside[kj])
+		continue;
+
 	      bool regular = sub_elem[kj]->isRegularized();
 	      std::cout << "Sub element nr " << kj+1 << ": " << regular << std::endl;
 	      if (regular)
 		{
-		  // if (false)
-		  //   {
+		  if (false)
+		    {
 		  // Create non-trimmed parameter element
 		  shared_ptr<ParamVolume> reg_vol = 
 		    sub_elem[kj]->getRegParVol(degree);
@@ -234,7 +239,7 @@ int main( int argc, char* argv[] )
 		  shared_ptr<ParamVolume> tmp_vol = sub_elem[kj]->getVolume();
 		  tmp_vol->writeStandardHeader(of6);
 		  tmp_vol->write(of6);
-		    // }
+		    }
 		}
 	      else
 		{

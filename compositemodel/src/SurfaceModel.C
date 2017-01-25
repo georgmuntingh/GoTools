@@ -68,7 +68,7 @@
 #include "GoTools/topology/FaceConnectivityUtils.h"
 
 //#define DEBUG
-//#define DEBUG_REG
+#define DEBUG_REG
 
 using std::vector;
 using std::make_pair;

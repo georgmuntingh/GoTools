@@ -1206,7 +1206,8 @@ void CompositeModelFileHandler::readFaces(const char* filein)
 	  vector<shared_ptr<CurveOnSurface> > loop_cvs(curves.size());
 	  vector<bool> prefer_param = loop_curves_pref_par.find(loop_id[ki])->second;
 	  vector<shared_ptr<sfcvinfo> > cv_info = loop_curves_cvinfo.find(loop_id[ki])->second;
-	  for (size_t kj = 0; kj < curves.size(); ++kj)
+	  size_t kd = 1;
+	  for (size_t kj = 0; kj < curves.size(); kj=kd)
             {
 	      if (cv_info[kj]->infoset_)
 		loop_cvs[kj] = 
@@ -1225,8 +1226,20 @@ void CompositeModelFileHandler::readFaces(const char* filein)
 								curves[kj].first,
 								curves[kj].second,
 								prefer_param[kj]));
+	      all_loop_cvs[ki].push_back(loop_cvs[kj]);
+
+	      // Check for identity of curves
+	      for (kd=kj+1; kd<curves.size(); ++kd)
+		if (curves[kj].first.get() != curves[kd].first.get())
+		  break;   // Assumes parallelity of different curve identificators.
+
+	      for (size_t ka=kj+1; ka<kd; ++ka)
+		loop_cvs[ka] = loop_cvs[kj];
             }
-	  all_loop_cvs[ki] = loop_cvs;
+
+	  // Update curve pointer in edge
+	  for (size_t kj=0; kj<loop_cvs.size(); ++kj)
+	    all_loops[ki]->getEdge(kj)->geomEdge()->setGeomCurve(loop_cvs[kj]);
         }
 
       const bool fix_trim_cvs = false;

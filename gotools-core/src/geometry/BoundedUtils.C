@@ -1267,7 +1267,7 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 		    space_end_dist = dist_close_end;
 		    end_t = par_close_end;
 		  // }
-		// min_loop_tol = std::max(min_loop_tol, dist_close_end+a_tol);
+		    min_loop_tol = std::max(min_loop_tol, dist_close_end+a_tol);
 	      }
 
 	    if ((space_start_dist < min_loop_tol) &&
@@ -1454,6 +1454,7 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 //     double local_angle = -2*M_PI; // Illegal value.
     // double min_ang = 0.01;
 
+    double min_loop_tol2 = min_loop_tol;
     while (true) { //((end_dist > min_loop_tol) || (part_bd_cvs.size() != 0)) {
 // 	double part_angle;
 // 	int part_ind = leftMostCurve(*curr_crv, part_bd_cvs, min_loop_tol, 
@@ -1466,7 +1467,7 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
       tmp_vec.insert(tmp_vec.end(), old_loop_cvs.begin(), old_loop_cvs.end());
       double tmp_ang;
       int part_ind = -1, old_ind = -1;
-      int tmp_ind = leftMostCurve(*curr_crv, tmp_vec, min_loop_tol, tmp_ang);
+      int tmp_ind = leftMostCurve(*curr_crv, tmp_vec, min_loop_tol2, tmp_ang);
       double part_angle = (tmp_ind < (int)part_bd_cvs.size()) ? tmp_ang : 8.0;
       if (tmp_ind < (int)part_bd_cvs.size())
 	part_ind = tmp_ind;
@@ -1474,13 +1475,37 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
       if (tmp_ind >= (int)part_bd_cvs.size())
 	old_ind = tmp_ind - (int)part_bd_cvs.size();
 
-      if (space_end_dist < min_loop_tol && par_end_dist < epspar) {
+	if (space_end_dist >= min_loop_tol && 
+	    space_end_dist < 50.0*min_loop_tol && 
+	    par_end_dist < epspar && part_ind >= 0)
+	  {
+	    // Make a test run for the next curve
+	    vector<shared_ptr<CurveOnSurface> > tmp_vec2;
+	    tmp_vec2.insert(tmp_vec2.end(), part_bd_cvs.begin(), 
+			    part_bd_cvs.end());
+	    tmp_vec2.insert(tmp_vec2.end(), old_loop_cvs.begin(), 
+			    old_loop_cvs.end());
+	    double tmp_ang2;
+	    int tmp_ind2 = leftMostCurve(*curr_crv, tmp_vec2, 
+					 min_loop_tol, tmp_ang2);
+	    double angtol = 0.01;
+	    if (tmp_ind2 < (int)part_bd_cvs.size() && 
+		fabs(2.0*M_PI - tmp_ang2) < angtol)
+	      {
+		// Probably a closed loop despite a big gap
+		min_loop_tol2 = space_end_dist + a_tol;
+	      }
+	    
+	    int stop_break = 1;
+	  }
+
+	if (space_end_dist < min_loop_tol2 && par_end_dist < epspar) {
 	// Check if next segment is to the left of the first in curr_loop.
 	// 	    vector<shared_ptr<CurveOnSurface> > dummy_vec;
 	// 	    dummy_vec.push_back(curr_loop.front());
 	tmp_vec.push_back(curr_loop.front());
 	double angle;
-	tmp_ind = leftMostCurve(*curr_crv, tmp_vec, min_loop_tol, angle);
+	tmp_ind = leftMostCurve(*curr_crv, tmp_vec, min_loop_tol2, angle);
 	if (tmp_ind == (int)tmp_vec.size() - 1)
 	  part_ind = old_ind = -1;
 // 	if (angle < part_angle + a_tol) {
@@ -1534,7 +1559,7 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 		part_ind = -1;
 	  } 
 	else if (part_ind == -1 && old_ind == -1) { // No new segment.
-	  if (space_end_dist < min_loop_tol /*&& par_end_dist < epspar*/) {
+	  if (space_end_dist < min_loop_tol2 /*&& par_end_dist < epspar*/) {
 #ifdef DEBUG1
 		std::ofstream out2("loop_cvs2.g2");
 		for (size_t ix=0; ix<curr_loop.size(); ++ix)
@@ -1576,14 +1601,7 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 	space_end_dist = total_space_start_pt.dist(curr_space_end_pt);
 	par_end_dist = total_par_start_pt.dist(curr_par_end_pt);
 
-	if (space_end_dist >= min_loop_tol && par_end_dist < epspar)
-	  {
-	    shared_ptr<const ParamSurface> psf = sf.underlyingSurface();
-	    Point geom1 = psf->point(total_par_start_pt[0], total_par_start_pt[1]);
-	    Point geom2 = psf->point(curr_par_end_pt[0], curr_par_end_pt[1]);
-	    double gdist = geom1.dist(geom2);
-	    int stop_break = 1;
-	  }
+	//min_loop_tol2 = min_loop_tol;
     }
 
     return new_loops; // We should be done
