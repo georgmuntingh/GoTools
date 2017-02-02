@@ -1018,6 +1018,7 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
   vector<shared_ptr<BoundedSurface> > bd_sfs2(nmb2);
 
   // Perform all intersections and store results
+  int nmb_int = 0;
   int ki, kj;
   for (ki=0; ki<nmb1; ++ki)
     {
@@ -1051,6 +1052,7 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 					 int_cv1.begin(), int_cv1.end());
 		  all_int_cvs2[kj].insert(all_int_cvs2[kj].end(), 
 					 int_cv2.begin(), int_cv2.end());
+		  nmb_int += (int)int_cv1.size();
 		}
 	    }
 	}
@@ -1271,6 +1273,23 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 		  inside2.push_back(trim_sfs[kr]);
 		}			      
 	    }
+	}
+    }
+
+  if (nmb_int == 0)
+    {
+      // The surface model is not split, but some surfaces may be wrongly 
+      // classified due to coincidence. Make sure that all faces have
+      // the same classification
+      if (inside1.size() > outside1.size() && outside1.size() > 0)
+	{
+	  inside1.insert(inside1.end(), outside1.begin(), outside1.end());
+	  outside1.clear();
+	}
+      else  if (inside1.size() < outside1.size() && inside1.size() > 0)
+	{
+	  outside1.insert(outside1.end(), inside1.begin(), inside1.end());
+	  inside1.clear();
 	}
     }
   result.push_back(inside1);

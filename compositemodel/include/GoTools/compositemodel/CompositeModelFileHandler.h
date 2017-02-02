@@ -58,6 +58,8 @@ namespace Go
 
 // Writing to and reading from the g22 file format.
 // Supports topology information (as opposed to the g2 format for geometries only).
+  class ParamSurface;
+
 class CompositeModelFileHandler
 {
 
@@ -91,7 +93,9 @@ public:
 
     std::vector<shared_ptr<GeomObject> > readGeomObj(const char* filein);
 
-    SurfaceModel readSurfModel(const char* filein, int id=-1);
+    std::vector<shared_ptr<ParamSurface> > readSurface(const char* filein);
+
+     SurfaceModel readSurfModel(const char* filein, int id=-1);
 
     shared_ptr<SurfaceModel> readShell(const char* filein, int id=-1);
 

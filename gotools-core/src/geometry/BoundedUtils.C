@@ -86,6 +86,10 @@ void consistentIntersectionDir(ParamCurve& inters_pcv,
 			       const Go::ParamSurface& other_sf,
 			       double epsgeo);
 
+  void consistentIntersectionDir(shared_ptr<CurveOnSurface> sf_cv1,
+				 shared_ptr<CurveOnSurface> sf_cv2,
+				 double epsgeo);
+
 double getSeed(Point space_pt, CurveOnSurface& cv_on_sf);
 
 // Based on parameter domain and lengths of sf's edges, return corresponding par_eps.
@@ -1977,42 +1981,121 @@ BoundedUtils::getIntersectionCurve(shared_ptr<ParamSurface>& sf1,
     int makecurv = 2; // Make both geometric and parametric curves.
     int draw = 0;
     for (ki = 0; ki < nmb_int_cvs; ++ki) {
-	s1310(sisl_sf1, sisl_sf2, intcurves[ki], march_eps, maxstep, makecurv, draw, &status);
-	ALWAYS_ERROR_IF(status < 0,
-		    "Failed intersecting surfs.");
-	MESSAGE_IF(status != 0, "Returned status value: " << status);
+      if (intcurves[ki]->pgeom)
+	{
+	  // The geometry curve exists already. Use GoTools to create parameter curves
+	  shared_ptr<SplineCurve> space_curve1(SISLCurve2Go(intcurves[ki]->pgeom));
+	  space_curve1->makeKnotStartRegular();
+	  space_curve1->makeKnotEndRegular();
+	  shared_ptr<SplineCurve> space_curve2(space_curve1->clone());
+	  shared_ptr<CurveOnSurface> sf_cv1, sf_cv2;
+	  if (intcurves[ki]->ppar1)
+	    {
+	      shared_ptr<SplineCurve> pcurve1(SISLCurve2Go(intcurves[ki]->ppar1));
+	      pcurve1->makeKnotStartRegular();
+	      pcurve1->makeKnotEndRegular();
+	      sf_cv1 = shared_ptr<CurveOnSurface>(new CurveOnSurface(sf1, pcurve1, 
+								     space_curve1, false));
+	    }
+	  else
+	    {
+	      sf_cv1 = shared_ptr<CurveOnSurface>(new CurveOnSurface(sf1, space_curve1, 
+								     false));
+	      Point par1(intcurves[ki]->epar1[0], intcurves[ki]->epar1[1]);
+	      int npar = intcurves[ki]->ipar1;
+	      Point par2(intcurves[ki]->epar1[2*npar-2], intcurves[ki]->epar1[2*npar-1]);
+	      sf_cv1->ensureParCrvExistence(march_eps, NULL, &par1, &par2);
+	    }
 
-	shared_ptr<SplineCurve> pcurve1(SISLCurve2Go(intcurves[ki]->ppar1));
-	shared_ptr<SplineCurve> pcurve2(SISLCurve2Go(intcurves[ki]->ppar2));
-	shared_ptr<SplineCurve> space_curve1(SISLCurve2Go(intcurves[ki]->pgeom));
-	//shared_ptr<SplineCurve> space_curve2(new SplineCurve(*space_curve1));
-	shared_ptr<SplineCurve> space_curve2(space_curve1->clone());
+	  if (intcurves[ki]->ppar2)
+	    {
+	      shared_ptr<SplineCurve> pcurve2(SISLCurve2Go(intcurves[ki]->ppar2));
+	      pcurve2->makeKnotStartRegular();
+	      pcurve2->makeKnotEndRegular();
+	      sf_cv2 = shared_ptr<CurveOnSurface>(new CurveOnSurface(sf2, pcurve2, 
+								     space_curve2, false));
+	    }
+	  else
+	    {
+	      sf_cv2 = shared_ptr<CurveOnSurface>(new CurveOnSurface(sf2, space_curve2, 
+								     false));
+	      Point par1(intcurves[ki]->epar2[0], intcurves[ki]->epar2[1]);
+	      int npar = intcurves[ki]->ipoint;
+	      Point par2(intcurves[ki]->epar2[2*npar-2], intcurves[ki]->epar2[2*npar-1]);
+	      sf_cv2->ensureParCrvExistence(march_eps, NULL, &par1, &par2);
+	    }
 
-	// Make sure that the curves are k-regular
-	pcurve1->makeKnotStartRegular();
-	pcurve1->makeKnotEndRegular();
-	pcurve2->makeKnotStartRegular();
-	pcurve2->makeKnotEndRegular();
-	space_curve1->makeKnotStartRegular();
-	space_curve1->makeKnotEndRegular();
-	space_curve2->makeKnotStartRegular();
-	space_curve2->makeKnotEndRegular();
+	  // We make sure the intersection cvs have the right direction (area below sfs
+	  // to be trimmed away).
+	  consistentIntersectionDir(sf_cv1, sf_cv2, epsgeo);
+	  consistentIntersectionDir(sf_cv2, sf_cv1, epsgeo);
 
-	// We make sure the intersection cvs have the right direction (area below sfs
-	// to be trimmed away).
-	consistentIntersectionDir(*pcurve1, *space_curve1, *sf1,
-				  *pcurve2, *space_curve2, *sf2, epsgeo);
-	consistentIntersectionDir(*pcurve2, *space_curve2, *sf2,
-				  *pcurve1, *space_curve1, *sf1, epsgeo);
+	  int_segments1.push_back(sf_cv1);
+	  int_segments2.push_back(sf_cv2);
+	}
+      else
+	{
+	  s1310(sisl_sf1, sisl_sf2, intcurves[ki], march_eps, maxstep, makecurv, draw, &status);
+	  SISLCurve* sc = intcurves[ki]->pgeom;
+	  // if (sc == 0) {
+	  //   // Turn the sequence of guide points and try again
+	  //   int kpoint = intcurves[ki]->ipoint;
+	  //   int kpar1 = intcurves[ki]->ipar1;
+	  //   int kpar2 = intcurves[ki]->ipar2;
+	  //   for (int ka=0; ka<kpoint/2; ++ka)
+	  //     {
+	  // 	for (int kb=0; kb<kpar1; ++kb)
+	  // 	  std::swap(intcurves[ki]->epar1[kpar1*ka+kb],
+	  // 		    intcurves[ki]->epar1[kpar1*(kpoint-ka-1)+kb]);
+	  // 	for (int kb=0; kb<kpar2; ++kb)
+	  // 	  std::swap(intcurves[ki]->epar2[kpar2*ka+kb],
+	  // 		    intcurves[ki]->epar2[kpar2*(kpoint-ka-1)+kb]);
+	  //     }
+	  //   s1310(sisl_sf1, sisl_sf2, intcurves[ki], march_eps, maxstep, makecurv, draw, &status);
+	    sc = intcurves[ki]->pgeom;
+	    if (sc == 0) {
+	      
+	      MESSAGE("s1310 returned code: " << status << ", returning.");
+	      continue;
+	    }
+	  // }
 
-	// int_segments1.push_back(shared_ptr<CurveOnSurface>
-	// 			(new CurveOnSurface(sf1, pcurve1, space_curve1, true)));
-	// int_segments2.push_back(shared_ptr<CurveOnSurface>
-	// 			(new CurveOnSurface(sf2, pcurve2, space_curve2, true)));
-	int_segments1.push_back(shared_ptr<CurveOnSurface>
-				(new CurveOnSurface(sf1, pcurve1, space_curve1, false)));
-	int_segments2.push_back(shared_ptr<CurveOnSurface>
-				(new CurveOnSurface(sf2, pcurve2, space_curve2, false)));
+	  // ALWAYS_ERROR_IF(status < 0,
+	  // 	    "Failed intersecting surfs.");
+	  // MESSAGE_IF(status != 0, "Returned status value: " << status);
+
+	  shared_ptr<SplineCurve> pcurve1(SISLCurve2Go(intcurves[ki]->ppar1));
+	  shared_ptr<SplineCurve> pcurve2(SISLCurve2Go(intcurves[ki]->ppar2));
+	  shared_ptr<SplineCurve> space_curve1(SISLCurve2Go(intcurves[ki]->pgeom));
+	  //shared_ptr<SplineCurve> space_curve2(new SplineCurve(*space_curve1));
+	  shared_ptr<SplineCurve> space_curve2(space_curve1->clone());
+
+	  // Make sure that the curves are k-regular
+	  pcurve1->makeKnotStartRegular();
+	  pcurve1->makeKnotEndRegular();
+	  pcurve2->makeKnotStartRegular();
+	  pcurve2->makeKnotEndRegular();
+	  space_curve1->makeKnotStartRegular();
+	  space_curve1->makeKnotEndRegular();
+	  space_curve2->makeKnotStartRegular();
+	  space_curve2->makeKnotEndRegular();
+
+	  // We make sure the intersection cvs have the right direction (area below sfs
+	  // to be trimmed away).
+	  consistentIntersectionDir(*pcurve1, *space_curve1, *sf1,
+				    *pcurve2, *space_curve2, *sf2, epsgeo);
+	  consistentIntersectionDir(*pcurve2, *space_curve2, *sf2,
+				    *pcurve1, *space_curve1, *sf1, epsgeo);
+
+	  // int_segments1.push_back(shared_ptr<CurveOnSurface>
+	  // 			(new CurveOnSurface(sf1, pcurve1, space_curve1, true)));
+	  // int_segments2.push_back(shared_ptr<CurveOnSurface>
+	  // 			(new CurveOnSurface(sf2, pcurve2, space_curve2, true)));
+	  int_segments1.push_back(shared_ptr<CurveOnSurface>
+				  (new CurveOnSurface(sf1, pcurve1, space_curve1, false)));
+	  int_segments2.push_back(shared_ptr<CurveOnSurface>
+				  (new CurveOnSurface(sf2, pcurve2, space_curve2, false)));
+	}
     }
 
     // As we're using SISL we must not forget to release memory.
@@ -2174,29 +2257,39 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
     for (ki = 0; ki < int(new_cvs1.size()); ++ki) {
 	Point start1 = new_cvs1[ki]->ParamCurve::point(new_cvs1[ki]->startparam());
 	Point end1 = new_cvs1[ki]->ParamCurve::point(new_cvs1[ki]->endparam());
+	if (start1.dist(end1) < epsge)
+	  continue;
 	// We split cvs which end in the interior of another cv.
 	for (kj = 0; kj < int(new_cvs2.size()); ++kj) {
 	    Point start2 = new_cvs2[kj]->ParamCurve::point(new_cvs2[kj]->startparam());
 	    Point end2 = new_cvs2[kj]->ParamCurve::point(new_cvs2[kj]->endparam());
+	    if (start2.dist(end2) < epsge)
+	      continue;
 	    // We then perform closest pt calculations for all end pts.
 	    double clo_t, clo_dist;
 	    Point clo_pt;
+	    double len1 = new_cvs1[ki]->estimatedCurveLength();
 	    new_cvs1[ki]->ParamCurve::closestPoint(end2, clo_t, clo_pt, clo_dist);
-	    if ((clo_dist < epsge) && ((clo_t - knot_diff_tol > new_cvs1[ki]->startparam()) &&
-				       (clo_t + knot_diff_tol < new_cvs1[ki]->endparam()))) {
+	    if ((clo_dist < epsge && len1 > epsge) && 
+		((clo_t - knot_diff_tol > new_cvs1[ki]->startparam()) &&
+		 (clo_t + knot_diff_tol < new_cvs1[ki]->endparam()))) {
 		shared_ptr<CurveOnSurface> new_cv(new_cvs1[ki]->subCurve(clo_t, new_cvs1[ki]->endparam()));
 		new_cvs1.insert(new_cvs1.begin() + ki + 1, new_cv);
 		new_cvs1[ki] = shared_ptr<CurveOnSurface>
 		    (new_cvs1[ki]->subCurve(new_cvs1[ki]->startparam(), clo_t));
 	    }
 	    new_cvs1[ki]->ParamCurve::closestPoint(start2, clo_t, clo_pt, clo_dist);
-	    if ((clo_dist < epsge) && ((clo_t - knot_diff_tol > new_cvs1[ki]->startparam()) &&
-				       (clo_t + knot_diff_tol < new_cvs1[ki]->endparam()))) {
+	    if ((clo_dist < epsge && len1 > epsge) && 
+		((clo_t - knot_diff_tol > new_cvs1[ki]->startparam()) &&
+		 (clo_t + knot_diff_tol < new_cvs1[ki]->endparam()))) {
 		shared_ptr<CurveOnSurface> new_cv(new_cvs1[ki]->subCurve(clo_t, new_cvs1[ki]->endparam()));
 		new_cvs1.insert(new_cvs1.begin() + ki + 1, new_cv);
 		new_cvs1[ki] = shared_ptr<CurveOnSurface>
 		    (new_cvs1[ki]->subCurve(new_cvs1[ki]->startparam(), clo_t));
 	    }
+	    double len2 = new_cvs2[kj]->estimatedCurveLength();
+	    if (len2 < epsge)
+	      continue;
 	    new_cvs2[kj]->ParamCurve::closestPoint(end1, clo_t, clo_pt, clo_dist);
 	    if ((clo_dist < epsge) && ((clo_t - knot_diff_tol > new_cvs2[kj]->startparam()) &&
 				       (clo_t + knot_diff_tol < new_cvs2[kj]->endparam()))) {
@@ -3674,6 +3767,59 @@ void consistentIntersectionDir(ParamCurve& inters_pcv,
 	inters_pcv.reverseParameterDirection();
 	inters_space_cv.reverseParameterDirection();
     }
+}
+
+//===========================================================================
+  void consistentIntersectionDir(shared_ptr<CurveOnSurface> sf_cv1,
+				 shared_ptr<CurveOnSurface> sf_cv2,
+				 double epsgeo)
+//===========================================================================
+{
+  Point par_pt = sf_cv1->parameterCurve()->point(sf_cv1->startparam());
+  Point sf_normal;
+  sf_cv1->underlyingSurface()->normal(sf_normal, par_pt[0], par_pt[1]);
+  vector<Point> space_pt = sf_cv1->spaceCurve()->point(sf_cv1->startparam(), 1);
+  Point tangent = space_pt[1];
+  tangent.normalize_checked();
+  Point other_par_pt1 = sf_cv2->parameterCurve()->point(sf_cv2->startparam());
+  Point other_par_pt2 = sf_cv2->parameterCurve()->point(sf_cv2->endparam());
+  vector<Point> other_space_pt1 = 
+    sf_cv2->spaceCurve()->point(sf_cv2->startparam(), 1);
+  vector<Point> other_space_pt2 = 
+    sf_cv2->spaceCurve()->point(sf_cv2->endparam(), 1);
+  double dist1 = other_space_pt1[0].dist(space_pt[0]);
+  double dist2 = other_space_pt2[0].dist(space_pt[0]);
+  Point other_sf_normal;
+  if ((dist1 < epsgeo) && (dist2 < epsgeo)) {
+    // Both end pts of other_inters_pcv match that of inters_pcv, we must choose based on
+    // tangents of space curve.
+    tangent.normalize_checked();
+    Point other_tangent1 = other_space_pt1[1];
+    other_tangent1.normalize_checked();
+    Point other_tangent2 = other_space_pt2[1];
+    other_tangent2.normalize_checked();
+    double min_dist1 = std::min(tangent.dist(other_tangent1), tangent.dist(-other_tangent1));
+    double min_dist2 = std::min(tangent.dist(other_tangent2), tangent.dist(-other_tangent2));
+    if (min_dist1 < min_dist2) {
+      sf_cv2->underlyingSurface()->normal(other_sf_normal, other_par_pt1[0], other_par_pt1[1]);
+    } else {
+      sf_cv2->underlyingSurface()->normal(other_sf_normal, other_par_pt2[0], other_par_pt2[1]);
+    }
+  } else if (dist1 < epsgeo) {
+    sf_cv2->underlyingSurface()->normal(other_sf_normal, other_par_pt1[0], other_par_pt1[1]);
+  } else if (dist2 < epsgeo) {
+    sf_cv2->underlyingSurface()->normal(other_sf_normal, other_par_pt2[0], other_par_pt2[1]);
+  } else {
+    THROW("Input cvs must match in end pts!");
+  }
+
+  // Direction of inters_space_cv (in start par) should be that of other_sf_normal X sf_normal.
+  Point cross_prod;
+  cross_prod.setToCrossProd(other_sf_normal, sf_normal);
+  cross_prod.normalize_checked();
+  if (cross_prod.dist(-tangent) < cross_prod.dist(tangent)) {
+    sf_cv1->reverseParameterDirection();
+  }
 }
 
 //===========================================================================

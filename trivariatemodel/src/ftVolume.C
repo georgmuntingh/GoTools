@@ -37,8 +37,8 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-//#define DEBUG_VOL1
-//#define DEBUG
+#define DEBUG_VOL1
+#define DEBUG
 
 #include "GoTools/trivariatemodel/ftVolume.h"
 #include "GoTools/trivariatemodel/ftVolumeTools.h"
@@ -202,7 +202,7 @@ ftVolume::getBoundaryFaces(shared_ptr<ParamVolume> vol,
   bool bottom, right, top, left;
   for (size_t ki=0; ki<bd_sfs.size();)
     {
-      bool isdegen = bd_sfs[ki]->isDegenerate(bottom, right, top, left, 10.0*eps);
+      bool isdegen = bd_sfs[ki]->isDegenerate(bottom, right, top, left, eps /*10.0*eps*/);
       if (isdegen)
 	{
 	  RectDomain dom = bd_sfs[ki]->containingDomain();
@@ -1493,7 +1493,8 @@ void ftVolume::splitElementByTrimSfs(int elem_ix, double eps,
   shared_ptr<ftVolume> elem_vol2(new ftVolume(elem_vol, toptol_.gap,
 					      toptol_.kink, -1));
 
-  sub_elem = ftVolumeTools::splitOneVol(elem_vol2, this, eps, is_inside);
+  sub_elem = ftVolumeTools::splitOneVol(elem_vol2, this, eps, is_inside, 
+					elem_par, 6);
 }
 
 //===========================================================================
@@ -1549,11 +1550,33 @@ int ftVolume::ElementOnBoundary(int elem_ix)
 	  surf = face->surface();
 	  BoundingBox box = surf->boundingBox();
 	  
+	  // Check if the surface already is defined as an element boundary 
+	  // surface, i.e. has constant parameter equal to element boundary 
+	  // parameter
+	  shared_ptr<SurfaceOnVolume> vol_sf = 
+	    dynamic_pointer_cast<SurfaceOnVolume, ParamSurface>(surf);
+	  shared_ptr<BoundedSurface> bd_sf = 
+	    dynamic_pointer_cast<BoundedSurface, ParamSurface>(surf);
+	  if (bd_sf.get())
+	    vol_sf = 
+	      dynamic_pointer_cast<SurfaceOnVolume, ParamSurface>(bd_sf->underlyingSurface());
+	  int dir = 0;
+	  double val = 0.0;
+	  if (vol_sf.get())
+	    {
+	      dir = vol_sf->getConstDir();
+	      val = vol_sf->getConstVal();
+	    }
+
 	  for (size_t ki=0; ki<side_sfs.size(); ++ki)
 	    {
 	      BoundingBox box2 = side_sfs[ki]->boundingBox();
 	      if (!box.overlaps(box2))
 		continue;
+
+	      if (dir == (ki/2) + 1 && fabs(val-elem_par[ki]) < eps)
+		continue;  // Coincidence
+
 	      shared_ptr<BoundedSurface> bd1, bd2;
 	      vector<shared_ptr<CurveOnSurface> > int_cv1, int_cv2;
 	      BoundedUtils::getSurfaceIntersections(surf, side_sfs[ki], eps,
@@ -1760,6 +1783,8 @@ bool ftVolume::regularizeBdShells(vector<pair<Point,Point> >& corr_vx_pts,
 
 #ifdef DEBUG_VOL1
       std::ofstream mod("pre_reg.g2");
+      vector<shared_ptr<Vertex> > vxs;
+      sfmodel->getAllVertices(vxs);
       int nmb = sfmodel->nmbEntities();
       for (int kr=0; kr<nmb; ++kr)
 	{
@@ -1767,6 +1792,10 @@ bool ftVolume::regularizeBdShells(vector<pair<Point,Point> >& corr_vx_pts,
 	  sf->writeStandardHeader(mod);
 	  sf->write(mod);
 	}
+      mod << std::endl << "400 1 0 4 255 0 0 255" << std::endl;
+      mod << vxs.size() << std::endl;
+      for (int kr=0; kr<(int)vxs.size(); ++kr)
+	mod << vxs[kr]->getVertexPoint() << std::endl;
 #endif
 
       // Fetch info about opposite surfaces
@@ -4277,9 +4306,10 @@ void ftVolume::makeSurfacePair(vector<ftEdge*>& loop,
       // cvs1[ki] = 
       // 	VolumeTools::projectVolParamCurve(space_cvs[ki], vol_, 
       // 					  toptol_.gap);
+      double ptol = 0.01*toptol_.gap;  // TESTING
       cvs1[ki] = 
 	VolumeTools::approxVolParamCurve(space_cvs[ki], vol_, 
-					 toptol_.gap, max_iter, max_dist);
+					 ptol, max_iter, max_dist);
 #ifdef DEBUG_VOL1
       std::cout << "Volume parameter curve " << ki << ": dist = " << max_dist << std::endl; 
       shared_ptr<SplineCurve> tmp_space1 = 
@@ -6303,6 +6333,12 @@ ftVolume::createRegularVolumes(vector<shared_ptr<ftSurface> > bd_faces)
 	    sf->writeStandardHeader(of);
 	    sf->write(of);
 	  }
+	vector<shared_ptr<Vertex> > vx;
+	curr_model->getAllVertices(vx);
+	of << "400 1 0 4 255 0 0 255" << std::endl;
+	of << vx.size() << std::endl;
+	for (size_t ka=0; ka<vx.size(); ++ka)
+	  of << vx[ka]->getVertexPoint() << std::endl;
 #endif
 
 	// Remove used faces

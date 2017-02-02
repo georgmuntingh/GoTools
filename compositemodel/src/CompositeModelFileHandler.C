@@ -650,6 +650,21 @@ vector<shared_ptr<GeomObject> > CompositeModelFileHandler::readGeomObj(const cha
 
 
 //===========================================================================
+vector<shared_ptr<ParamSurface> > 
+CompositeModelFileHandler::readSurface(const char* filein)
+//===========================================================================
+{
+  readFaces(filein);
+  
+  vector<shared_ptr<ParamSurface> > surfs;
+  for (std::map<int, shared_ptr<ftSurface> >::iterator it=faces2_.begin();
+       it != faces2_.end(); ++it)
+    surfs.push_back(it->second->surface());
+
+  return surfs;
+}
+
+//===========================================================================
   SurfaceModel CompositeModelFileHandler::readSurfModel(const char* filein,
 							int id)
 //===========================================================================

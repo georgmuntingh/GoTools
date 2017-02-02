@@ -594,7 +594,8 @@ ftVolumeTools::splitVolumes(shared_ptr<ftVolume>& vol,
 // 
 vector<shared_ptr<ftVolume> >
 ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
-			   double eps, vector<int>& is_inside)
+			   double eps, vector<int>& is_inside, double* elem_par,
+			   int nmb_par)
 //===========================================================================
 {
   vector<shared_ptr<ftVolume> > result;
@@ -609,6 +610,34 @@ ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
       for (int kj=0; kj<nmb; ++kj)
 	{
 	  shared_ptr<ftSurface> curr_face = shells[ki]->getFace(kj);
+	  if (elem_par != NULL)
+	    {
+	      // Check if the current face coincides with a constant parameter
+	      // of the volume to split
+	      shared_ptr<ParamSurface> surf = curr_face->surface();
+	      shared_ptr<SurfaceOnVolume> vol_sf = 
+		dynamic_pointer_cast<SurfaceOnVolume, ParamSurface>(surf);
+	      shared_ptr<BoundedSurface> bd_sf = 
+		dynamic_pointer_cast<BoundedSurface, ParamSurface>(surf);
+	      if (bd_sf.get())
+		vol_sf = 
+		  dynamic_pointer_cast<SurfaceOnVolume, ParamSurface>(bd_sf->underlyingSurface());
+	      int dir = 0;
+	      double val = 0.0;
+	      if (vol_sf.get())
+		{
+		  dir = vol_sf->getConstDir();
+		  val = vol_sf->getConstVal();
+		}
+	      int kr = 0;
+	      for (kr=0; kr<nmb_par; ++kr)
+		{
+		  if (dir == (kr/2)+1 && fabs(val-elem_par[kr]) < eps)
+		    break;  // Coincidence. Do not include face in intersection
+		}
+	      if (kr < nmb_par)
+		continue;
+	    }
 	  int bd_stat = ftVolumeTools::boundaryStatus(trim_vol,
 						      curr_face, eps);
 	  if (bd_stat < 0)
@@ -642,7 +671,8 @@ ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
   elem_shell->splitSurfaceModel(faces, trim_vol, split_groups);
 
   // Remove outdated parameter information
-  for (size_t kr=0; kr<1; ++kr)
+  //for (size_t kr=0; kr<1; ++kr)
+  for (size_t kr=2; kr<split_groups.size(); ++kr)
     {
       for (size_t ki=0; ki<split_groups[kr].size(); ++ki)
 	{
@@ -660,6 +690,7 @@ ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
 	    {
 	      // Unset parameter surface information. Not necessarily valid.
 	      vol_sf->unsetParamSurf();
+	      vol_sf->setVolume(elem_vol->getVolume());
 	    }
 	}
     }

@@ -58,6 +58,7 @@
 #include "GoTools/geometry/Factory.h"
 #include "GoTools/geometry/GoTools.h"
 #include "GoTools/igeslib/IGESconverter.h"
+#include "GoTools/trivariatemodel/VolumeModelFileHandler.h"
 #include <fstream>
 
 //using namespace std;
@@ -66,26 +67,38 @@ using std::vector;
 
 int main( int argc, char* argv[] )
 {
-  if (argc != 3) {
-    std::cout << "Usage : Input file (g2 format), Output file (g2)" << std::endl;
+  if (argc != 4) {
+    std::cout << "Usage : Input file (g2 or g22 format), File type (1=g2, 2=g22), Output file (g2)" << std::endl;
     exit(-1);
   }
 
   // Read input arguments
-  std::ifstream infile(argv[1]);
-  ALWAYS_ERROR_IF(infile.bad(), "Input file not found or file corrupt");
+  std::string infile(argv[1]);
 
-  std::ofstream outfile(argv[2]);
+  int file_type = atoi(argv[2]);
+
+  std::ofstream outfile(argv[3]);
 
   GoTools::init();
   Registrator<SurfaceOnVolume> r211;
   Registrator<CurveOnVolume> r111;
 
-  IGESconverter conv;
-  conv.readgo(infile);
-  vector<shared_ptr<GeomObject> > geom = conv.getGoGeom();
-  vector<shared_ptr<GeomObject> > geom2;
+  vector<shared_ptr<GeomObject> > geom;
+  if (file_type == 2)
+    {
+      VolumeModelFileHandler filehandler;
+      vector<shared_ptr<ParamSurface> > sfs = filehandler.readSurface(infile.c_str());
+      geom.insert(geom.end(), sfs.begin(), sfs.end());
+    }
+  else
+    {
+      std::ifstream is(infile);
+      IGESconverter conv;
+      conv.readgo(is);
+      geom = conv.getGoGeom();
+    }
 
+  vector<shared_ptr<GeomObject> > geom2;
   for (size_t ki=0; ki<geom.size(); ++ki)
     {
       if (geom[ki]->instanceType() == Class_BoundedSurface)
@@ -100,6 +113,25 @@ int main( int argc, char* argv[] )
 		  shared_ptr<SurfaceOnVolume> vol_sf =
 		    dynamic_pointer_cast<SurfaceOnVolume, GeomObject>(surf);
 		  surf = vol_sf->spaceSurface();
+		  vector<CurveLoop> bd_loops = bd_sf->allBoundaryLoops();
+		  for (size_t kj=0; kj<bd_loops.size(); ++kj)
+		    {
+		      int nmb = bd_loops[kj].size();
+		      for (int kr=0; kr<nmb; ++kr)
+			{
+			  shared_ptr<ParamCurve> cv = bd_loops[kj][kr];
+			  shared_ptr<CurveOnSurface> sf_cv =
+			    dynamic_pointer_cast<CurveOnSurface, ParamCurve>(cv);
+			  if (sf_cv.get())
+			    {
+			      shared_ptr<CurveOnVolume> vol_cv =
+				dynamic_pointer_cast<CurveOnVolume, ParamCurve>(sf_cv->spaceCurve());
+			      if (vol_cv.get())
+				sf_cv->setSpaceCurve(vol_cv->spaceCurve());
+			      sf_cv->setUnderlyingSurface(surf);
+			    }
+			}
+		    }
 		  bd_sf->replaceSurf(surf);
 		}
 	      geom2.push_back(bd_sf);

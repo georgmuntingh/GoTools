@@ -40,6 +40,7 @@
 #include "GoTools/trivariatemodel/CreateTrimVolume.h"
 #include "GoTools/trivariatemodel/ftVolume.h"
 #include "GoTools/trivariate/ParamVolume.h"
+#include "GoTools/trivariate/SplineVolume.h"
 #include "GoTools/compositemodel/Loop.h"
 #include "GoTools/compositemodel/ftEdge.h"
 #include "GoTools/compositemodel/SurfaceModelUtils.h"
@@ -48,6 +49,7 @@
 #include "GoTools/geometry/BoundedUtils.h"
 #include "GoTools/geometry/ElementarySurface.h"
 #include "GoTools/geometry/Cylinder.h"
+#include "GoTools/geometry/BsplineBasis.h"
 #include <fstream>
 #include <cstdlib>
 
@@ -123,9 +125,13 @@ shared_ptr<ftVolume> CreateTrimVolume::fetchOneTrimVol()
   vol->write(of7);
 #endif
 
+  // Insert knots at iso-parametric sharp edges between trimming faces
+  refineInSharpEdges(vol);
+
 
   // Trim volume with the remaining faces
   shared_ptr<ftVolume> trimvol = createTrimVolume(vol, side_sfs);
+
   return trimvol;
 }
 
@@ -316,7 +322,8 @@ CreateTrimVolume::extendSurfaces(vector<pair<shared_ptr<ftSurface>, shared_ptr<P
 
 //==========================================================================
 void 
-CreateTrimVolume::trimSideSurfaces(vector<pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> > >& side_sfs)
+CreateTrimVolume::trimSideSurfaces(vector<pair<shared_ptr<ftSurface>, 
+				   shared_ptr<ParamSurface> > >& side_sfs)
 //==========================================================================
 {
   // Fetch tolerances
@@ -991,6 +998,7 @@ CreateTrimVolume::createTrimVolume(shared_ptr<ParamVolume> vol,
   // Replace all surfaces referenced by the faces with volume aware surface
   vector<shared_ptr<ftSurface> > faces = model_->allFaces();
   tpTolerances tol = model_->getTolerances();
+  double eps = tol.gap;  // Should be parameter space related
 
   // All volume boundary surfaces
   vector<shared_ptr<ParamSurface> > vol_sfs = vol->getAllBoundarySurfaces();
@@ -999,6 +1007,15 @@ CreateTrimVolume::createTrimVolume(shared_ptr<ParamVolume> vol,
     {
       // Unexpected situation. Return dummy
       return trimvol;
+    }
+
+  // Fetch volume knot vectors
+  vector<vector<double> > knots(3);
+  SplineVolume *vol2 = vol->asSplineVolume();
+  for (int kr=0; kr<3; ++kr)
+    {
+      const BsplineBasis& basis = vol2->basis(kr);
+      basis.knotsSimple(knots[kr]);
     }
 
   for (size_t ki=0; ki<faces.size(); ++ki)
@@ -1052,6 +1069,51 @@ CreateTrimVolume::createTrimVolume(shared_ptr<ParamVolume> vol,
 	dynamic_pointer_cast<BoundedSurface, ParamSurface>(surf);
       if (bd_surf.get())
 	surf = bd_surf->underlyingSurface();
+
+      if (boundary < 0)
+	{
+#ifdef DEBUG
+	  std::ofstream of("curr_trim_face.g2");
+	  faces[ki]->surface()->writeStandardHeader(of);
+	  faces[ki]->surface()->write(of);
+#endif
+	  // Check if the surface is iso-parametric and corresponds to a knot 
+	  // Initial check
+	  double u_inner, v_inner;
+	  Point pt_inner = faces[ki]->surface()->getInternalPoint(u_inner, v_inner);
+
+	  // Find volume parameter
+	  double par[3];
+	  double dd;
+	  Point clo;
+	  vol->closestPoint(pt_inner, par[0], par[1], par[2], clo, dd, tol.gap);
+
+	  // Check if this parameter value coincides with a knot in any parameter direction
+	  for (int kr=0; kr<3; ++kr)
+	    {
+	      size_t kj;
+	      for (kj=0; kj<knots[kr].size(); ++kj)
+		{
+		  if (fabs(knots[kr][kj] - par[kr]) < eps)
+		    {
+		      bool coinc = checkIsoPar(faces[ki]->surface(), vol, kr, par[kr], eps);
+		      if (coinc)
+			{
+			  constdir = kr + 1;
+			  constpar = par[kr];
+			  if (kj == 0 || kj == knots[kr].size()-1)
+			    {
+			      // Also a boundary surface
+			      boundary = 2*kr + (kj == knots[kr].size()-1);
+			    }
+			  break;
+			}
+		    }
+		}
+	      if (kj < knots[kr].size())
+		break;
+	    }
+	}
 
       // Create surface with volume relation information
       shared_ptr<ParamSurface> parsurf; // Dummy
@@ -1127,3 +1189,252 @@ CreateTrimVolume::identifyInnerTrim(vector<shared_ptr<ftSurface> >& bd_faces,
 	++ki;
     }
 }
+//==========================================================================
+void 
+CreateTrimVolume::refineInSharpEdges(shared_ptr<ParamVolume>& vol)
+//==========================================================================
+{
+  // First fetch all kinks and G1 discontinuities
+  vector<ftEdge*> sharp_edg;
+  vector<ftEdge*> kinks;
+  model_->getCorners(sharp_edg);
+  model_->getKinks(kinks);
+  sharp_edg.insert(sharp_edg.end(), kinks.begin(), kinks.end());
+
+  // For each underlying curve, check if it follows an iso-parametric curve
+  // in the volume
+  double ptol = 1.0e-8;
+  double eps = model_->getTolerances().gap;
+  double fac = 1000.0;
+  vector<vector<double> > nknot(3);
+  vector<vector<double> > edglen(3);
+#ifdef DEBUG
+  std::ofstream of("sharp_edges.g2");
+#endif
+
+  for (size_t ki=0; ki<sharp_edg.size(); ++ki)
+    {
+      // Estimate number of sampling points
+      double len = sharp_edg[ki]->estimatedCurveLength();
+      int nmb = (int)(len/(fac*eps));
+      nmb = std::min(50, std::max(5, nmb));
+
+      // Evaluate curve start point
+      double t1 = sharp_edg[ki]->tMin();
+      double t2 = sharp_edg[ki]->tMax();
+      Point pos1 = sharp_edg[ki]->point(t1);
+
+      // Find volume parameter
+      double par1[3];
+      double d1;
+      Point clo1;
+      vol->closestPoint(pos1, par1[0], par1[1], par1[2], clo1, d1, eps);
+
+      // Check equality
+      double del = (t2 - t1)/(double)(nmb-1);
+      double tpar = t1 + del;
+      bool isEqual[3];
+      isEqual[0] = isEqual[1] = isEqual[2] = true;
+      double accpar[3];
+      for (int kr=0; kr<3; ++kr)
+	accpar[kr] = par1[kr];
+      for (int kj=1; kj<nmb; ++kj, tpar+=del)
+	{
+	  Point pos2 = sharp_edg[ki]->point(tpar);
+
+	  // Find volume parameter
+	  double par2[3];
+	  double d2;
+	  Point clo2;
+	  vol->closestPoint(pos2, par2[0], par2[1], par2[2], clo2, d2, eps);
+
+	  for (int kr=0; kr<3; ++kr)
+	    {
+	      if (fabs(par1[kr] - par2[kr]) >= ptol)
+		isEqual[kr] = false;   // Use of geometric tolerance may be questional
+	      else
+		accpar[kr] += par2[kr];
+	    }
+
+	  if (isEqual[0] == false && isEqual[1] == false && isEqual[2] == false)
+	    break;   // No constant parameter
+	}
+
+      for (int kr=0; kr<3; ++kr)
+	{
+	  if (isEqual[kr])
+	    {
+	      nknot[kr].push_back(accpar[kr]/(double)nmb);
+	      edglen[kr].push_back(len);
+	    }
+	}
+#ifdef DEBUG
+      if (isEqual[0] || isEqual[1] || isEqual[2])
+	{
+	  shared_ptr<ParamCurve> 
+	    cv(sharp_edg[ki]->geomCurve()->geometryCurve()->subCurve(sharp_edg[ki]->tMin(),
+								     sharp_edg[ki]->tMax()));
+	  cv->writeStandardHeader(of);
+	  cv->write(of);
+	}
+#endif
+    }
+
+  // Remove duplicate and very close knots
+  SplineVolume *vol2 = vol->asSplineVolume();
+  if (!vol2)
+    return;  // Formality
+
+  size_t ki, kj;
+  for (int kr=0; kr<3; ++kr)
+    {
+      if (nknot[kr].size() == 0)
+	continue;
+
+      for (ki=0; ki<nknot[kr].size(); ++ki)
+	for (kj=ki+1; kj<nknot[kr].size(); ++kj)
+	  if (nknot[kr][kj] < nknot[kr][ki])
+	    {
+	      std::swap(nknot[kr][kj], nknot[kr][ki]);
+	      std::swap(edglen[kr][kj], edglen[kr][kj]);
+	    }
+
+      double start = vol2->startparam(kr);
+      double end = vol2->endparam(kr);
+      
+      // Check endpoints
+      for (ki=0; ki<nknot[kr].size();)
+	{
+	  if (nknot[kr][ki] - start < ptol)
+	    nknot[kr].erase(nknot[kr].begin());
+	  else
+	    break;
+	}
+
+      for (ki=nknot[kr].size()-1; ki>=0;)
+	{
+	  if (end - nknot[kr][ki] < ptol)
+	    {
+	      nknot[kr].pop_back();
+	      --ki;
+	    }
+	  else
+	    break;
+	}
+
+      // Check internal knots
+      for (ki=0; ki<nknot[kr].size(); ki=kj)
+	{
+	  double accknot = edglen[kr][ki]*nknot[kr][ki];
+	  double acclen = edglen[kr][ki];
+	  for (kj=ki+1; kj<nknot[kr].size(); ++kj)
+	    {
+	      if (nknot[kr][kj]-nknot[kr][ki] > ptol)
+		break;
+	      accknot += edglen[kr][kj]*nknot[kr][kj];
+	      acclen += edglen[kr][kj];
+	    }
+
+	  if (kj - ki > 1)
+	    {
+	      // Use middle value
+	      nknot[kr][ki] = accknot/acclen;
+	      nknot[kr].erase(nknot[kr].begin() + ki + 1, nknot[kr].begin() + kj);
+	      kj = ki+1;
+	    }
+	}
+    
+      // Insert knots
+      if (nknot[kr].size() > 0)
+	vol2->insertKnot(kr, nknot[kr]);
+    }
+
+}
+
+//==========================================================================
+bool
+CreateTrimVolume::checkIsoPar(shared_ptr<ParamSurface> surf,
+			      shared_ptr<ParamVolume> vol,
+			      int pardir, double parval, double tol)
+//==========================================================================
+{
+  // Preparatory computations
+  // Get estimated length of surface sides
+  double len_u, len_v;
+  GeometryTools::estimateSurfaceSize(*surf, len_u, len_v);
+  
+  // Number of points to sample in each parameter direction
+  double fac = 1000.0;
+  int min_samples = 3;
+  int nmb_sample = (int)sqrt((len_u*len_v)/(fac*fac*tol*tol));
+  int nmb_u = (int)(nmb_sample*len_u/len_v);
+  int nmb_v = (int)(nmb_sample*len_v/len_u);
+  nmb_u = std::max(nmb_u, min_samples);
+  nmb_v = std::max(nmb_v, min_samples);
+  nmb_u = std::min(nmb_u, min_samples*nmb_sample);
+  nmb_v = std::min(nmb_v, min_samples*nmb_sample);
+
+  // Fetch constant parameter curves in the u-direction
+  RectDomain dom = surf->containingDomain();
+  double u1 = dom.umin();
+  double u2 = dom.umax();
+  double udel = (u2 - u1)/(double)(nmb_u+1);
+  double tol1 = std::max(1.0e-7, 1.0e-5*(u2-u1));
+  double upar;
+
+  size_t kr;
+  upar = u1;
+  while (upar <= u2+tol1)
+    {
+      vector<shared_ptr<ParamCurve> > crvs = surf->constParamCurves(upar, false);
+      if (crvs.size() == 0)
+	{
+	  upar += udel;
+	  continue;  // Outside domain of surface
+	}
+
+      // Distribute sampling points
+      double av_len = 0.0;
+      vector<double> cv_len(crvs.size());
+      for (kr=0; kr<crvs.size(); ++kr)
+	{
+	  double len = crvs[kr]->estimatedCurveLength();
+	  av_len += len;
+	  cv_len[kr] = len;
+	}
+      double curr_len = av_len;
+      av_len /= (double)crvs.size();
+      
+      // Evaluate sampling points
+      int curr_nmb = (int)(nmb_v*(curr_len/len_v)) + 1;
+      for (kr=0; kr<crvs.size(); ++kr)
+	{
+	  int nmb = (int)(curr_nmb*cv_len[kr]/av_len);
+	  nmb = std::max(nmb, min_samples);
+	  double v1 = crvs[kr]->startparam();
+	  double v2 = crvs[kr]->endparam();
+	  double vdel = (v2 - v1)/(double)(nmb+1);
+	  double tol2 = std::max(1.0e-7, 1.0e-5*(v2-v1));
+	  double vpar;
+	  vpar = v1;
+
+	  while (vpar <= v2+tol2)
+	    {
+	      Point pos = crvs[kr]->point(vpar);
+
+	      // Find volume parameter
+	      double par[3];
+	      double dd;
+	      Point clo;
+	      vol->closestPoint(pos, par[0], par[1], par[2], clo, dd, tol);
+	      if (fabs(par[pardir] - parval) >= tol)
+		return false;
+
+	      vpar += vdel;
+	    }
+	}
+      upar += udel;
+    }
+  return true;
+}
+

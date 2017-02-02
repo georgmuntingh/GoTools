@@ -156,16 +156,22 @@ int main( int argc, char* argv[] )
 	  int num_el = curr_under->numElem(dir);
 	  if (num_el < 10)
 	    {
-	      int nmb = 10/num_el + 1;
+	      double tstart =  curr_under->startparam(dir);
+	      double tend =  curr_under->endparam(dir);
+	      double del1 = (tend-tstart)/10.0;
 	      vector<double> knots;
 	      curr_under->basis(dir).knotsSimple(knots);
 	      vector<double> newknots;
 	      for (size_t kj=1; kj<knots.size(); ++kj)
 		{
-		  double del = (knots[kj] - knots[kj-1])/(double)(nmb+1);
+		  double del2 = (knots[kj] - knots[kj-1]);
+		  if (del2 < del1)
+		    continue;
+		  int nmb = std::max(1, (int)(del2/del1));
+		  double del3 = del2/(double)(nmb+1);
 		  int kr;
 		  double par;
-		  for (kr=0, par=knots[kj-1]+del; kr<nmb; ++kr, par+=del)
+		  for (kr=0, par=knots[kj-1]+del3; kr<nmb; ++kr, par+=del3)
 		    newknots.push_back(par);
 		}
 
@@ -182,6 +188,7 @@ int main( int argc, char* argv[] )
 
   std::ofstream of5("tmp5.g2");
   std::ofstream of6("tmp6.g2");
+  std::ofstream of7("tmp7.g2");
   for (int ki=0; ki<nmb_elem; ++ki)
     {
       int elem_stat = curr_vol->ElementBoundaryStatus(ki);
@@ -210,8 +217,8 @@ int main( int argc, char* argv[] )
 	    }
 	  int stop_break = 1;
 
-	  if (sub_elem.size() < 2)
-	    continue;
+	  // if (sub_elem.size() < 2)
+	  //   continue;
 
  	  // Check if the remaining element is hexagonal
 	  for (size_t kj=0; kj<sub_elem.size(); ++kj)
@@ -223,8 +230,8 @@ int main( int argc, char* argv[] )
 	      std::cout << "Sub element nr " << kj+1 << ": " << regular << std::endl;
 	      if (regular)
 		{
-		  if (false)
-		    {
+		  // if (false)
+		  //   {
 		  // Create non-trimmed parameter element
 		  shared_ptr<ParamVolume> reg_vol = 
 		    sub_elem[kj]->getRegParVol(degree);
@@ -239,7 +246,7 @@ int main( int argc, char* argv[] )
 		  shared_ptr<ParamVolume> tmp_vol = sub_elem[kj]->getVolume();
 		  tmp_vol->writeStandardHeader(of6);
 		  tmp_vol->write(of6);
-		    }
+		    // }
 		}
 	      else
 		{
@@ -251,11 +258,40 @@ int main( int argc, char* argv[] )
 		      shared_ptr<ParamSurface> sf = mod->getSurface(kr);
 		      sf->writeStandardHeader(of4_2);
 		      sf->write(of4_2);
+		      sf->writeStandardHeader(of7);
+		      sf->write(of7);
 		    }
+
+		  std::ofstream of_mod("tmp_mod.g22");
+		  VolumeModelFileHandler filewrite;
+		  filewrite.writeStart(of_mod);
+		  filewrite.writeHeader("Irregular volume", of_mod);
+		  filewrite.writeVolume(sub_elem[kj], of_mod);
+		  filewrite.writeEnd(of_mod);
+		  
 
 		  std::cout << "Number of surfaces: " << sub_elem[kj]->getOuterShell()->nmbEntities() << std::endl;
 		}
 	    }
+	}
+      else if (elem_stat == 2)
+	{
+	  SplineVolume *vol = curr_vol->getVolume()->asSplineVolume();
+	  if (vol)
+	    {
+	      // Fetch parameter values surrounding the specified element
+	      double elem_par[6];
+	      vol->getElementBdPar(ki, elem_par);
+	      
+	      // Create an ftVolume entity corresponding to the element. 
+	      // First create underlying SplineVolume
+	      shared_ptr<ParamVolume> elem_vol(vol->subVolume(elem_par[0], elem_par[2],
+							      elem_par[4], elem_par[1],
+							      elem_par[3], elem_par[5]));
+	      elem_vol->writeStandardHeader(of6);
+	      elem_vol->write(of6);
+	    }
+
 	}
     }
 }

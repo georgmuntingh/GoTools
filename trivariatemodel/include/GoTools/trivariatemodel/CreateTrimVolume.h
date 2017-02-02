@@ -101,6 +101,11 @@ namespace Go
     void extendSurfaces(std::vector<std::pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> > >& side_sfs);
 
     void trimSideSurfaces(std::vector<std::pair<shared_ptr<ftSurface>, shared_ptr<ParamSurface> > >& side_sfs);
+    void refineInSharpEdges(shared_ptr<ParamVolume>& vol);
+
+    bool checkIsoPar(shared_ptr<ParamSurface> surf,
+		     shared_ptr<ParamVolume> vol,
+		     int pardir, double parval, double tol);
   };
 } // namespace Go
 

@@ -865,6 +865,18 @@ double SurfaceOnVolume::nextSegmentVal(int dir, double par, bool forward, double
 }
 
 //===========================================================================
+ void SurfaceOnVolume::setParameterDomain(double u1, double u2, double v1, double v2)
+//===========================================================================
+{
+  if (spacesurf_.get())
+    spacesurf_->setParameterDomain(u1, u2, v1, v2);
+
+  if (psurf_.get())
+    psurf_->setParameterDomain(u1, u2, v1, v2);
+
+}
+
+//===========================================================================
  void SurfaceOnVolume::swapParameterDirection()
 //===========================================================================
 {

@@ -1009,6 +1009,9 @@ BoundedSurface::constParamCurves(double parameter, bool pardir_is_u) const
 //===========================================================================
 {
     // We first create a parametric cv to intersect with the sf.
+    double epsgeo = getEpsGeo();
+    vector<shared_ptr<ParamCurve> > dummy;
+
     RectDomain rect_dom = containingDomain();
     Point from_pt(2);
     Point to_pt(2);
@@ -1022,12 +1025,14 @@ BoundedSurface::constParamCurves(double parameter, bool pardir_is_u) const
 	endpar = to_pt[0] = rect_dom.umax();
 	from_pt[1] = to_pt[1] = parameter;
     }
+    if (endpar - startpar < epsgeo)
+      return dummy;
+
     shared_ptr<SplineCurve> par_iso_cv(new SplineCurve(from_pt, startpar,
 						       to_pt, endpar));
     shared_ptr<CurveOnSurface> iso_cv_on_sf
 	(new CurveOnSurface(surface_, par_iso_cv, true));
 
-    double epsgeo = getEpsGeo();
     // We now intersect with the trimmed sf.
     // @@sbr Suspecting that this may cause trouble for intersection analysis ...
     BoundedSurface bd_sf(*this); // @@sbr To keep function const ...
