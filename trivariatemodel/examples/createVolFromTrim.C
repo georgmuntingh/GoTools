@@ -192,7 +192,8 @@ int main( int argc, char* argv[] )
 	  // Element intersects trimming surface
 	  // Split element with trimming shell
 	  vector<shared_ptr<ftVolume> > sub_elem;
-	  curr_vol2->splitElementByTrimSfs(ki, eps, sub_elem);
+	  vector<int> is_inside; // Equal 1 if the sub element is inside the trimmed volume
+	  curr_vol2->splitElementByTrimSfs(ki, eps, sub_elem, is_inside);
 
 	  std::ofstream of4("tmp4.g2");
 	  for (size_t kj=0; kj<sub_elem.size(); ++kj)
