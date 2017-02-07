@@ -230,8 +230,8 @@ int main( int argc, char* argv[] )
 	      std::cout << "Sub element nr " << kj+1 << ": " << regular << std::endl;
 	      if (regular)
 		{
-		  // if (false)
-		  //   {
+		  if (false)
+		    {
 		  // Create non-trimmed parameter element
 		  shared_ptr<ParamVolume> reg_vol = 
 		    sub_elem[kj]->getRegParVol(degree);
@@ -246,7 +246,7 @@ int main( int argc, char* argv[] )
 		  shared_ptr<ParamVolume> tmp_vol = sub_elem[kj]->getVolume();
 		  tmp_vol->writeStandardHeader(of6);
 		  tmp_vol->write(of6);
-		    // }
+		    }
 		}
 	      else
 		{
