@@ -107,6 +107,16 @@ class RegularizeFace
     split_mode_ = split_mode;
   }
 
+  bool getDegenFlag()
+  {
+    return allow_degen_;
+  }
+
+  void setDegenFlag(bool allow_degen)
+  {
+    allow_degen_ = allow_degen;
+  }
+
   /// Classify vertices according to significance. Mark vertices that should
   /// not trigger splitting
   void classifyVertices();
@@ -189,6 +199,9 @@ class RegularizeFace
   // Vertices prioritized for split
   std::vector<shared_ptr<Vertex> > vx_pri_;
 
+  // Loosens the restriction on creating degenerate faces
+  bool allow_degen_;
+
     // Perform division
   void divide();
 
@@ -236,6 +249,8 @@ void faceWithHoles(std::vector<std::vector<ftEdge*> >& half_holes);
 
  std::vector<shared_ptr<Vertex> >
    prioritizeCornerVx(std::vector<shared_ptr<Vertex> > cand_vx);
+
+ std::vector<shared_ptr<Vertex> > getTjointVertices();
 
   std::vector<std::vector<ftEdge*> > getHalfHoles(int idx=0);
 

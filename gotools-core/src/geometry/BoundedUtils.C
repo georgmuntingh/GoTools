@@ -37,7 +37,7 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#define DEBUG1
+//#define DEBUG1
 
 #include "GoTools/geometry/BoundedUtils.h"
 #include <fstream>
@@ -110,7 +110,8 @@ BoundedUtils::intersectWithSurface(CurveOnSurface& curve,
 
     // We extract boundary loop, and check for intersections.
     // We do not handle trimming of trimmed surfaces with holes.
-    vector<CurveLoop> boundary_loops = bounded_surf.allBoundaryLoops(epsge);
+    //vector<CurveLoop> boundary_loops = bounded_surf.allBoundaryLoops(epsge);
+  vector<CurveLoop> boundary_loops = bounded_surf.allBoundaryLoops(DEFAULT_SPACE_EPSILON);
 
     // Knowing that bounded_surf is BoundedSurface, we extract CurveOnSurface's.
     vector<shared_ptr<CurveOnSurface> > loop_curves;
@@ -214,7 +215,7 @@ BoundedUtils::intersectWithSurface(CurveOnSurface& curve,
 	  to_par = curve.endparam();
 	double med_par = 0.5*(from_par + to_par);
 	Point med_pt = first_curve->ParamCurve::point(med_par);
-	if (domain.isInDomain(Vector2D(med_pt[0], med_pt[1]), int_tol))
+	if (domain.isInDomain(Vector2D(med_pt[0], med_pt[1]), knot_diff_tol))
 	  inside_segments.push_back(shared_ptr<CurveOnSurface>
 				    (dynamic_cast<CurveOnSurface*>
 				     (curve.subCurve(from_par, to_par))));

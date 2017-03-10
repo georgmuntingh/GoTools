@@ -78,7 +78,7 @@ using std::endl;
 
 //===========================================================================
 BoundedSurface::BoundedSurface()
-  : surface_(NULL), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
+  : ParamSurface(), surface_(NULL), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
 //===========================================================================
 {
 }
@@ -89,7 +89,7 @@ BoundedSurface::BoundedSurface(shared_ptr<ParamSurface> surf,
 			       vector<shared_ptr<CurveOnSurface> > loop,
 			       double space_epsilon,
 			       bool fix_trim_cvs)
-  : surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
+  : ParamSurface(), surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
 //===========================================================================
 {
     ALWAYS_ERROR_IF(loop.size() == 0, "Empty loop.");
@@ -119,18 +119,16 @@ BoundedSurface::BoundedSurface(shared_ptr<ParamSurface> surf,
     
     // Create the outer boundary loop. First make ParamCurve pointers.
     vector<shared_ptr<ParamCurve> > curves;
-    for (size_t i=0; i< loop.size(); i++) {
-      shared_ptr<CurveOnSurface> temp_ptr(new CurveOnSurface(*loop[i]));
+    for (size_t i=0; i< loop.size(); i++) 
       {
-	  if (fix_trim_cvs)
+	if (fix_trim_cvs)
 	  {
-	      // Try to generate the parameter curve if it does not
-	      // exist already
-	      (void)temp_ptr->ensureParCrvExistence(space_epsilon);
+	    // Try to generate the parameter curve if it does not
+	    // exist already
+	    (void)loop[i]->ensureParCrvExistence(space_epsilon);
 	  }
-	curves.push_back(temp_ptr);
+	curves.push_back(loop[i]);
       }
-    }
 
 #ifndef NDEBUG
 	{
@@ -151,8 +149,11 @@ BoundedSurface::BoundedSurface(shared_ptr<ParamSurface> surf,
 	(void)checkParCrvsAtSeam();
     }
     
-    // We then analyze the loops and set valid_state_.
-    analyzeLoops();
+    if (fix_trim_cvs)
+    {
+      // We then analyze the loops and set valid_state_.
+      analyzeLoops();
+    }
 }
 
 //===========================================================================
@@ -161,7 +162,7 @@ BoundedSurface(shared_ptr<ParamSurface> surf,
 	       vector<vector<shared_ptr<CurveOnSurface> > > loops,
 	       double space_epsilon,
 	       bool fix_trim_cvs)
-    : surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
+    : ParamSurface(), surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
 //===========================================================================
 {
     // This form of the constructor exists for backwards
@@ -181,7 +182,7 @@ BoundedSurface(shared_ptr<ParamSurface> surf,
 	       vector<vector<shared_ptr<CurveOnSurface> > > loops,
 	       vector<double> space_epsilons,
 	       bool fix_trim_cvs)
-    : surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
+    : ParamSurface(), surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
 //===========================================================================
 {
     // The code in this constructor has been moved into
@@ -262,15 +263,18 @@ constructor_implementation(shared_ptr<ParamSurface> surf,
 	(void)checkParCrvsAtSeam();
     }
     
-    // We then analyze the loops and set valid_state_.
-    analyzeLoops();
+    if (fix_trim_cvs)
+    {
+      // We then analyze the loops and set valid_state_.
+      analyzeLoops();
+    }
 }
 
 //===========================================================================
 BoundedSurface::
 BoundedSurface(shared_ptr<ParamSurface> surf,
 	       double space_epsilon)
-  : iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
+  : ParamSurface(), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
 //===========================================================================
 {
   shared_ptr<BoundedSurface> bd_sf = 
@@ -300,15 +304,15 @@ BoundedSurface(shared_ptr<ParamSurface> surf,
       iso_trim_tol_ = space_epsilon;
     }
     
-    // We then analyze the loops and set valid_state_.
-    analyzeLoops();
+  // We then analyze the loops and set valid_state_.
+  analyzeLoops();
 }
 
 //===========================================================================
 BoundedSurface::
 BoundedSurface(shared_ptr<ParamSurface> surf,
 	       std::vector<CurveLoop>& loops)
-  : surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
+  : ParamSurface(), surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
 //===========================================================================
 {
   for (size_t ki=0; ki<loops.size(); ++ki)
@@ -328,7 +332,7 @@ BoundedSurface(shared_ptr<ParamSurface> surf,
 BoundedSurface::
 BoundedSurface(shared_ptr<ParamSurface> surf,
 	       std::vector<shared_ptr<CurveLoop> >& loops)
-  : surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
+  : ParamSurface(), surface_(surf), iso_trim_(false), iso_trim_tol_(-1.0), valid_state_(0)
 //===========================================================================
 {
   for (size_t ki=0; ki<loops.size(); ++ki)
@@ -1010,6 +1014,9 @@ BoundedSurface::constParamCurves(double parameter, bool pardir_is_u) const
 {
     // We first create a parametric cv to intersect with the sf.
     double epsgeo = getEpsGeo();
+    Point pareps = SurfaceTools::getParEpsilon(*this, epsgeo);
+    double eps = 0.5*(pareps[0]+pareps[1]);
+
     vector<shared_ptr<ParamCurve> > dummy;
 
     RectDomain rect_dom = containingDomain();
@@ -1025,7 +1032,7 @@ BoundedSurface::constParamCurves(double parameter, bool pardir_is_u) const
 	endpar = to_pt[0] = rect_dom.umax();
 	from_pt[1] = to_pt[1] = parameter;
     }
-    if (endpar - startpar < epsgeo)
+    if (endpar - startpar < eps)
       return dummy;
 
     shared_ptr<SplineCurve> par_iso_cv(new SplineCurve(from_pt, startpar,
@@ -1038,7 +1045,7 @@ BoundedSurface::constParamCurves(double parameter, bool pardir_is_u) const
     BoundedSurface bd_sf(*this); // @@sbr To keep function const ...
     std::vector<shared_ptr<CurveOnSurface> > int_cvs =
 	BoundedUtils::intersectWithSurface(*iso_cv_on_sf,
-					     bd_sf, epsgeo);
+					     bd_sf, eps);
 
     vector<shared_ptr<ParamCurve> > return_cvs(int_cvs.begin(), int_cvs.end());
 
@@ -2014,9 +2021,9 @@ bool
 BoundedSurface::isIsoTrimmed(double tol) const
 //===========================================================================
 {
-    if (fabs(tol-iso_trim_tol_) < 1.0e-12)
+    if (iso_trim_tol_ - tol < 1.0e-12)
     {
-	return iso_trim_;   // Already checked with "the same" tolerance
+	return iso_trim_;   // Already checked with "the same" or smaller tolerance
     }
     iso_trim_tol_ = tol;
     iso_trim_ = true;  // Until the opposite is found

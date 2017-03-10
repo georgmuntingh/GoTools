@@ -58,9 +58,9 @@ using std::vector;
 
 int main(int argc, char* argv[] )
 {
-  if (argc != 4 && argc != 5)
+  if (argc != 4 && argc != 5 && argc != 6)
     {
-      cout << "Usage: " << "<infile> <outfile> <block structuring mode (1,2,3)> (<file type, 2 for g22>)" << endl;
+      cout << "Usage: " << "<infile> <outfile> <block structuring mode (1,2,3)> (<file type, 2 for g22>) (<parameter block structuring (0/1)>" << endl;
       exit(-1);
     }
 
@@ -72,8 +72,12 @@ int main(int argc, char* argv[] )
     split_mode = 1;  // Default
 
   int file_type = 1;
-  if (argc == 5)
+  if (argc > 4)
     file_type = atoi(argv[4]);
+
+  int block_par = 0;
+  if (argc == 6)
+    block_par = atoi(argv[5]);
 
   double gap = 0.001; //0.001;
   double neighbour = 0.01; //0.01;
@@ -130,7 +134,7 @@ int main(int argc, char* argv[] )
   int nmb;
   int ki;
   shared_ptr<VolumeModel> volmod;
-  bool reg = ftvol->isRegularized();
+  bool reg = ftvol->isRegularized(true);
   bool pattern_split = false; //true;
   if (!reg)
     {
@@ -139,7 +143,8 @@ int main(int argc, char* argv[] )
       try {
 	reg_vols = 
 	  ftvol->replaceWithRegVolumes(degree, modified_adjacent,
-				       false, split_mode, pattern_split);
+				       false, split_mode, pattern_split,
+				       true);
       }
       catch (...)
 	{
@@ -204,7 +209,7 @@ int main(int argc, char* argv[] )
       shared_ptr<ftVolume> curr_vol = volmod->getBody(kr);
       bool bd_trim = curr_vol->isBoundaryTrimmed();
       bool iso_trim = curr_vol->isIsoTrimmed();
-      bool reg = curr_vol->isRegularized();
+      bool reg = curr_vol->isRegularized(true);
 
       vector<ftVolume*> ng0;
       curr_vol->getAdjacentBodies(ng0);
@@ -226,14 +231,24 @@ int main(int argc, char* argv[] )
   // std::cout << "Number of volumes: " << volmod2->nmbEntities() << std::endl;
 
   std::ofstream of6("output_volumes.g2");
+  std::ofstream ofpar("output_par_volumes.g2");
   int nmb_vols = volmod->nmbEntities();
   for (int kr=0; kr<nmb_vols; ++kr)
     {
       shared_ptr<ftVolume> curr_vol = volmod->getBody(kr);
       bool bd_trim = curr_vol->isBoundaryTrimmed();
       bool iso_trim = curr_vol->isIsoTrimmed();
-      bool reg = curr_vol->isRegularized();
+      bool reg = curr_vol->isRegularized(true);
 
+      if (block_par && reg)
+	{
+	  shared_ptr<ParamVolume> reg_vol = curr_vol->getRegParVol(degree, true);
+	  if (reg_vol.get())
+	    {
+	      reg_vol->writeStandardHeader(ofpar);
+	      reg_vol->write(ofpar);
+	    }
+	}
       vector<ftVolume*> ng0;
       curr_vol->getAdjacentBodies(ng0);
 
@@ -262,7 +277,7 @@ int main(int argc, char* argv[] )
 	  vector<ftVolume*> ng1;
 	  curr_vol->getAdjacentBodies(ng1);
 	  std::cout << "Number of neighbours before untrim: " << ng1.size() << std::endl;
-	  curr_vol->untrimRegular(degree);
+	  curr_vol->untrimRegular(degree, true);
 	  vector<ftVolume*> ng2;
 	  curr_vol->getAdjacentBodies(ng2);
 	  std::cout << "Number of neighbours after untrim: " << ng2.size() << std::endl;

@@ -48,7 +48,7 @@
 #include <stdexcept>
 #include <fstream>
 
-#define DEBUG
+//#define DEBUG
 
 using namespace Go;
 using std::vector;
@@ -101,7 +101,6 @@ bool CurveBoundedDomain::isInDomain(const Array<double, 2>& pnt,
 				      double tolerance) const
 //===========================================================================
 {
-
   // Boundary points are critical. Check first if the point lies at a boundary 
   if (isOnBoundary(pnt, tolerance))
     return true;

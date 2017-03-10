@@ -112,6 +112,7 @@ protected:
 	constpar_ = constpar;
 	bd_ = bd;
 	orientation_ = orientation;
+	infoset_ = true;
       }
 
       sfcvinfo()

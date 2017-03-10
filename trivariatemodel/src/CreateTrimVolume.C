@@ -125,8 +125,8 @@ shared_ptr<ftVolume> CreateTrimVolume::fetchOneTrimVol()
   vol->write(of7);
 #endif
 
-  // Insert knots at iso-parametric sharp edges between trimming faces
-  refineInSharpEdges(vol);
+  // // Insert knots at iso-parametric sharp edges between trimming faces
+  // refineInSharpEdges(vol);
 
 
   // Trim volume with the remaining faces
@@ -357,7 +357,7 @@ CreateTrimVolume::trimSideSurfaces(vector<pair<shared_ptr<ftSurface>,
       vector<shared_ptr<ParamSurface> > other_sfs;
       for (size_t kj=0; kj<side_sfs.size(); ++kj)
 	{
-	  if (ki == kj)
+	  if (ki/2 == kj/2)
 	    continue;
 	  other_sfs.push_back(spline_sfs[kj]);
 	}

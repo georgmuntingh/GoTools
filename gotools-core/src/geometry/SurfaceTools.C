@@ -125,14 +125,18 @@ CurveLoop SurfaceTools::outerBoundarySfLoop(shared_ptr<ParamSurface> surf,
 	    return cv_loop; // Already curve on surface curves
 	  
 	  // Make new loop with curve-on-surface curves 
-	  for (int ki=0; ki<nmb_cvs; ++ki)
+	  int ki, kj;
+	  for (ki=0, kj=0; ki<nmb_cvs; ++kj)
 	    {
+	      if (deg[kj])
+		continue;
 	      shared_ptr<ParamCurve> sfcv = 
 		shared_ptr<ParamCurve>(new CurveOnSurface(surf, cv_loop[ki], 
-							  pardir[ki],
-							  parval[ki],
-							  boundary[ki]));
+							  pardir[kj],
+							  parval[kj],
+							  boundary[kj]));
 	      vec.push_back(sfcv);
+	      ++ki;
 	    }
 	}
 
@@ -182,7 +186,7 @@ SurfaceTools::absolutelyAllBoundarySfLoops(shared_ptr<ParamSurface> surf,
       // Use a negative degeneracy tolarance to tell that also degenerate
       // boundaries must be included in the loop
       std::vector<CurveLoop> cvloopvec;
-      cvloopvec.push_back(SurfaceTools::outerBoundarySfLoop(surf, -1.0));
+      cvloopvec.push_back(SurfaceTools::outerBoundarySfLoop(surf, 0.0));
       return cvloopvec;
     }
 }
@@ -827,6 +831,11 @@ Point SurfaceTools::getParEpsilon(const ParamSurface& sf, double epsgeo)
 
 	sf_epspar[0] = (u_dom_inf) ? epsgeo : epsgeo*dom_length_u/sf_length_u;
 	sf_epspar[1] = (v_dom_inf) ? epsgeo : epsgeo*dom_length_v/sf_length_v;
+
+	// Avoid extremely large tolerances
+	double lim = 0.001*std::max(dom_length_u, dom_length_v);
+	sf_epspar[0] = std::min(lim, sf_epspar[0]);
+	sf_epspar[1] = std::min(lim, sf_epspar[1]);
     }
 
     sf_epspar[0] *= scaling;

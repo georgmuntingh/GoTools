@@ -368,30 +368,43 @@ void ParamSurface::estimateSfSize(double& u_size, double& v_size, int u_nmb,
 				   int v_nmb) const
 //===========================================================================
 {
-  RectDomain dom = containingDomain();
-  double del_u = (dom.umax() - dom.umin())/(double)(u_nmb-1);
-  double del_v = (dom.vmax() - dom.vmin())/(double)(v_nmb-1);
+  if (nmb_size_u_ >= u_nmb && nmb_size_v_ >= v_nmb)
+    {
+      u_size = est_sf_size_u_;
+      v_size = est_sf_size_v_;
+    }
+  else
+    {
+      RectDomain dom = containingDomain();
+      double del_u = (dom.umax() - dom.umin())/(double)(u_nmb-1);
+      double del_v = (dom.vmax() - dom.vmin())/(double)(v_nmb-1);
 
-  int ki, kj;
-  double u_par, v_par;
-  vector<Point> pts(u_nmb*v_nmb);
-  for (kj=0, v_par=dom.vmin(); kj<v_nmb; ++kj, v_par+=del_v)
-    for (ki=0, u_par=dom.umin(); ki<u_nmb; ++ki, u_par+=del_u)
-      pts[kj*u_nmb+ki] = point(u_par,v_par);
+      int ki, kj;
+      double u_par, v_par;
+      vector<Point> pts(u_nmb*v_nmb);
+      for (kj=0, v_par=dom.vmin(); kj<v_nmb; ++kj, v_par+=del_v)
+	for (ki=0, u_par=dom.umin(); ki<u_nmb; ++ki, u_par+=del_u)
+	  pts[kj*u_nmb+ki] = point(u_par,v_par);
 
-  double acc_u = 0.0, acc_v = 0.0;
-  for (kj=0; kj<v_nmb; ++kj)
-    for (ki=1; ki<u_nmb; ++ki)
-      acc_u += pts[kj*u_nmb+ki-1].dist(pts[kj*u_nmb+ki]);
-  acc_u /= (double)(v_nmb);
+      double acc_u = 0.0, acc_v = 0.0;
+      for (kj=0; kj<v_nmb; ++kj)
+	for (ki=1; ki<u_nmb; ++ki)
+	  acc_u += pts[kj*u_nmb+ki-1].dist(pts[kj*u_nmb+ki]);
+      acc_u /= (double)(v_nmb);
 
-  for (ki=0; ki<u_nmb; ++ki)
-    for (kj=1; kj<v_nmb; ++kj)
-      acc_v += pts[(kj-1)*u_nmb+ki].dist(pts[kj*u_nmb+ki]);
-  acc_v /= (double)(u_nmb);
+      for (ki=0; ki<u_nmb; ++ki)
+	for (kj=1; kj<v_nmb; ++kj)
+	  acc_v += pts[(kj-1)*u_nmb+ki].dist(pts[kj*u_nmb+ki]);
+      acc_v /= (double)(u_nmb);
 
-  u_size = acc_u;
-  v_size = acc_v;
+      u_size = acc_u;
+      v_size = acc_v;
+
+      est_sf_size_u_ = u_size;
+      est_sf_size_v_ = v_size;
+      nmb_size_u_ = u_nmb;
+      nmb_size_v_ = v_nmb;
+    }
 }
 
 void 

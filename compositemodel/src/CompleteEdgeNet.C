@@ -1210,7 +1210,7 @@ bool CompleteEdgeNet::regularizeCurrLoop(vector<ftEdge*>& edges,
       // @@@ VSK. This test is probably not sufficient for all cases,
       // but I wait until a more complex case turns up before I try
       // to refine it
-      if (vxs[ki]->connectedToSameVertex(vxs[kj].get()))
+      if (vxs.size() > 6 && vxs[ki]->connectedToSameVertex(vxs[kj].get()))
 	continue;
 
       // Check if any of the current vertices are connected to a

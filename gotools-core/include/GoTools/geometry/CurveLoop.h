@@ -245,6 +245,10 @@ public:
     /// Simplify this curve loop if possible by reducing the number of curves
     bool simplify(double tol, double ang_tol, double& max_dist);
 
+    /// Split specified curve at a given parameter and update corresponding
+    /// loop. Return new curves
+    std::vector<shared_ptr<ParamCurve> > split(int idx, double par);
+
     /// Maximum distance between subsequent curves
     double getMaxCurveDist() const
     {

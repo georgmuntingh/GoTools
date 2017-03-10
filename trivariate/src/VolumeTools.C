@@ -1108,10 +1108,14 @@ bool VolumeTools::getVolBdCoefEnumeration(shared_ptr<SplineVolume> vol, int bd,
 	int dir = (int)ki/2 + 1;
 	//bool swap = (ki == 1 || ki == 2 || ki == 5);
 	bool swap;
-	if (true)//lefthanded)
-	  swap = (ki == 1 || ki == 3 || ki == 4);
+	// if (true)//lefthanded)
+	//   swap = (ki == 1 || ki == 3 || ki == 4);
+	// else
+	//   swap = (ki == 0 || ki == 2 || ki == 5);
+	if (lefthanded)
+	  swap = (ki == 1 || ki == 2 || ki == 5);
 	else
-	  swap = (ki == 0 || ki == 2 || ki == 5);
+	  swap = (ki == 0 || ki == 3 || ki == 4);
 
 	shared_ptr<ParamSurface> curr_bd = 
 	  shared_ptr<ParamSurface>(new SurfaceOnVolume(vol, bd_sfs[ki],

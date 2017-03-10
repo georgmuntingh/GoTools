@@ -126,7 +126,7 @@ namespace Go
 			     const RectDomain& dom,
 			     shared_ptr<ftPointSet>& points, 
 			     vector<int>& corner, 
-			     bool consider_joint = true, int nmb=-1);
+			     bool consider_joint = false, int nmb=-1);
     
     /// Fetch data points at the boundaries a the surface surf. To be used
     /// in surface approximation

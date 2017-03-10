@@ -59,6 +59,7 @@
 #include "GoTools/geometry/GoTools.h"
 #include "GoTools/igeslib/IGESconverter.h"
 #include "GoTools/trivariatemodel/VolumeModelFileHandler.h"
+#include "GoTools/trivariatemodel/ftVolume.h"
 #include <fstream>
 
 //using namespace std;

@@ -594,6 +594,24 @@ bool CurveLoop::simplify(double tol, double ang_tol, double& max_dist)
   return modified;
 }
 
+//===========================================================================
+  vector<shared_ptr<ParamCurve> > CurveLoop::split(int idx, double par)
+//===========================================================================
+{
+  vector<shared_ptr<ParamCurve> > sub_cvs;
+  if (idx < 0 || idx >= (int)curves_.size())
+    return sub_cvs;
+
+  sub_cvs = curves_[idx]->split(par);
+  if (sub_cvs.size() > 0)
+    {
+      curves_.erase(curves_.begin()+idx);
+      curves_.insert(curves_.begin()+idx, sub_cvs.begin(), sub_cvs.end());
+    }
+
+  return sub_cvs;
+}
+
 // //===========================================================================
 // double CurveLoop::maxGap(int nmb_seg_samples)
 // //===========================================================================

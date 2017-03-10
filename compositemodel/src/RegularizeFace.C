@@ -56,7 +56,7 @@
 #include <fstream>
 #include <cstdlib>
 
-#define DEBUG_REG
+//#define DEBUG_REG
 
 using std::vector;
 using std::set;
@@ -73,7 +73,7 @@ RegularizeFace::RegularizeFace(shared_ptr<ftSurface> face,
 //==========================================================================
   : epsge_(epsge), angtol_(angtol), tol2_(tol2), bend_(5.0*angtol), face_(face),
     split_in_cand_(split_in_cand), split_mode_(1), divideInT_(2), 
-    top_level_(true), isolate_fac_(0.6)
+    top_level_(true), isolate_fac_(0.6), allow_degen_(false)
 {
   vector<shared_ptr<ftSurface> > faces(1);
   faces[0] = face;
@@ -90,7 +90,7 @@ RegularizeFace::RegularizeFace(shared_ptr<ftSurface> face,
 //==========================================================================
   : epsge_(epsge), angtol_(angtol), tol2_(tol2), bend_(bend), face_(face),
     split_in_cand_(split_in_cand), split_mode_(1), divideInT_(2), 
-    top_level_(true), isolate_fac_(0.6)
+    top_level_(true), isolate_fac_(0.6), allow_degen_(false)
 {
   vector<shared_ptr<ftSurface> > faces(1);
   faces[0] = face;
@@ -104,7 +104,7 @@ RegularizeFace::RegularizeFace(shared_ptr<ftSurface> face,
 			       bool split_in_cand)
 //==========================================================================
   : face_(face), split_in_cand_(split_in_cand), split_mode_(1), 
-    divideInT_(1), top_level_(true), isolate_fac_(0.6)
+    divideInT_(1), top_level_(true), isolate_fac_(0.6), allow_degen_(false)
 {
   epsge_ = model->getTolerances().gap;
   tol2_ = model->getTolerances().neighbour;
@@ -401,8 +401,9 @@ RegularizeFace::divideInTjoint(shared_ptr<ftSurface> face,
 
   // Select the T-joint to divide in
   shared_ptr<Vertex> curr;
-  double min_dist = 0.0;
-  size_t ki, curr_idx;
+  shared_ptr<Vertex> curr1, curr2;
+  double min_dist1 = 0.0, min_dist2 = 0.0;
+  size_t ki, curr_idx, curr_idx1, curr_idx2;
   for (ki=0; ki<Tvx.size(); ++ki)
     {
       // Compute distance between T vertex and corners on both sides
@@ -413,19 +414,31 @@ RegularizeFace::divideInTjoint(shared_ptr<ftSurface> face,
       if (Tvx[ki]->nmbUniqueEdges() == 2)
 	continue;  // Not a T-joint
 
-      // Check if the T-joint is allowed for split
-      vector<ftSurface*> vx_faces = Tvx[ki]->faces();
+      // Check if the T-joint vertex is prioritized
       size_t kj, kr;
-      for (kj=0; kj<vx_faces.size(); ++kj)
+      Point curr_vx_pt = Tvx[ki]->getVertexPoint();
+      for (kj=0; kj<vx_pri_.size(); ++kj)
 	{
-	  for (kr=0; kr<nonTjoint_faces_.size(); ++kr)
-	    if (vx_faces[kj] == nonTjoint_faces_[kr].get())
-	      break;
-	  if (kr < nonTjoint_faces_.size())
+	  Point curr_vx_pri = vx_pri_[kj]->getVertexPoint();
+	  if (vx_pri_[kj].get() == Tvx[ki].get() || curr_vx_pt.dist(curr_vx_pri) < epsge_)
 	    break;
 	}
-      if (kj < vx_faces.size())
-	continue;  // Not a feasible T-joint
+      
+      if (kj == vx_pri_.size())
+	{
+	  // Check if the T-joint is allowed for split
+	  vector<ftSurface*> vx_faces = Tvx[ki]->faces();
+	  for (kj=0; kj<vx_faces.size(); ++kj)
+	    {
+	      for (kr=0; kr<nonTjoint_faces_.size(); ++kr)
+		if (vx_faces[kj] == nonTjoint_faces_[kr].get())
+		  break;
+	      if (kr < nonTjoint_faces_.size())
+		break;
+	    }
+	  if (kj < vx_faces.size())
+	    continue;  // Not a feasible T-joint
+	}
 	
       double len = 0.0;
       for (kj=0; kj<edges.size(); ++kj)
@@ -450,12 +463,40 @@ RegularizeFace::divideInTjoint(shared_ptr<ftSurface> face,
 	  len += Tvx[ki]->getVertexPoint().dist(other->getVertexPoint());
 	}
 
-      if (len > min_dist)
+      // Check if the current T vertex is adjacent to another T vertex
+      size_t ka;
+      for (ka=0; ka<Tvx.size(); ++ka)
 	{
-	  min_dist = len;
-	  curr = Tvx[ki];
-	  curr_idx = ki;
+	  if (ka == ki)
+	    continue;
+	  if (Tvx[ki]->sameEdge(Tvx[ka].get()))
+	    break;
 	}
+
+      if (ka == Tvx.size() && len > min_dist1)
+	{
+	  min_dist1 = len;
+	  curr1 = Tvx[ki];
+	  curr_idx1 = ki;
+	}
+      else if (ka < Tvx.size() && len > min_dist2)
+	{
+	  min_dist2 = len;
+	  curr2 = Tvx[ki];
+	  curr_idx2 = ki;
+	}
+    }
+
+  // Prefer to divide in T-joints that are not next to other T-joints
+  if (curr1.get())
+    {
+      curr = curr1;
+      curr_idx = curr_idx1;
+    }
+  else
+    {
+      curr = curr2;
+      curr_idx = curr_idx2;
     }
 
   if (!curr.get())
@@ -501,7 +542,8 @@ RegularizeFace::divideInTjoint(shared_ptr<ftSurface> face,
   vector<shared_ptr<Vertex> > dummy;
   faces = RegularizeUtils::divideVertex(face_, curr, cand_vx, cand_edge,
 					/*Tvx*/  dummy, epsge_, tol2_, angtol_, 
-					bend_, non_corner, centre_, axis_);
+					bend_, non_corner, centre_, axis_,
+					allow_degen_);
   return faces;
 	    
 }
@@ -1984,6 +2026,10 @@ RegularizeFace::faceOuterBdFaces(vector<vector<ftEdge*> >& half_holes)
    // Prioritize corners according to opening angle
    vector<shared_ptr<Vertex> > sorted_corners = prioritizeCornerVx(corners);
 
+   // Include T-joint vertices in split candidates
+   vector<shared_ptr<Vertex> > Tvx = getTjointVertices();
+   sorted_corners.insert(sorted_corners.begin(), Tvx.begin(), Tvx.end());
+
    if (vx_pri_.size() > 0)
      sorted_corners.insert(sorted_corners.begin(), vx_pri_.begin(), vx_pri_.end());
 
@@ -2037,17 +2083,17 @@ RegularizeFace::faceOuterBdFaces(vector<vector<ftEdge*> >& half_holes)
 
        // Perform split
        vector<shared_ptr<Vertex> > prio;
-       for (size_t kr=0; kr<corners_.size(); ++kr)
-	 {
-	   size_t kh;
-	   for (kh=0; kh<cand_vx.size(); ++kh)
-	     if (cand_vx[kh].get() == corners_[kr].get())
-	       {
-		 prio.push_back(cand_vx[kh]);
-		 cand_vx.erase(cand_vx.begin()+kh);
-		 break;
-	       }
-	 }
+       // for (size_t kr=0; kr<corners_.size(); ++kr)
+       // 	 {
+       // 	   size_t kh;
+       // 	   for (kh=0; kh<cand_vx.size(); ++kh)
+       // 	     if (cand_vx[kh].get() == corners_[kr].get())
+       // 	       {
+       // 		 prio.push_back(cand_vx[kh]);
+       // 		 cand_vx.erase(cand_vx.begin()+kh);
+       // 		 break;
+       // 	       }
+       // 	 }
        trim_segments = RegularizeUtils::findVertexSplit(face_, split_vx, cand_vx, 
 							cand_edge, prio, epsge_, 
 							tol2_, angtol_, bend_, 
@@ -3360,10 +3406,10 @@ RegularizeFace::selectCandidateSplit(shared_ptr<Vertex> select_vx,
 	{
 	  shared_ptr<Vertex> other = 
 	    edges[kj]->getOtherVertex(vx[ki].get());
-	  if (other->sameEdge(select_vx.get()))
+	  if (other->sameEdge(select_vx.get()) && !allow_degen_)
 	    break;
 
-	  if (select_vx->connectedToSameVertex(other.get()))
+	  if (select_vx->connectedToSameVertex(other.get()) && !allow_degen_)
 	    {
 	      if (other->nmbUniqueEdges() == 2)
 		{
@@ -8665,4 +8711,67 @@ RegularizeFace::connectToVertex(vector<shared_ptr<Vertex> >& concave_corners)
   return subfaces;
 }
 
- }
+
+//==========================================================================
+vector<shared_ptr<Vertex> >
+RegularizeFace::getTjointVertices()
+//==========================================================================
+{
+  // Get potensial T-joints
+  Body *curr_body = face_->getBody();
+  vector<shared_ptr<Vertex> > Tvx = 
+    face_->getNonCornerVertices(angtol_, 0);
+  removeInsignificantVertices(Tvx);
+
+  // Check if the vertex really indicates a T-joint
+  for (int kj=0; kj<(int)Tvx.size(); )
+    {
+      vector<ftSurface*> vx_faces = Tvx[kj]->faces();
+      for (size_t kr=0; kr<vx_faces.size();)
+	{
+	  if (vx_faces[kr]->getBody() != curr_body)
+	    vx_faces.erase(vx_faces.begin()+kr);
+	  else
+	    kr++;
+	}
+      if (vx_faces.size() > 2)
+	kj++;
+      else if (vx_faces.size() == 1)
+	{
+	  // Only this face. Not a T-joint
+	  Tvx.erase(Tvx.begin()+kj);
+	}
+      else
+	{
+	  // One adjacent face. Check if the vertex lies in a 
+	  // corner of this face
+	  ftSurface *other = (vx_faces[0] == face_.get()) ?
+	    vx_faces[1] : vx_faces[0];
+	  vector<shared_ptr<Vertex> > other_corner = 
+	    other->getCornerVertices(angtol_);
+	  vector<shared_ptr<Vertex> >::iterator vxp =
+				  std::find(other_corner.begin(), other_corner.end(), 
+					    Tvx[kj]);
+	  if (vxp == other_corner.end())
+	    Tvx.erase(Tvx.begin() + kj); // Not a corner
+	  else
+	    {
+	      // Check if the vertex lies at a seam of the
+	      // adjacent surface. In that case, skip this vertex
+	      vector<ftEdge*> edg = Tvx[kj]->getFaceEdges(other);
+	      bool found_seam = false;
+	      for (size_t k1=0; k1<edg.size(); ++k1)
+		for (size_t k2=k1+1; k2<edg.size(); ++k2)
+		  if (edg[k1]->twin() == edg[k2])
+		    found_seam = true;
+	      if (found_seam)
+		Tvx.erase(Tvx.begin() + kj);  // Seam
+	      else
+		kj++;
+	    }
+	}
+    }
+  return Tvx;
+}
+}
+

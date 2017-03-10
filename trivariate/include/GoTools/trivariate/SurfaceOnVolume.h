@@ -462,6 +462,12 @@ namespace Go
       volume_ = volume;
     }
 
+    /// Check existence of parameter surface
+    bool hasParameterSurface() const
+    {
+      return (psurf_.get() != NULL);
+    }
+
     /// Get parameter surface
     shared_ptr<const ParamSurface> parameterSurface() const
       {
@@ -473,6 +479,12 @@ namespace Go
       {
 	return psurf_;
       }
+
+    /// Check existence of space surface
+    bool hasSpaceSurface() const
+    {
+      return (spacesurf_.get() != NULL);
+    }
 
     /// Get space surface
     shared_ptr<const ParamSurface> spaceSurface() const
@@ -559,7 +571,7 @@ namespace Go
 	 return -1;
     }
 
-  private:
+  protected:
     /// The underlying volume
     shared_ptr<ParamVolume> volume_;
     /// The surface in the parameter domain of the volume

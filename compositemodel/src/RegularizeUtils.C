@@ -37,7 +37,7 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#define DEBUG_REG
+//#define DEBUG_REG
 
 #include "GoTools/compositemodel/RegularizeUtils.h"
 #include "GoTools/geometry/BoundedUtils.h"
@@ -1391,14 +1391,19 @@ RegularizeUtils::getMaxParFrac(shared_ptr<ftSurface> face)
   vector<shared_ptr<ftEdge> > edges = face->getAllEdges();
 
   double maxparfrac = 0.0;
+  double accpar1=0.0, accpar2=0.0;
   for (size_t ki=0; ki<edges.size(); ++ki)
     {
       Point par1 = edges[ki]->faceParameter(edges[ki]->tMin());
       Point par2 = edges[ki]->faceParameter(edges[ki]->tMax());
-      double parfrac = std::min(fabs(par1[0]-par2[0]),fabs(par1[1]-par2[1]))/
-	std::max(fabs(par1[0]-par2[0]),fabs(par1[1]-par2[1]));
-      maxparfrac = std::max(maxparfrac, parfrac);
+      accpar1 += (fabs(par1[0]-par2[0]));
+      accpar2 += (fabs(par1[1]-par2[1]));
+		  
+      // double parfrac = std::min(fabs(par1[0]-par2[0]),fabs(par1[1]-par2[1]))/
+      // 	std::max(fabs(par1[0]-par2[0]),fabs(par1[1]-par2[1]));
+      // maxparfrac = std::max(maxparfrac, parfrac);
     }
+  maxparfrac = std::min(accpar1, accpar2)/std::max(accpar1, accpar2);
   return maxparfrac;
 }
 

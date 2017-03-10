@@ -325,13 +325,13 @@ namespace Go
 
     /// Check if this volume has 6 boundary surfaces that may act
     /// as the boundary surfaces of a non-trimmed spline volume
-    bool isRegularized() const;
+    bool isRegularized(bool accept_degen = false) const;
 
     /// Modify a regularized, possibly trimmed volume to become non-trimmed
-    bool untrimRegular(int degree);
+    bool untrimRegular(int degree, bool accept_degen = false);
 
     /// Approximate parameter volume by a non-trimmed spline volume
-    shared_ptr<ParamVolume> getRegParVol(int degree);
+    shared_ptr<ParamVolume> getRegParVol(int degree, bool accept_degen = false);
 
 /*     /// Split this and the corresponding volume with regard to the */
 /*     /// intersections between the boundary surfaces corresponding to */
@@ -351,7 +351,8 @@ namespace Go
 			    std::vector<SurfaceModel*>& modified_adjacent,
 			    bool performe_step2=true,
 			    int split_mode=1,
-			    bool pattern_split=false);
+			    bool pattern_split=false,
+			    bool accept_degen=false);
     
     /// Update boundary shells to reflect changes in the geometric volume
     /// while maintaining topology information
@@ -424,7 +425,8 @@ namespace Go
 			 int degree,
 			 shared_ptr<ftSurface>& face1,
 			 shared_ptr<ftSurface>& face2,
-			 std::vector<std::pair<ftEdge*,ftEdge*> >& replaced_wires);
+			 std::vector<std::pair<ftEdge*,ftEdge*> >& replaced_wires,
+			 Vertex *deg_vx=NULL);
 
     void getEdgeCurves(std::vector<ftEdge*>& loop, 
 		       std::vector<shared_ptr<ParamCurve> >& space_cvs,
@@ -511,6 +513,8 @@ namespace Go
    void setParameterVolAdjacency(std::vector<shared_ptr<ParamSurface> >& sfs1,
 				 std::vector<shared_ptr<ftSurface> >& face2) const;
 
+   shared_ptr<ftEdge> splitEdge(shared_ptr<ftEdge> edge, double par) const;
+
    // This class inherits SurfaceOnVolume and overrules the point evaluator
    // to return the volume parameter value corresponding to a point on
    // the surface
@@ -523,8 +527,19 @@ namespace Go
 
      virtual void point(Point& pt, double upar, double vpar) const;
 
+     virtual void point(std::vector<Point>& pts, double upar, 
+			double vpar, int derivs,
+			bool u_from_right, 
+			bool v_from_right,
+			double resolution = 1.0e-12) const;
+
      virtual std::vector<shared_ptr<ParamCurve> >
        constParamCurves(double parameter, bool pardir_is_u) const;
+
+    /// Return the class type identifier 
+    virtual ClassType instanceType() const;
+    static ClassType classType()
+    { return Class_ParameterSurfaceOnVolume; }
    };
 
    class ParameterCurveOnVolume : public CurveOnVolume
@@ -546,6 +561,10 @@ namespace Go
      virtual ParameterCurveOnVolume* subCurve(double from_par, double to_par,
 					     double fuzzy =
 					     DEFAULT_PARAMETER_EPSILON) const;
+    /// Return the class type identifier 
+    virtual ClassType instanceType() const;
+    static ClassType classType()
+    { return Class_ParameterCurveOnVolume; }
    };
 
   };

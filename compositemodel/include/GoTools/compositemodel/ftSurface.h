@@ -313,6 +313,10 @@ public:
     std::vector<shared_ptr<Vertex> > 
       getCommonVertices(ftSurface* other) const;
 
+    /// Get a common vertices between this face and two other faces
+    std::vector<shared_ptr<Vertex> >
+      getCommonVertices(ftSurface* f2, ftSurface* f3) const;
+
     /// Get all edges common to this face and another face represented by
     /// the half edges in this face
     std::vector<shared_ptr<ftEdge> > getCommonEdges(ftSurface *other) const;

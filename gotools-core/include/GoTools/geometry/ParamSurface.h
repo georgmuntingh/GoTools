@@ -521,10 +521,14 @@ public:
 
     mutable degenerate_info degen_;
 
+    mutable double est_sf_size_u_, est_sf_size_v_;
+    mutable int nmb_size_u_, nmb_size_v_;
+
     IteratorType iterator_;
 
     ParamSurface()
-	: iterator_(Iterator_parametric)
+      : est_sf_size_u_(0.0), est_sf_size_v_(0.0), nmb_size_u_(-1), 
+      nmb_size_v_(-1), iterator_(Iterator_parametric)
 	{
 	}
 

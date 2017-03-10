@@ -579,6 +579,13 @@ public:
     /// Fetch
     shared_ptr<ParamSurface> getIsoTrimSurface(double tol) const;
 
+    /// Set surface as iso trimmed
+    void setIsoTrim()
+    {
+      iso_trim_ = true;
+      iso_trim_tol_ = 0.0;
+    }
+
     /// Check if the loop orientation is tested and corrected
     bool orientationIsSet()
 	{

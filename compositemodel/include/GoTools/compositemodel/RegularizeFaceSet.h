@@ -192,8 +192,11 @@ void prioritizeFaces(std::vector<shared_ptr<ftSurface> >& faces,
 void
   computeFaceCorrespondance(std::vector<shared_ptr<ftSurface> >& faces);
 
-void defineSplitVx(std::vector<shared_ptr<ftSurface> >& faces,
-		   std::vector<int>& perm);
+ std::vector<shared_ptr<Vertex> >
+   getTjointVertices(shared_ptr<ftSurface> face, double angtol);
+
+ void defineSplitVx(std::vector<shared_ptr<ftSurface> >& faces,
+		    std::vector<int>& perm);
 };
 
 }  // namespace Go

@@ -151,14 +151,15 @@ int main( int argc, char* argv[] )
       VolumeModelFileHandler filehandler;
       curr_vol = filehandler.readVolume(infile.c_str());
       SplineVolume* curr_under = curr_vol->getVolume()->asSplineVolume();
+      int min_nmb = 15;
       for (int dir=0; dir<3; ++dir)
 	{
 	  int num_el = curr_under->numElem(dir);
-	  if (num_el < 10)
+	  if (num_el < min_nmb)
 	    {
 	      double tstart =  curr_under->startparam(dir);
 	      double tend =  curr_under->endparam(dir);
-	      double del1 = (tend-tstart)/10.0;
+	      double del1 = (tend-tstart)/(double)min_nmb;
 	      vector<double> knots;
 	      curr_under->basis(dir).knotsSimple(knots);
 	      vector<double> newknots;
@@ -226,15 +227,15 @@ int main( int argc, char* argv[] )
 	      if (!is_inside[kj])
 		continue;
 
-	      bool regular = sub_elem[kj]->isRegularized();
+	      bool regular = sub_elem[kj]->isRegularized(true);
 	      std::cout << "Sub element nr " << kj+1 << ": " << regular << std::endl;
 	      if (regular)
 		{
-		  if (false)
-		    {
+		  // if (false)
+		  //   {
 		  // Create non-trimmed parameter element
 		  shared_ptr<ParamVolume> reg_vol = 
-		    sub_elem[kj]->getRegParVol(degree);
+		    sub_elem[kj]->getRegParVol(degree, true);
 		  if (reg_vol.get())
 		    {
 		      reg_vol->writeStandardHeader(of5);
@@ -246,31 +247,92 @@ int main( int argc, char* argv[] )
 		  shared_ptr<ParamVolume> tmp_vol = sub_elem[kj]->getVolume();
 		  tmp_vol->writeStandardHeader(of6);
 		  tmp_vol->write(of6);
-		    }
+		    // }
 		}
 	      else
 		{
-		  std::ofstream of4_2("tmp4_2.g2");
-		  shared_ptr<SurfaceModel> mod = sub_elem[kj]->getOuterShell();
-		  int nmb = mod->nmbEntities();
-		  for (int kr=0; kr<nmb; ++kr)
+		  std::ofstream pre_block("pre_block.g22");
+		  VolumeModelFileHandler filewrite0;
+		  filewrite0.writeStart(pre_block);
+		  filewrite0.writeHeader("Irregular volume", pre_block);
+		  filewrite0.writeVolume(sub_elem[kj], pre_block);
+		  filewrite0.writeEnd(pre_block);
+		  
+		  // Block structuring
+		  bool failed = false;
+		  vector<SurfaceModel*> modified_adjacent;
+		  bool pattern_split = false;
+		  int split_mode = 1;
+		  vector<shared_ptr<ftVolume> > blocks;
+		  try {
+		    blocks = 
+		      sub_elem[kj]->replaceWithRegVolumes(degree, modified_adjacent,
+							  false, split_mode, 
+							  pattern_split, true);
+		  }
+		  catch (...)
 		    {
-		      shared_ptr<ParamSurface> sf = mod->getSurface(kr);
-		      sf->writeStandardHeader(of4_2);
-		      sf->write(of4_2);
-		      sf->writeStandardHeader(of7);
-		      sf->write(of7);
+		      failed = true;
 		    }
 
-		  std::ofstream of_mod("tmp_mod.g22");
-		  VolumeModelFileHandler filewrite;
-		  filewrite.writeStart(of_mod);
-		  filewrite.writeHeader("Irregular volume", of_mod);
-		  filewrite.writeVolume(sub_elem[kj], of_mod);
-		  filewrite.writeEnd(of_mod);
+		  if (blocks.size() == 0)
+		    failed = true;
+
+		  for (size_t kr=0; kr<blocks.size(); ++kr)
+		    {
+		      regular = blocks[kr]->isRegularized(true);
+		      if (regular)
+			{
+			  // Create non-trimmed parameter element
+			  shared_ptr<ParamVolume> reg_vol = 
+			    blocks[kr]->getRegParVol(degree, true);
+			  if (reg_vol.get())
+			    {
+			      reg_vol->writeStandardHeader(of5);
+			      reg_vol->write(of5);
+			    }
+			  else
+			    failed = true;
+
+			  // Create non-trimmed element
+			  blocks[kr]->untrimRegular(degree);
+			  shared_ptr<ParamVolume> tmp_vol = blocks[kr]->getVolume();
+			  if (tmp_vol.get())
+			    {
+			      tmp_vol->writeStandardHeader(of6);
+			      tmp_vol->write(of6);
+			    }
+			  else
+			    failed = true;
+			}
+		      else
+			failed = true;
+		    }
+		  
+		  if (failed)
+		    {
+		      std::ofstream of4_2("tmp4_2.g2");
+		      shared_ptr<SurfaceModel> mod = sub_elem[kj]->getOuterShell();
+		      int nmb = mod->nmbEntities();
+		      for (int kr=0; kr<nmb; ++kr)
+			{
+			  shared_ptr<ParamSurface> sf = mod->getSurface(kr);
+			  sf->writeStandardHeader(of4_2);
+			  sf->write(of4_2);
+			  sf->writeStandardHeader(of7);
+			  sf->write(of7);
+			}
+
+		      std::ofstream of_mod("tmp_mod.g22");
+		      VolumeModelFileHandler filewrite;
+		      filewrite.writeStart(of_mod);
+		      filewrite.writeHeader("Irregular volume", of_mod);
+		      filewrite.writeVolume(sub_elem[kj], of_mod);
+		      filewrite.writeEnd(of_mod);
 		  
 
-		  std::cout << "Number of surfaces: " << sub_elem[kj]->getOuterShell()->nmbEntities() << std::endl;
+		      std::cout << "Number of surfaces: " << sub_elem[kj]->getOuterShell()->nmbEntities() << std::endl;
+		    }
 		}
 	    }
 	}
