@@ -100,8 +100,8 @@ namespace Go {
 
 //===========================================================================
 void ClosestPoint::closestPtCurves(const ParamCurve* cv1, const ParamCurve* cv2,
-		     double& par1, double& par2, double& dist,
-		     Point& ptc1, Point& ptc2)
+				   double& par1, double& par2, double& dist,
+				   Point& ptc1, Point& ptc2, int max_passes)
 //===========================================================================
 
 // Compute the closest point between two curves.
@@ -133,7 +133,7 @@ void ClosestPoint::closestPtCurves(const ParamCurve* cv1, const ParamCurve* cv2,
 
   // Iterate for closest point
   ClosestPoint::closestPtCurves(cv1,cv2,tmin1,tmax1,tmin2,tmax2,seed1,seed2,par1,par2,
-				 dist,ptc1,ptc2);
+				dist,ptc1,ptc2, max_passes);
 
 }
 
@@ -142,7 +142,8 @@ void ClosestPoint::closestPtCurves(const ParamCurve* cv1, const ParamCurve* cv2,
 void  ClosestPoint::closestPtCurves(const ParamCurve* cv1, const ParamCurve* cv2, double tmin1,
  		     double tmax1, double tmin2, double tmax2,
  		     double seed1, double seed2, double& par1, double& par2,
- 		     double& dist, Point& ptc1, Point& ptc2)
+				    double& dist, Point& ptc1, Point& ptc2,
+				    int max_passes)
 //===========================================================================
 {
 
@@ -179,7 +180,6 @@ void  ClosestPoint::closestPtCurves(const ParamCurve* cv1, const ParamCurve* cv2
 
 
     // Iterate for closest point
-    const int max_passes = 30;
     int kdir;                  // Changing direction. 
     //  int stat = 0;
   

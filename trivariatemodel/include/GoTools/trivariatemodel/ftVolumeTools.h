@@ -50,6 +50,9 @@ namespace Go
   class ftSurface;
   class ftEdge;
   class SurfaceModel;
+  class ParamVolume;
+  class CurveOnSurface;
+  class BoundedSurface;
 
   /// This namespace contains service functions related to ftVolume
   namespace ftVolumeTools
@@ -67,6 +70,14 @@ namespace Go
       splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
 		  double eps, std::vector<int>& is_inside,
 		  double* elem_par=NULL, int nmb_par=0);
+
+    // Split element volume according to intersections with the trimming
+    // surfaces of another volume
+    std::vector<shared_ptr<ftVolume> >
+      splitElement(shared_ptr<ParamVolume>& elem_vol, 
+		   std::vector<shared_ptr<ftSurface> >& elem_faces,
+		   double* elem_par, ftVolume* trim_vol,
+		   double eps, std::vector<int>& is_inside);
 
     /// Split one volume according to intersections with a given face
     std::vector<shared_ptr<ftVolume> >
@@ -91,6 +102,11 @@ namespace Go
     int boundaryStatus(ftVolume* vol, shared_ptr<ftSurface>& bd_face,
 		       double tol);
  
+    void
+      projectTrimCurves(shared_ptr<ftSurface> face1,
+			shared_ptr<ftSurface> face2, double eps,
+			std::vector<shared_ptr<CurveOnSurface> >& proj_cvs,
+			shared_ptr<BoundedSurface>& bd_sf1);
   }  // namespace ftVolumeTools
 } // namespace Go
 

@@ -381,7 +381,8 @@ CurveCreators::projectCurve(shared_ptr<ParamCurve>& space_cv,
 //===========================================================================
   vector<shared_ptr<SplineCurve> > 
   CurveCreators::curveApprox(shared_ptr<ParamCurve> cvs[], int nmb_cvs,
-			    const BsplineBasis& init_basis, double tol)
+			     const BsplineBasis& init_basis, double tol,
+			     int nmb_init_sample_pr_seg)
 //===========================================================================
   {
     vector<shared_ptr<SplineCurve> > result;
@@ -435,6 +436,7 @@ CurveCreators::projectCurve(shared_ptr<ParamCurve>& space_cv,
 	// Approximate
 	AdaptCurve adapt(eval_crv.get(), tol, nmb_coef, order, knots);
 	adapt.unsetSmooth();
+	adapt.setNmbInitSamples(nmb_init_sample_pr_seg);
  	//adapt.setSmooth(smoothw);
 	// int performed = adapt.approximate();
 	int max_iter = 3;
@@ -461,7 +463,8 @@ CurveCreators::projectCurve(shared_ptr<ParamCurve>& space_cv,
 //===========================================================================
   vector<shared_ptr<SplineCurve> > 
   CurveCreators::curveApprox(shared_ptr<ParamCurve> cvs[], int nmb_cvs,
-			     double tol, int degree)
+			     double tol, int degree,
+			     int nmb_init_sample_pr_seg)
 //===========================================================================
   {
     vector<shared_ptr<SplineCurve> > result;
@@ -474,6 +477,7 @@ CurveCreators::projectCurve(shared_ptr<ParamCurve>& space_cv,
     static double fac_tol = 10.0;
     AdaptCurve adapt0(eval_crv.get(), fac_tol*tol, nmb_coef, order);
     adapt0.unsetSmooth();
+    adapt0.setNmbInitSamples(nmb_init_sample_pr_seg);
     static int maxiter = 4;
     int performed = adapt0.approximate(maxiter);
     double maxdist, avdist;
@@ -512,6 +516,7 @@ CurveCreators::projectCurve(shared_ptr<ParamCurve>& space_cv,
 	AdaptCurve adapt(eval_crv.get(), tol, nmb_coef, order, knots);
 	//adapt.setSmooth(smoothw);
 	adapt.unsetSmooth();
+	adapt.setNmbInitSamples(nmb_init_sample_pr_seg);
  	performed = adapt.approximate();
 	res = adapt.getAdaptCurve(maxdist, avdist);
 

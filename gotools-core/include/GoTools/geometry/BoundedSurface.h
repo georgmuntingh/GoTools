@@ -576,13 +576,23 @@ public:
     /// Check if the current surface is trimmed along constant parameter curves
     virtual bool isIsoTrimmed(double tol) const;
 
+    /// Check if the current surface is trimmed its boundary curves
+    virtual bool isBoundaryTrimmed(double tol) const;
+
     /// Fetch
     shared_ptr<ParamSurface> getIsoTrimSurface(double tol) const;
 
     /// Set surface as iso trimmed
     void setIsoTrim()
     {
-      iso_trim_ = true;
+      iso_trim_ = 1;
+      iso_trim_tol_ = 0.0;
+    }
+
+   /// Set surface as boundary trimmed
+     void setBoundaryTrim()
+    {
+      iso_trim_ = 2;
       iso_trim_tol_ = 0.0;
     }
 
@@ -742,7 +752,7 @@ private:
 
     mutable CurveBoundedDomain domain_;
 
-    mutable bool iso_trim_;
+    mutable int iso_trim_;
     mutable double iso_trim_tol_;
 
     mutable BoundingBox box_;

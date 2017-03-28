@@ -49,6 +49,9 @@ namespace Go
 
   class ftSurface;
   class SurfaceModel;
+  class Body;
+  class BoundedSurface;
+  class CurveOnSurface;
 
   namespace SurfaceModelUtils
   {
@@ -84,6 +87,14 @@ namespace Go
 			shared_ptr<Vertex> vx1,shared_ptr<Vertex> vx2,
 			double& len_frac, double& other_frac, double& sf_reg,
 			double neighbour, double bend);
+
+   void sortTrimmedSurfaces(std::vector<std::vector<shared_ptr<CurveOnSurface> > >& cvs1,
+			    std::vector<shared_ptr<ParamSurface> >& sfs1,
+			    Body *model1,
+			    std::vector<std::vector<shared_ptr<CurveOnSurface> > >& cvs2,
+			    std::vector<shared_ptr<ParamSurface> >& sfs2,
+			    Body *model2, double eps, double angtol,
+			    std::vector<std::vector<shared_ptr<ParamSurface> > >& groups);
   }
 }
 #endif

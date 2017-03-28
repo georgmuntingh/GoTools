@@ -197,6 +197,8 @@ void
 
  void defineSplitVx(std::vector<shared_ptr<ftSurface> >& faces,
 		    std::vector<int>& perm);
+
+ void removeExtraDiv();
 };
 
 }  // namespace Go

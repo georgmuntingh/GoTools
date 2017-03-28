@@ -154,6 +154,11 @@ namespace Go
 	    /// Check if a point lies inside this body
 	    bool isInside(const Point& pnt) const;
 
+	    /// Check if a point lies inside this body and return
+	    /// the distance to the boundary and angle between
+	    /// difference vector and surface normal
+	    bool isInside(const Point& pnt, double& dist, double& ang) const;
+
 	    /// Find the shell containing a given face (if any)
 	    shared_ptr<SurfaceModel> getShell(ftSurface* face) const;
 

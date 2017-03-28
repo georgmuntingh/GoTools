@@ -353,6 +353,11 @@ namespace Go
 			    int split_mode=1,
 			    bool pattern_split=false,
 			    bool accept_degen=false);
+
+    /// Split trimmed volume in concave, share edges
+    std::vector<shared_ptr<ftVolume> > splitConcaveVol(int degree, 
+						       bool isolate=false);
+     
     
     /// Update boundary shells to reflect changes in the geometric volume
     /// while maintaining topology information
@@ -403,7 +408,7 @@ namespace Go
     shared_ptr<ParamVolume> 
       createByCoons(std::vector<shared_ptr<ParamSurface> >& sfs,
 		    std::vector<std::pair<int,double> >& classification,
-		    double tol, int degree);
+		    double tol, int degree, bool geom_space=true);
 
     bool
       getCoonsCurvePairs(std::vector<shared_ptr<ParamSurface> >& sfs, 
@@ -414,12 +419,14 @@ namespace Go
 			  std::vector<int>& indices,
 			  std::vector<std::pair<int,double> >& classification,
 			  double tol, int degree,
-			  std::vector<shared_ptr<SplineCurve> >& coons_cvs);
+			  std::vector<shared_ptr<SplineCurve> >& coons_cvs,
+			  int nmb_sample_pr_seg);
     
     std::vector<shared_ptr<ftSurface> >  
       generateMissingBdSurf(int degree,
 			    std::vector<std::pair<Point,Point> >& corr_vx_pts,
-			    bool perform_step2, bool smooth_connections);
+			    bool perform_step2, bool smooth_connections,
+			    int max_nmb = 4);
 
     void makeSurfacePair(std::vector<ftEdge*>& loop,
 			 int degree,
@@ -439,14 +446,16 @@ namespace Go
 
     std::vector<std::vector<ftEdge*> > 
       getMissingSfLoops(std::vector<std::pair<Point,Point> >& corr_vx_pts,
-			bool perform_step2, bool smooth_connections);
+			bool perform_step2, bool smooth_connections,
+			int max_nmb = 4);
 
     bool loopExisting(std::vector<ftEdge*>& loop, 
 		      std::vector<std::vector<ftEdge*> >& curr_loops);
 
     std::vector<shared_ptr<ftEdge> > getStartEdges();
 
-    std::vector<std::vector<ftEdge*> > getLoop(shared_ptr<ftEdge> start_edge);
+    std::vector<std::vector<ftEdge*> > getLoop(shared_ptr<ftEdge> start_edge,
+					       int max_nmb = 4);
     
     bool getLoopEdges(std::vector<ftEdge*>& loop, 
 		      shared_ptr<Vertex> start_vx,
@@ -525,7 +534,11 @@ namespace Go
      ParameterSurfaceOnVolume(shared_ptr<ParamVolume> vol,
 			      shared_ptr<ParamSurface> spacesurf);
 
-     virtual void point(Point& pt, double upar, double vpar) const;
+      ParameterSurfaceOnVolume(shared_ptr<ParamVolume> vol,
+			       shared_ptr<ParamSurface> psurf,
+			       shared_ptr<ParamSurface> spacesurf);
+
+    virtual void point(Point& pt, double upar, double vpar) const;
 
      virtual void point(std::vector<Point>& pts, double upar, 
 			double vpar, int derivs,

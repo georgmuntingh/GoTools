@@ -76,13 +76,20 @@ using std::ofstream;
 
 int main( int argc, char* argv[] )
 {
-  if (argc != 3)
+  if (argc != 4 && argc != 5 && argc != 6)
     {
-      cout << "Usage: " << "<infile> " << " <file type> "<< endl;
+      cout << "Usage: " << "<infile> " << " <file type> " << "min nmb knot" << "(start index)" << "(stop index)"<< endl;
       exit(-1);
     }
   std::string infile(argv[1]);
   int file_type = atoi(argv[2]);
+  int start_ix = 0;
+  int min_nmb = atoi(argv[3]);
+  if (argc >= 5)
+    start_ix = atoi(argv[4]);
+  int stop_ix = -1;
+  if (argc == 6)
+    stop_ix = atoi(argv[5]);
 
   shared_ptr<ftVolume> curr_vol;
   int degree = 3;
@@ -151,7 +158,6 @@ int main( int argc, char* argv[] )
       VolumeModelFileHandler filehandler;
       curr_vol = filehandler.readVolume(infile.c_str());
       SplineVolume* curr_under = curr_vol->getVolume()->asSplineVolume();
-      int min_nmb = 15;
       for (int dir=0; dir<3; ++dir)
 	{
 	  int num_el = curr_under->numElem(dir);
@@ -190,11 +196,31 @@ int main( int argc, char* argv[] )
   std::ofstream of5("tmp5.g2");
   std::ofstream of6("tmp6.g2");
   std::ofstream of7("tmp7.g2");
-  for (int ki=0; ki<nmb_elem; ++ki)
+  if (stop_ix < 0)
+    stop_ix = nmb_elem;
+  for (int ki=start_ix; ki<stop_ix; ++ki)
     {
-      int elem_stat = curr_vol->ElementBoundaryStatus(ki);
-      std::cout << "Boundary status, element " << ki+1 << ": " << elem_stat << std::endl;
+      std::ofstream of8("tmp8.g2");
 
+      // Fetch parameter values surrounding the specified element
+      double elem_par[6];
+      under->getElementBdPar(ki, elem_par);
+	  
+      // Create an ftVolume entity corresponding to the element. 
+      // First create underlying SplineVolume
+      shared_ptr<ParamVolume> elem_vol(under->subVolume(elem_par[0], elem_par[2],
+							elem_par[4], elem_par[1],
+							elem_par[3], elem_par[5]));
+      elem_vol->writeStandardHeader(of8);
+      elem_vol->write(of8);
+
+
+      int elem_stat = curr_vol->ElementBoundaryStatus(ki);
+      std::cout << "Boundary status, element " << ki << ": " << elem_stat << std::endl;
+
+      int nmb_par=0;
+      int nmb_geom=0;
+      int nmb_blocks=0;
       if (elem_stat == 1)
 	{
 	  // Element intersects trimming surface
@@ -231,6 +257,7 @@ int main( int argc, char* argv[] )
 	      std::cout << "Sub element nr " << kj+1 << ": " << regular << std::endl;
 	      if (regular)
 		{
+		  nmb_blocks++;
 		  // if (false)
 		  //   {
 		  // Create non-trimmed parameter element
@@ -240,13 +267,15 @@ int main( int argc, char* argv[] )
 		    {
 		      reg_vol->writeStandardHeader(of5);
 		      reg_vol->write(of5);
+		      nmb_par++;
 		    }
 
 		  // Create non-trimmed element
-		  sub_elem[kj]->untrimRegular(degree);
+		  sub_elem[kj]->untrimRegular(degree, true);
 		  shared_ptr<ParamVolume> tmp_vol = sub_elem[kj]->getVolume();
 		  tmp_vol->writeStandardHeader(of6);
 		  tmp_vol->write(of6);
+		  nmb_geom++;
 		    // }
 		}
 	      else
@@ -258,31 +287,47 @@ int main( int argc, char* argv[] )
 		  filewrite0.writeVolume(sub_elem[kj], pre_block);
 		  filewrite0.writeEnd(pre_block);
 		  
-		  // Block structuring
-		  bool failed = false;
-		  vector<SurfaceModel*> modified_adjacent;
-		  bool pattern_split = false;
-		  int split_mode = 1;
+		  // Split in concave edges
+		  vector<shared_ptr<ftVolume> > split_elem =
+		    sub_elem[kj]->splitConcaveVol(degree, true);
+
 		  vector<shared_ptr<ftVolume> > blocks;
-		  try {
-		    blocks = 
-		      sub_elem[kj]->replaceWithRegVolumes(degree, modified_adjacent,
-							  false, split_mode, 
-							  pattern_split, true);
-		  }
-		  catch (...)
+		  bool failed = false;
+
+		  for (size_t kr=0; kr<split_elem.size(); ++kr)
 		    {
-		      failed = true;
+		      // Block structuring
+		      vector<SurfaceModel*> modified_adjacent;
+		      bool pattern_split = false;
+		      int split_mode = 1;
+		      vector<shared_ptr<ftVolume> > blocks0;
+		      try {
+			blocks0 = 
+			  split_elem[kr]->replaceWithRegVolumes(degree, modified_adjacent,
+							      false, split_mode, 
+							      pattern_split, true);
+		      }
+		      catch (...)
+			{
+			  failed = true;
+			}
+		      if (blocks0.size() > 0)
+			blocks.insert(blocks.end(), blocks0.begin(), blocks0.end());
+		      else
+			blocks.push_back(split_elem[kr]);
 		    }
 
 		  if (blocks.size() == 0)
 		    failed = true;
 
+		  nmb_blocks += (int)blocks.size();
 		  for (size_t kr=0; kr<blocks.size(); ++kr)
 		    {
 		      regular = blocks[kr]->isRegularized(true);
 		      if (regular)
 			{
+			  // if (false)
+			  //   {
 			  // Create non-trimmed parameter element
 			  shared_ptr<ParamVolume> reg_vol = 
 			    blocks[kr]->getRegParVol(degree, true);
@@ -290,17 +335,30 @@ int main( int argc, char* argv[] )
 			    {
 			      reg_vol->writeStandardHeader(of5);
 			      reg_vol->write(of5);
+			      nmb_par++;
 			    }
 			  else
 			    failed = true;
-
+			    // }
 			  // Create non-trimmed element
-			  blocks[kr]->untrimRegular(degree);
+
+			  std::ofstream of7("elem_sub.g2");
+			  shared_ptr<SurfaceModel> mod = blocks[kr]->getOuterShell();
+			  int nmb = mod->nmbEntities();
+			  for (int kc=0; kc<nmb; ++kc)
+			    {
+			      shared_ptr<ParamSurface> sf = mod->getSurface(kc);
+			      sf->writeStandardHeader(of7);
+			      sf->write(of7);
+			    }
+
+			  blocks[kr]->untrimRegular(degree, true);
 			  shared_ptr<ParamVolume> tmp_vol = blocks[kr]->getVolume();
 			  if (tmp_vol.get())
 			    {
 			      tmp_vol->writeStandardHeader(of6);
 			      tmp_vol->write(of6);
+			      nmb_geom++;
 			    }
 			  else
 			    failed = true;
@@ -338,22 +396,13 @@ int main( int argc, char* argv[] )
 	}
       else if (elem_stat == 2)
 	{
-	  SplineVolume *vol = curr_vol->getVolume()->asSplineVolume();
-	  if (vol)
-	    {
-	      // Fetch parameter values surrounding the specified element
-	      double elem_par[6];
-	      vol->getElementBdPar(ki, elem_par);
-	      
-	      // Create an ftVolume entity corresponding to the element. 
-	      // First create underlying SplineVolume
-	      shared_ptr<ParamVolume> elem_vol(vol->subVolume(elem_par[0], elem_par[2],
-							      elem_par[4], elem_par[1],
-							      elem_par[3], elem_par[5]));
-	      elem_vol->writeStandardHeader(of6);
-	      elem_vol->write(of6);
-	    }
-
+	  elem_vol->writeStandardHeader(of6);
+	  elem_vol->write(of6);
+	  nmb_blocks++;
+	  nmb_geom++;
+	  nmb_par++;
 	}
+      if (nmb_par != nmb_blocks || nmb_geom != nmb_blocks)
+	std::cout << "Nmb blocks: " << nmb_blocks << ", nmb geom: " << nmb_geom << ", nmb par: " << nmb_par << std::endl;
     }
 }

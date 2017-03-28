@@ -46,12 +46,16 @@
 #include "GoTools/geometry/BoundedSurface.h"
 #include "GoTools/geometry/BoundedUtils.h"
 #include "GoTools/geometry/SurfaceTools.h"
+#include "GoTools/geometry/GoIntersections.h"
+#include "GoTools/geometry/ClosestPoint.h"
 #include "GoTools/trivariate/ParamVolume.h"
 #include "GoTools/trivariate/SurfaceOnVolume.h"
 #include "GoTools/compositemodel/ftSurface.h"
 #include "GoTools/compositemodel/Body.h"
+#include "GoTools/compositemodel/SurfaceModelUtils.h"
 #include "GoTools/topology/FaceAdjacency.h"
 #include "GoTools/intersections/Identity.h"
+#include "GoTools/creators/CurveCreators.h"
 #include <fstream>
 
 using std::vector;
@@ -753,6 +757,291 @@ ftVolumeTools::splitOneVol(shared_ptr<ftVolume>& elem_vol, ftVolume* trim_vol,
 //===========================================================================
 // 
 // 
+vector<shared_ptr<ftVolume> >
+ftVolumeTools::splitElement(shared_ptr<ParamVolume>& elem_vol, 
+			    vector<shared_ptr<ftSurface> >& elem_faces,
+			    double* elem_par, ftVolume* trim_vol,
+			    double eps, vector<int>& is_inside)
+//===========================================================================
+{
+  vector<shared_ptr<ftVolume> > result;
+  is_inside.clear();
+
+  // Fetch trim faces from boundary shells and project trimming curves
+  // onto element side surfaces which is coincident with trimming faces
+  // NB! Each element side surface is either trimmed by projecting trimming
+  // curves from trimming surface or by intersecting with trimming surfaces.
+  // This logic will fail if an element side surface is partly coincident with
+  // a trimming surface, but intersects with another trimming surface in a
+  // different area. The alternative would be to perform both trimming and
+  // intersection and remove doubly obtained information, an operation that is
+  // risky in itself.
+  size_t nmb_elem = elem_faces.size();
+  vector<shared_ptr<SurfaceModel> > shells = trim_vol->getAllShells();
+  vector<shared_ptr<ftSurface> > faces;
+  vector<vector<shared_ptr<CurveOnSurface> > > all_int_cvs1(nmb_elem);
+  vector<shared_ptr<ParamSurface> > sfs1(nmb_elem);
+  for (size_t ki=0; ki<shells.size(); ++ki)
+    {
+      int nmb = shells[ki]->nmbEntities();
+      for (int kj=0; kj<nmb; ++kj)
+	{
+	  shared_ptr<ftSurface> curr_face = shells[ki]->getFace(kj);
+	  if (elem_par != NULL)
+	    {
+	      // Check if the current face coincides with a constant parameter
+	      // of the volume to split
+	      shared_ptr<ParamSurface> surf = curr_face->surface();
+	      shared_ptr<SurfaceOnVolume> vol_sf = 
+		dynamic_pointer_cast<SurfaceOnVolume, ParamSurface>(surf);
+	      shared_ptr<BoundedSurface> bd_sf = 
+		dynamic_pointer_cast<BoundedSurface, ParamSurface>(surf);
+	      if (bd_sf.get())
+		vol_sf = 
+		  dynamic_pointer_cast<SurfaceOnVolume, ParamSurface>(bd_sf->underlyingSurface());
+	      int dir = 0;
+	      double val = 0.0;
+	      if (vol_sf.get())
+		{
+		  dir = vol_sf->getConstDir();
+		  val = vol_sf->getConstVal();
+		}
+	      size_t kr = 0;
+	      for (kr=0; kr<nmb_elem; ++kr)
+		{
+		  if (dir == (kr/2)+1 && fabs(val-elem_par[kr]) < eps)
+		    break;  // Coincidence. Do not include face in intersection
+		}
+	      if (kr < nmb_elem)
+		{
+		  // Project trimming curves onto element side surface
+		  vector<shared_ptr<CurveOnSurface> > int_cvs;
+		  shared_ptr<BoundedSurface> bd_sf;
+		  projectTrimCurves(elem_faces[kr], curr_face, eps,
+				    int_cvs, bd_sf);
+		  if (int_cvs.size() > 0)
+		    {
+		      all_int_cvs1[kr].insert(all_int_cvs1[kr].end(), int_cvs.begin(),
+					      int_cvs.end());
+		      sfs1[kr] = bd_sf;
+		    }
+		  continue;
+		}
+	    }
+	  int bd_stat = ftVolumeTools::boundaryStatus(trim_vol,
+						      curr_face, eps);
+	  if (bd_stat < 0)
+	    faces.push_back(curr_face);
+	}
+    }
+
+#ifdef DEBUG
+  std::ofstream of1("trim_faces.g2");
+  for (size_t kr=0; kr<faces.size(); ++kr)
+    {
+      shared_ptr<ParamSurface> tmp_sf = faces[kr]->surface();
+      tmp_sf->writeStandardHeader(of1);
+      tmp_sf->write(of1);
+    }
+  std::ofstream of2("elem_faces.g2");
+  for (size_t kr=0; kr<elem_faces.size(); ++kr)
+    {
+      shared_ptr<ParamSurface> tmp_sf = elem_faces[kr]->surface();
+      tmp_sf->writeStandardHeader(of2);
+      tmp_sf->write(of2);
+    }
+#endif
+
+  // Compute intersection curves between remaining element side surfaces and
+  // identified trimming surfaces
+  size_t nmb_trim = faces.size();
+  vector<vector<shared_ptr<CurveOnSurface> > > all_int_cvs2(nmb_trim);
+  vector<shared_ptr<ParamSurface> > sfs2(nmb_trim);
+  for (size_t kr=0; kr<nmb_elem; ++kr)
+    {
+      if (sfs1[kr].get())
+	continue;  // Intersection curves already obtained
+      
+      shared_ptr<ParamSurface> surf1 = elem_faces[kr]->surface();
+      BoundingBox box1 = surf1->boundingBox();
+     for (size_t kh=0; kh<nmb_trim; ++kh)
+	{
+	  shared_ptr<ParamSurface> surf2 = faces[kh]->surface();
+	  BoundingBox box2 = surf2->boundingBox();
+
+#ifdef DEBUG
+	  std::ofstream out("curr_sf_int.g2");
+	  surf1->writeStandardHeader(out);
+	  surf1->write(out);
+	  surf2->writeStandardHeader(out);
+	  surf2->write(out);
+#endif
+
+	  if (box1.overlaps(box2, eps))
+	    {
+	      shared_ptr<BoundedSurface> bd1, bd2;
+	      vector<shared_ptr<CurveOnSurface> > int_cv1, int_cv2;
+	      BoundedUtils::getSurfaceIntersections(surf1, surf2, eps,
+						    int_cv1, bd1,
+						    int_cv2, bd2);
+	      sfs1[kr] = bd1;
+	      sfs2[kh] = bd2;
+	      if (int_cv1.size() > 0)
+		{
+		  all_int_cvs1[kr].insert(all_int_cvs1[kr].end(), 
+					  int_cv1.begin(), int_cv1.end());
+		  all_int_cvs2[kh].insert(all_int_cvs2[kh].end(), 
+					  int_cv2.begin(), int_cv2.end());
+		}
+	    }
+	}
+    }
+
+#ifdef DEBUG
+  std::ofstream of0("intcurves.g2");
+  for (size_t ki=0; ki<nmb_elem; ++ki)
+    {
+      for (size_t km=0; km<all_int_cvs1[ki].size(); ++km)
+	{
+	  shared_ptr<ParamCurve> tmpcv = all_int_cvs1[ki][km]->spaceCurve();
+	  tmpcv->writeStandardHeader(of0);
+	  tmpcv->write(of0);
+	}
+    }
+  for (size_t ki=0; ki<nmb_trim; ++ki)
+    {
+      for (size_t km=0; km<all_int_cvs2[ki].size(); ++km)
+	{
+	  shared_ptr<ParamCurve> tmpcv = all_int_cvs2[ki][km]->spaceCurve();
+	  tmpcv->writeStandardHeader(of0);
+	  tmpcv->write(of0);
+	}
+    }
+  std::ofstream of01("parcurves.g2");
+  for (size_t ki=0; ki<nmb_elem; ++ki)
+    {
+      for (size_t km=0; km<all_int_cvs1[ki].size(); ++km)
+	{
+	  shared_ptr<ParamCurve> tmpcv = all_int_cvs1[ki][km]->parameterCurve();
+	  tmpcv->writeStandardHeader(of01);
+	  tmpcv->write(of01);
+	}
+    }
+  for (size_t ki=0; ki<nmb_trim; ++ki)
+    {
+      for (size_t km=0; km<all_int_cvs2[ki].size(); ++km)
+	{
+	  shared_ptr<ParamCurve> tmpcv = all_int_cvs2[ki][km]->parameterCurve();
+	  tmpcv->writeStandardHeader(of01);
+	  tmpcv->write(of01);
+	}
+    }
+#endif
+
+  // Make trimmed surfaces and sort trimmed and non-trimmed surfaces according
+  // to whether they are inside or outside the trimming shell
+  // NB! Must probably be updated when voids are included in the model
+  // Sequence: element side surfaces inside trimming shell, element side surfaces
+  // outside trimming shell, trimming surfaces inside element, trimming surfaces
+  // outside element
+  for (size_t kr=0; kr<elem_faces.size(); ++kr)
+    if (!sfs1[kr].get())
+      sfs1[kr] = elem_faces[kr]->surface();
+  for (size_t kr=0; kr<faces.size(); ++kr)
+    if (!sfs2[kr].get())
+      sfs2[kr] = faces[kr]->surface();
+
+  tpTolerances toptol = shells[0]->getTolerances();
+  shared_ptr<SurfaceModel> elem_shell(new SurfaceModel(elem_faces, eps));
+  shared_ptr<ftVolume> elem_vol2(new ftVolume(elem_vol, elem_shell, -1));
+  vector<vector<shared_ptr<ParamSurface> > > split_groups(4);
+  SurfaceModelUtils::sortTrimmedSurfaces(all_int_cvs1, sfs1, elem_vol2.get(), 
+					 all_int_cvs2, sfs2, 
+					 trim_vol, eps, toptol.bend,
+					 split_groups);
+					 
+
+  // Remove outdated parameter information
+  //for (size_t kr=0; kr<1; ++kr)
+  for (size_t kr=2; kr<split_groups.size(); ++kr)
+    {
+      for (size_t ki=0; ki<split_groups[kr].size(); ++ki)
+	{
+	  shared_ptr<ParamSurface> surf = split_groups[kr][ki];
+	  shared_ptr<SurfaceOnVolume> vol_sf = 
+	    dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(surf);
+	  if (!vol_sf.get())
+	    {
+	      shared_ptr<BoundedSurface> bd_sf = 
+		dynamic_pointer_cast<BoundedSurface,ParamSurface>(surf);
+	      vol_sf =
+		dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bd_sf->underlyingSurface());
+	    }
+	  if (vol_sf.get())
+	    {
+	      // Unset parameter surface information. Not necessarily valid.
+	      vol_sf->unsetParamSurf();
+	      vol_sf->setVolume(elem_vol);
+	    }
+	}
+    }
+
+   // Add trimming face pieces to the element surfaces
+  for (size_t ki=0; ki<split_groups[2].size(); ++ki)
+    {
+      // Make oppositely oriented copy
+      shared_ptr<ParamSurface> surf1 = split_groups[2][ki];
+      shared_ptr<ParamSurface> surf2(surf1->clone());
+      surf2->swapParameterDirection();
+
+      // Add surface to element groups
+      split_groups[0].push_back(surf1);
+      split_groups[1].push_back(surf2);
+    }
+  
+  // Create surface models
+  vector<shared_ptr<SurfaceModel> > surf_mod;
+  vector<int> inside;
+  if (split_groups[0].size() > 0)
+    {
+      shared_ptr<SurfaceModel> mod(new SurfaceModel(toptol.gap, toptol.gap,
+						    toptol.neighbour,
+						    toptol.kink, toptol.bend,
+						    split_groups[0]));
+      surf_mod.push_back(mod);
+      inside.push_back(1);
+    }
+
+  if (split_groups[1].size() > 0)
+    {
+      shared_ptr<SurfaceModel> mod(new SurfaceModel(toptol.gap, toptol.gap,
+						    toptol.neighbour,
+						    toptol.kink, toptol.bend,
+						    split_groups[1]));
+      surf_mod.push_back(mod);
+      inside.push_back(0);
+    }
+
+  // Separate surface models into connected sets and make 
+  // corresponding volumes
+  for (size_t ki=0; ki<surf_mod.size(); ++ki)
+    {
+      vector<shared_ptr<SurfaceModel> > sep_models;
+      sep_models =surf_mod[ki]->getConnectedModels();
+      for (size_t kj=0; kj<sep_models.size(); ++kj)
+      {
+	shared_ptr<ftVolume> curr(new ftVolume(elem_vol, sep_models[kj]));
+	result.push_back(curr);
+	is_inside.push_back(inside[ki]);
+      }
+    }
+  return result;
+}
+
+
+//===========================================================================
+// 
+// 
 void
 ftVolumeTools::updateWithSplitFaces(shared_ptr<SurfaceModel> shell,
 				    shared_ptr<ftSurface>& face1,
@@ -1122,4 +1411,110 @@ ftVolumeTools::boundaryStatus(ftVolume* vol,
 	}
     }
   return bd_status;
+}
+
+//===========================================================================
+// 
+// 
+void
+ftVolumeTools::projectTrimCurves(shared_ptr<ftSurface> face1,
+				 shared_ptr<ftSurface> face2, double eps,
+				 vector<shared_ptr<CurveOnSurface> >& proj_cvs,
+				 shared_ptr<BoundedSurface>& bd_sf1)
+//===========================================================================
+{
+  shared_ptr<ParamSurface> surf1 = face1->surface();
+  shared_ptr<ParamSurface> surf2 = face2->surface();
+  bd_sf1 = BoundedUtils::convertToBoundedSurface(surf1, eps);
+  shared_ptr<ParamSurface> under = bd_sf1->underlyingSurface();
+
+  // Fetch all trimming loops
+  vector<CurveLoop> loops1 = SurfaceTools::allBoundarySfLoops(surf1, 
+							      DEFAULT_SPACE_EPSILON);
+  vector<CurveLoop> loops2 = SurfaceTools::allBoundarySfLoops(surf2, 
+							      DEFAULT_SPACE_EPSILON);
+#ifdef DEBUG
+  std::ofstream of("project.g2");
+  surf1->writeStandardHeader(of);
+  surf1->write(of);
+#endif
+
+  // Restrict the boundary/trimming curves of face2 with respect to the
+  // domain of face1
+  double eps2 = 20.0*eps;
+  double ptol = 1.0e-8;
+  for (size_t ki=0; ki<loops2.size(); ++ki)
+    {
+      int nmb2 = loops2[ki].size();
+      for (int kj=0; kj<nmb2; ++kj)
+	{
+	  shared_ptr<ParamCurve> cv2 = loops2[ki][kj];
+#ifdef DEBUG
+	  cv2->geometryCurve()->writeStandardHeader(of);
+	  cv2->geometryCurve()->write(of);
+#endif
+	  vector<double> param;
+	  for (size_t kr=0; kr<loops1.size(); ++kr)
+	    {
+	      int nmb1 = loops1[kr].size();
+	      for (int kh=0; kh<nmb1; ++kh)
+		{
+		  shared_ptr<ParamCurve> cv1 = loops1[kr][kh];
+
+		  // Intersect curves using an increased tolerance to
+		  // avoid curve pieces
+		  vector<pair<double,double> > int_pts;
+		  intersectParamCurves(cv1.get(), cv2.get(), eps2, int_pts);
+
+		  for (size_t ka=0; ka<int_pts.size(); ++ka)
+		    {
+		      double par1, par2, dist;
+		      Point ptc1, ptc2;
+		      ClosestPoint::closestPtCurves(cv1.get(), cv2.get(), 
+						    cv1->startparam(), cv1->endparam(),
+						    cv2->startparam(), cv2->endparam(),
+						    int_pts[ka].first, int_pts[ka].second,
+						    par1, par2, dist, ptc1, ptc2);
+		      param.push_back(par2);
+		    }
+		}
+	    }
+	  if (param.size() > 0)
+	    {
+	      std::sort(param.begin(), param.end());
+	      if (cv2->startparam() < param[0]-ptol)
+		param.insert(param.begin(), cv2->startparam());
+	      if (cv2->endparam() > param[param.size()-1]+ptol)
+		param.push_back(cv2->endparam());
+	    }
+	  else
+	    {
+	      param.push_back(cv2->startparam());
+	      param.push_back(cv2->endparam());
+	    }
+
+	  // For each curve segment, check if it is inside face1
+	  vector<shared_ptr<ParamCurve> > sub_cv;
+	  for (size_t kr=1; kr<param.size(); ++kr)
+	    {
+	      Point pos = cv2->point(0.5*(param[kr-1]+param[kr]));
+	      double upar, vpar, sfdist;
+	      Point sfpt;
+	      surf1->closestPoint(pos, upar, vpar, sfpt, sfdist, eps);
+	      if (sfdist < eps2)
+		{
+		  shared_ptr<ParamCurve> sub_cv(cv2->subCurve(param[kr-1], param[kr]));
+		  shared_ptr<Point> dummy_start, dummy_end;
+		  shared_ptr<SplineCurve> par_cv(CurveCreators::projectSpaceCurve(sub_cv, 
+										  surf1, 
+										  dummy_start,
+										  dummy_end,
+										  eps));
+		  shared_ptr<CurveOnSurface> sf_cv(new CurveOnSurface(under, par_cv, true));
+		  (void)sf_cv->ensureSpaceCrvExistence(eps);
+		  proj_cvs.push_back(sf_cv);
+		}
+	    }
+	}
+    }
 }

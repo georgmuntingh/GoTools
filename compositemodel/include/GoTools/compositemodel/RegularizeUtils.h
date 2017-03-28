@@ -119,7 +119,7 @@ namespace Go {
 
     int selectCandVx(shared_ptr<ftSurface> face,
 		     shared_ptr<Vertex> vx, const Point& in_vec, 
-		     vector<shared_ptr<Vertex> > cand_vx,
+		     vector<shared_ptr<Vertex> >& cand_vx,
 		     RectDomain& dom,
 		     double epsge, double angtol,
 		     const Point& centre, const Point& normal,
@@ -168,15 +168,18 @@ namespace Go {
     shared_ptr<ParamCurve> checkStrightParCv(shared_ptr<ftSurface> face,
 					     const Point& pos1,
 					     const Point& pos2,
-					     double epsge);
+					     double epsge,
+					     double angtol);
     shared_ptr<ParamCurve> checkStrightParCv(shared_ptr<ftSurface> face,
 					     shared_ptr<Vertex> vx1, 
 					     shared_ptr<Vertex> vx2,
-					     double epsge);
+					     double epsge,
+					     double angtol);
     shared_ptr<ParamCurve> checkStrightParCv(shared_ptr<ftSurface> face,
 					     shared_ptr<Vertex> vx1, 
 					     const Point& mid,
-					     double epsge);
+					     double epsge,
+					     double angtol);
     bool
       checkPath(shared_ptr<Vertex> vx1, shared_ptr<Vertex> vx2,
 		shared_ptr<Vertex> vx, shared_ptr<ftSurface> face,

@@ -158,7 +158,7 @@ CurveLoop::setCurves(const std::vector<shared_ptr<ParamCurve> >& curves)
 	    MESSAGE("Loop fixed");
 	  }
       }
-    //      }
+    // }
 
 }
 

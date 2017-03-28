@@ -122,6 +122,9 @@ class Vertex
       return edges_[idx].first;
     }
 
+    /// Get the edges associated to a specified face
+    std::vector<ftEdge*> getEdges(ftSurface* face);
+
     /// Get the geometrical position associated to this vertex
     Point getVertexPoint()
 	{

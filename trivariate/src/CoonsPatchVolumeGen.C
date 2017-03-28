@@ -481,11 +481,32 @@ SplineVolume* Go::CoonsPatchVolumeGen::createCoonsPatch(const SplineSurface* sur
 
   // Preprocess degenerate surfaces (triangular) to have pairwise consistence
   int par;
+  vector<Point> degen_pts;
   for (par=0; par<6; par+=2)
     {
       bool b1, r1, t1, l1, b2, r2, t2, l2;
       bool deg1 = sfs[par]->isDegenerate(b1, r1, t1, l1, tol);
       bool deg2 = sfs[par+1]->isDegenerate(b2, r2, t2, l2, tol);
+      if (deg1)
+	{
+	  RectDomain dom = sfs[par]->containingDomain();
+	  double upar = l1 ? dom.umin() : 
+	    (r1 ? dom.umax() : 0.5*(dom.umin()+dom.umax()));
+	  double vpar = b1 ? dom.vmin() :
+	    (t1 ? dom.vmax() : 0.5*(dom.vmin()+dom.vmax()));
+	  Point deg = sfs[par]->ParamSurface::point(upar,vpar);
+	  degen_pts.push_back(deg);
+	}
+      if (deg2)
+	{
+	  RectDomain dom = sfs[par+1]->containingDomain();
+	  double upar = l2 ? dom.umin() : 
+	    (r2 ? dom.umax() : 0.5*(dom.umin()+dom.umax()));
+	  double vpar = b2 ? dom.vmin() :
+	    (t2 ? dom.vmax() : 0.5*(dom.vmin()+dom.vmax()));
+	  Point deg = sfs[par+1]->ParamSurface::point(upar,vpar);
+	  degen_pts.push_back(deg);
+	}
       if (deg1 && deg2)
 	{
 	  if (((b1 && r2) && (!b2 && !r1)) || ((b2 && r1) && (!b1 && !r2)) || 
@@ -566,7 +587,6 @@ SplineVolume* Go::CoonsPatchVolumeGen::createCoonsPatch(const SplineSurface* sur
       // First check with min surfaces in the other parameter directions
       int par2 = (par == 4) ? 0 : par+2;
       int par3 = (par == 0) ? 4 : par-2;
-      int cc = 1;
       for (kr=0; kr<2; ++kr)
 	{
 	  int nmb = 0;
@@ -580,27 +600,17 @@ SplineVolume* Go::CoonsPatchVolumeGen::createCoonsPatch(const SplineSurface* sur
 	    }
 	  if (nmb == 0)
 	    {
-	      if (cc == 1)
-		{
-		  sfs[par+kr]->reverseParameterDirection(true);
-		}
-	      else
-		{
-		  sfs[par+kr]->reverseParameterDirection(false);
-		}
+	      sfs[par+kr]->reverseParameterDirection(true);
 	    }
-	  else if (nmb == 1 && 
-		   Vc[ixc[par+kr][ixd[par][0]]].dist(Vc[ixc[par+kr][ixd[par][1]]]) > tol)
+	  else if (nmb == 1)
 	    {
-	      if (cc == 1)
-		{
-		  sfs[par+kr]->swapParameterDirection();
-		}
-	      else
-		{
-		  sfs[par+kr]->reverseParameterDirection(true);
-		  sfs[par+kr]->reverseParameterDirection(false);
-		}		  
+	      size_t ka;
+	      for (ka=0; ka<degen_pts.size(); ++ka)
+		if (Vc[ixc[par+kr][ixd[par][0]]].dist(degen_pts[ka]) < tol ||
+		    Vc[ixc[par+kr][ixd[par][1]]].dist(degen_pts[ka]) < tol)
+		  break;
+	      if (ka == degen_pts.size())
+		sfs[par+kr]->swapParameterDirection();
 	    }
 
 	  get_corners(sfs[par+kr], sf_pts[par+kr]);
@@ -644,27 +654,17 @@ SplineVolume* Go::CoonsPatchVolumeGen::createCoonsPatch(const SplineSurface* sur
 	    }
 	  if (nmb == 0)
 	    {
-	      if (cc == 1)
-		{
-		  sfs[par+kr]->reverseParameterDirection(false);
-		}
-	      else
-		{
-		  sfs[par+kr]->reverseParameterDirection(true);
-		}
+	      sfs[par+kr]->reverseParameterDirection(false);
 	    }
-	  else if (nmb == 1 && 
-		   Vc[ixc[par+kr][ixd[par+1][0]]].dist(Vc[ixc[par+kr][ixd[par+1][1]]]) > tol)
+	  else if (nmb == 1)
 	    {
-	      if (cc == 1)
-		{
+	      size_t ka;
+	      for (ka=0; ka<degen_pts.size(); ++ka)
+		if (Vc[ixc[par+kr][ixd[par][0]]].dist(degen_pts[ka]) < tol ||
+		    Vc[ixc[par+kr][ixd[par][1]]].dist(degen_pts[ka]) < tol)
+		  break;
+	      if (ka == degen_pts.size())
 		  sfs[par+kr]->swapParameterDirection();
-		}
-	      else
-		{
-		  sfs[par+kr]->reverseParameterDirection(false);
-		  sfs[par+kr]->reverseParameterDirection(true);
-		}
 	    }
 
 	  get_corners(sfs[par+kr], sf_pts[par+kr]);

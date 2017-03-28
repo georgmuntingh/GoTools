@@ -86,7 +86,18 @@ int main(int argc, char* argv[] )
   int degree = 3;
 
   shared_ptr<ftVolume> ftvol;
-  if (file_type == 2)
+  vector<shared_ptr<ftVolume> > tmpvols;
+  if (file_type == 3)
+    {
+      VolumeModelFileHandler fileread;
+      tmpvols = fileread.readVolumes(infile.c_str());
+      ftvol = tmpvols[0];
+      tpTolerances top = ftvol->getTolerances();
+      gap = top.gap;
+      neighbour = top.neighbour;
+      kink = top.kink;
+    }
+  else if (file_type == 2)
     {
       VolumeModelFileHandler fileread;
       ftvol = fileread.readVolume(infile.c_str());

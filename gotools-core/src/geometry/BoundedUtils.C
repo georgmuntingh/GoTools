@@ -171,11 +171,12 @@ BoundedUtils::intersectWithSurface(CurveOnSurface& curve,
 	    // Iterate to take the curve preferences into account
 	    double par1, par2, dist;
 	    Point ptc1, ptc2;
+	    int max_passes = 10;
 	    ClosestPoint::closestPtCurves(&curve, loop_curves[j].get(), curve.startparam(),
-			    curve.endparam(), loop_curves[j]->startparam(),
-			    loop_curves[j]->endparam(),
-			    int_params[kk].first, int_params[kk].second,
-			    par1, par2, dist, ptc1, ptc2);
+					  curve.endparam(), loop_curves[j]->startparam(),
+					  loop_curves[j]->endparam(),
+					  int_params[kk].first, int_params[kk].second,
+					  par1, par2, dist, ptc1, ptc2, max_passes);
 	  
 	    if (dist < init_dist)
 	      all_int_params.push_back(par1);
@@ -430,9 +431,9 @@ BoundedUtils::getSurfaceIntersections(const shared_ptr<ParamSurface>& surf1,
 #ifdef DEBUG1
 	    int state;
 	    bounded_sf1->analyzeLoops();
-	    bool valid = bounded_sf1->isValid(state);
-	    if (!valid)
-	      std::cout << "Surface not valid: " << state << std::endl;
+// 	    bool valid = bounded_sf1->isValid(state);
+// 	    if (!valid)
+// 	      std::cout << "Surface not valid: " << state << std::endl;
 #endif
 	} catch (...) {
 	    THROW("Something went wrong, returning.");
@@ -451,9 +452,9 @@ BoundedUtils::getSurfaceIntersections(const shared_ptr<ParamSurface>& surf1,
 #ifdef DEBUG1
 	    int state;
 	    bounded_sf2->analyzeLoops();
-	    bool valid = bounded_sf2->isValid(state);
-	    if (!valid)
-	      std::cout << "Surface not valid: " << state << std::endl;
+// 	    bool valid = bounded_sf2->isValid(state);
+// 	    if (!valid)
+// 	      std::cout << "Surface not valid: " << state << std::endl;
 #endif
 	} catch (...) {
 	    THROW("Something went wrong, returning.");
@@ -1176,6 +1177,8 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
     double epspar = min_loop_tol; // Assuming parameter domain reflects the geometry...
     // Since we do not know anything about this and it is mainly a test additional
     // to the geometry space test to avoid confusing seam curves, we make it a little bigger
+    Point par_eps = SurfaceTools::getParEpsilon(sf, min_loop_tol);
+    epspar = std::max(min_loop_tol, 0.5*(par_eps[0]+par_eps[1]));
     epspar *= 10.0;
 
     // We run part_bd_cvs, splitting if they start/end in inner part of a cv in old_loop_cvs.
@@ -1470,9 +1473,17 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
       vector<shared_ptr<CurveOnSurface> > tmp_vec;
       tmp_vec.insert(tmp_vec.end(), part_bd_cvs.begin(), part_bd_cvs.end());
       tmp_vec.insert(tmp_vec.end(), old_loop_cvs.begin(), old_loop_cvs.end());
+      double angtol = 0.01;
       double tmp_ang;
       int part_ind = -1, old_ind = -1;
-      int tmp_ind = leftMostCurve(*curr_crv, tmp_vec, min_loop_tol2, tmp_ang);
+      int tmp_ind;
+      tmp_ind = leftMostCurve(*curr_crv, tmp_vec, min_loop_tol2, tmp_ang);
+      if (fabs(2*M_PI-tmp_ang) < angtol)
+	{
+	  // Try again with a larger space tolerance
+	  tmp_ind = leftMostCurve(*curr_crv, tmp_vec, 10.0*min_loop_tol2, tmp_ang);
+	}
+	  
       double part_angle = (tmp_ind < (int)part_bd_cvs.size()) ? tmp_ang : 8.0;
       if (tmp_ind < (int)part_bd_cvs.size())
 	part_ind = tmp_ind;
@@ -1493,7 +1504,6 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 	    double tmp_ang2;
 	    int tmp_ind2 = leftMostCurve(*curr_crv, tmp_vec2, 
 					 min_loop_tol, tmp_ang2);
-	    double angtol = 0.01;
 	    if (tmp_ind2 < (int)part_bd_cvs.size() && 
 		fabs(2.0*M_PI - tmp_ang2) < angtol)
 	      {
@@ -1564,7 +1574,9 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 		part_ind = -1;
 	  } 
 	else if (part_ind == -1 && old_ind == -1) { // No new segment.
-	  if (space_end_dist < min_loop_tol2 /*&& par_end_dist < epspar*/) {
+	  if (space_end_dist < min_loop_tol2 /*&& par_end_dist < epspar*/ ||
+	      (space_end_dist < 10.0*min_loop_tol2 && par_end_dist < 0.1*epspar)) 
+	    {
 #ifdef DEBUG1
 		std::ofstream out2("loop_cvs2.g2");
 		for (size_t ix=0; ix<curr_loop.size(); ++ix)
@@ -2271,9 +2283,14 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
 	    Point clo_pt;
 	    double len1 = new_cvs1[ki]->estimatedCurveLength();
 	    new_cvs1[ki]->ParamCurve::closestPoint(end2, clo_t, clo_pt, clo_dist);
-	    if ((clo_dist < epsge && len1 > epsge) && 
+	    double len1_1 = new_cvs1[ki]->estimatedCurveLength(new_cvs1[ki]->startparam(), 
+							       clo_t);
+	    double len1_2 = new_cvs1[ki]->estimatedCurveLength(clo_t,
+							       new_cvs1[ki]->endparam());
+	    if ((clo_dist < epsge && len1 > epsge && len1_1 > epsge && len1_2 > epsge) && 
 		((clo_t - knot_diff_tol > new_cvs1[ki]->startparam()) &&
-		 (clo_t + knot_diff_tol < new_cvs1[ki]->endparam()))) {
+		 (clo_t + knot_diff_tol < new_cvs1[ki]->endparam()))) 
+	      {
 		shared_ptr<CurveOnSurface> new_cv(new_cvs1[ki]->subCurve(clo_t, new_cvs1[ki]->endparam()));
 		new_cvs1.insert(new_cvs1.begin() + ki + 1, new_cv);
 		new_cvs1[ki] = shared_ptr<CurveOnSurface>
@@ -2292,6 +2309,12 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
 	    if (len2 < epsge)
 	      continue;
 	    new_cvs2[kj]->ParamCurve::closestPoint(end1, clo_t, clo_pt, clo_dist);
+	    double len2_1 = new_cvs2[kj]->estimatedCurveLength(new_cvs2[kj]->startparam(), 
+							       clo_t);
+	    double len2_2 = new_cvs2[kj]->estimatedCurveLength(clo_t,
+							       new_cvs2[kj]->endparam());
+	    if (len2_1 < epsge || len2_2 < epsge)
+	      continue;
 	    if ((clo_dist < epsge) && ((clo_t - knot_diff_tol > new_cvs2[kj]->startparam()) &&
 				       (clo_t + knot_diff_tol < new_cvs2[kj]->endparam()))) {
 		shared_ptr<CurveOnSurface> new_cv(new_cvs2[kj]->subCurve(clo_t, new_cvs2[kj]->endparam()));
@@ -3318,6 +3341,9 @@ bool BoundedUtils::loopIsDegenerate(vector<shared_ptr<CurveOnSurface> >& loop,
   // For each curve in the loop, compute a number of sampling points in
   // the inner and try to project these points onto the other loop curves
   int nmb_sample = 5;
+  bool degen = true; // Initially
+  double len = 0.0;
+  Point prev;
   for (size_t ki=0; ki<loop.size(); ++ki)
     {
       double t1 = loop[ki]->startparam();
@@ -3330,6 +3356,9 @@ bool BoundedUtils::loopIsDegenerate(vector<shared_ptr<CurveOnSurface> >& loop,
 	  // Evaluate sampling point
 	  Point pos;
 	  loop[ki]->point(pos, tpar);
+
+	  if (prev.dimension() == pos.dimension())
+	    len += prev.dist(pos);
 
 	  // Project
 	  size_t kr;
@@ -3350,13 +3379,16 @@ bool BoundedUtils::loopIsDegenerate(vector<shared_ptr<CurveOnSurface> >& loop,
 	  if (kr == loop.size())
 	    {
 	      // The loop is not degenerate
-	      return false;
+	      degen = false;
 	    }
+	  prev = pos;
 	}
     }
+  if (len < epsgeo)
+    degen = true;
 
   // All sampling points coincide with some other part of the loop
-  return true;
+  return degen;
 }
 
 

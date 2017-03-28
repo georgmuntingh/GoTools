@@ -42986,7 +42986,7 @@ void s1310(SISLSurf *psurf1,SISLSurf *psurf2,SISLIntcurve *pinter,
 
   /* If necessary, modify start point to avoid an intersection curve that 
      is tangential to the boundary of a surface */
-  if (sdminang[kstart-1] < 5.0*ANGULAR_TOLERANCE)
+  if (kpoint > 2 && kstart > 0 && sdminang[kstart-1] < 5.0*ANGULAR_TOLERANCE)
     {
       /* Check internal points */
       for (ki=kfirst; ki<klast-1; ++ki)
@@ -50219,30 +50219,38 @@ void s1330(double epar11[],double epar12[],double epar21[],double epar22[],
   
   kins1 = kins2 = 0; 
   
-  if (eval11[0] <= epar11[0] && epar11[0] <= eval11[1] &&
-      eval12[0] <= epar11[1] && epar11[1] <= eval12[1] &&
-      eval21[0] <= epar12[0] && epar12[0] <= eval21[1] &&
-      eval22[0] <= epar12[1] && epar12[1] <= eval22[1]) 
+  if (eval11[0] <= epar11[0]+REL_PAR_RES && epar11[0] <= eval11[1]+REL_PAR_RES &&
+      eval12[0] <= epar11[1]+REL_PAR_RES && epar11[1] <= eval12[1]+REL_PAR_RES &&
+      eval21[0] <= epar12[0]+REL_PAR_RES && epar12[0] <= eval21[1]+REL_PAR_RES &&
+      eval22[0] <= epar12[1]+REL_PAR_RES && epar12[1] <= eval22[1]+REL_PAR_RES) 
     kins1 = 1;
   
-  if (eval11[0] <= epar21[0] && epar21[0] <= eval11[1] &&
-      eval12[0] <= epar21[1] && epar21[1] <= eval12[1] &&
-      eval21[0] <= epar22[0] && epar22[0] <= eval21[1] &&
-      eval22[0] <= epar22[1] && epar22[1] <= eval22[1]) 
+  if (eval11[0] <= epar21[0]+REL_PAR_RES && epar21[0] <= eval11[1]+REL_PAR_RES &&
+      eval12[0] <= epar21[1]+REL_PAR_RES && epar21[1] <= eval12[1]+REL_PAR_RES &&
+      eval21[0] <= epar22[0]+REL_PAR_RES && epar22[0] <= eval21[1]+REL_PAR_RES &&
+      eval22[0] <= epar22[1]+REL_PAR_RES && epar22[1] <= eval22[1]+REL_PAR_RES) 
     kins2 = 1;
   
   
   /* Test if we step from the boundary and out */
   
-  if ((eval11[0] == epar11[0] && epar21[0] < eval11[0]) ||
-      (epar11[0] == eval11[1] && eval11[1] < epar21[0]) ||
-      (eval12[0] == epar11[1] && epar21[1] < eval12[0]) ||
-      (epar11[1] == eval12[1] && eval12[1] < epar21[1]) ||
-      (eval21[0] == epar12[0] && epar22[0] < eval21[0]) ||
-      (epar12[0] == eval21[1] && eval21[1] < epar22[0]) ||
-      (eval22[0] == epar12[1] && epar22[1] < eval22[0]) ||
-      (epar12[1] == eval22[1] && eval22[1] < epar22[1])) 
-    goto war04;
+  // if ((eval11[0] == epar11[0] && epar21[0] < eval11[0]) ||
+  //     (epar11[0] == eval11[1] && eval11[1] < epar21[0]) ||
+  //     (eval12[0] == epar11[1] && epar21[1] < eval12[0]) ||
+  //     (epar11[1] == eval12[1] && eval12[1] < epar21[1]) ||
+  //     (eval21[0] == epar12[0] && epar22[0] < eval21[0]) ||
+  //     (epar12[0] == eval21[1] && eval21[1] < epar22[0]) ||
+  //     (eval22[0] == epar12[1] && epar22[1] < eval22[0]) ||
+  //     (epar12[1] == eval22[1] && eval22[1] < epar22[1])) 
+  if ((DEQUAL(eval11[0],epar11[0]) && epar21[0] < eval11[0]) ||
+      (DEQUAL(epar11[0],eval11[1]) && eval11[1] < epar21[0]) ||
+      (DEQUAL(eval12[0],epar11[1]) && epar21[1] < eval12[0]) ||
+      (DEQUAL(epar11[1],eval12[1]) && eval12[1] < epar21[1]) ||
+      (DEQUAL(eval21[0],epar12[0]) && epar22[0] < eval21[0]) ||
+      (DEQUAL(epar12[0],eval21[1]) && eval21[1] < epar22[0]) ||
+      (DEQUAL(eval22[0],epar12[1]) && epar22[1] < eval22[0]) ||
+      (DEQUAL(epar12[1],eval22[1]) && eval22[1] < epar22[1])) 
+     goto war04;
   
   if (kins1==1 && kins2==1) 
     goto war01;
@@ -55156,7 +55164,7 @@ double s1309(double epnt[],double edir[],double eimpli[],int ideg,int *jstat)
 //===========================================================================
 {
   double sdir[3];         /* Normilized direction vector          */
-  double tb1,ta11,ta12;   /* Dummy variables                      */
+  double tb1=0.0,ta11=0.0,ta12=0.0;   /* Dummy variables          */
   double tsum,t1,t2,tdum1;/* Dummy variables                      */
   double tcurdst=0.0;     /* The distance                         */
   double sq[4];           /* Array used for temporary results     */

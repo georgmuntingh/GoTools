@@ -1554,7 +1554,7 @@ VolumeTools::approxVolParamCurve(shared_ptr<ParamCurve> spacecurve,
   // Approximate
   // Evaluate sampling points
   double len = spacecurve->estimatedCurveLength();
-  int nmbsample = std::max(5, std::min(1000, (int)(len/tol)));
+  int nmbsample = std::max(5, std::min(1000, (int)(0.1*len/tol)));
 
   // Evaluate the curve in the sample points and make a centripetal
   // length parameterization of the points. 
@@ -1585,6 +1585,9 @@ VolumeTools::approxVolParamCurve(shared_ptr<ParamCurve> spacecurve,
   ApproxCurve approx_curve(points, params, dim, tol, 4, 4);
   shared_ptr<SplineCurve> crv = approx_curve.getApproxCurve(maxdist, avdist,
 							    max_iter);
+
+  // Describe curve on initial parameter interval
+  crv->setParameterInterval(t1, t2);
   
   if (maxdist > tol) {
     // Either the number of iterations was too small or we didn't make any progress.

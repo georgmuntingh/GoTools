@@ -40,6 +40,7 @@
 #include "GoTools/compositemodel/ftSurface.h"
 #include "GoTools/intersections/Identity.h"
 #include "GoTools/geometry/BoundedSurface.h"
+#include "GoTools/geometry/BoundedUtils.h"
 #include "GoTools/geometry/ParamSurface.h"
 #include "GoTools/geometry/ParamCurve.h"
 #include "GoTools/geometry/RectDomain.h"
@@ -48,6 +49,8 @@
 #include "GoTools/geometry/Cone.h"
 #include "GoTools/geometry/Sphere.h"
 #include "GoTools/geometry/Torus.h"
+#include "GoTools/geometry/CurveOnSurface.h"
+#include "GoTools/compositemodel/Body.h"
 
 #include <fstream>
 
@@ -1401,4 +1404,245 @@ int SurfaceModelUtils::mergeSituation(ftSurface* face1, ftSurface* face2,
   atstart2 = (dir2 == 0) ? (u2 > val2) : (v2 > val2);
 
   return 2;  // Merge information computed, merge across a constant parameter curve
+}
+
+//===========================================================================
+void 
+SurfaceModelUtils::sortTrimmedSurfaces(vector<vector<shared_ptr<CurveOnSurface> > >& cvs1,
+				       vector<shared_ptr<ParamSurface> >& sfs1,
+				       Body *model1,
+				       vector<vector<shared_ptr<CurveOnSurface> > >& cvs2,
+				       vector<shared_ptr<ParamSurface> >& sfs2,
+				       Body *model2, double eps, double angtol,
+				       vector<vector<shared_ptr<ParamSurface> > >& groups)
+//===========================================================================
+{
+  // Make trimmed surfaces and sort trimmed and non-trimmed surface according
+  // to whether they are inside or outside the other surface model
+  // Sequence: from first group and inside model2, from first group and outside model2,
+  // from second group and inside model1, from second group and outside model1
+  groups.resize(4);
+  for (size_t ki=0; ki<cvs1.size(); ki++)
+    {
+      if (cvs1[ki].size() == 0)
+	{
+	  // The surface is not involved in any intersections. Check if
+	  // it lies inside or outside the other surface model
+	  // Fetch a point in the surface
+	  double u, v;
+	  Point pnt = sfs1[ki]->getInternalPoint(u,v);
+
+#ifdef DEBUG
+	  int state;
+	  shared_ptr<BoundedSurface> bd_sf = 
+	    dynamic_pointer_cast<BoundedSurface,ParamSurface>(sfs1[ki]);
+	  if (bd_sf.get())
+	    {
+	      bd_sf->analyzeLoops();
+	      bool valid = bd_sf->isValid(state);
+	      // if (!valid)
+	      // 	std::cout << "Surface not valid: " << state << std::endl;
+	      std::ofstream of1("curr1.g2");
+	      bd_sf->writeStandardHeader(of1);
+	      bd_sf->write(of1);
+	    }
+#endif
+
+	  double pt_dist, ang;
+ 	  bool inside = model2->isInside(pnt, pt_dist, ang);
+	  shared_ptr<ParamSurface> tmp_surf = 
+	    shared_ptr<ParamSurface>(sfs1[ki]->clone());
+	  if (inside)
+	    {
+	      groups[0].push_back(tmp_surf);
+	      if (fabs(pt_dist) < eps && M_PI-ang < angtol)
+		groups[1].push_back(shared_ptr<ParamSurface>(tmp_surf->clone()));
+	    }
+	  else
+	    {
+	      groups[1].push_back(shared_ptr<ParamSurface>(tmp_surf));
+	      if (fabs(pt_dist) < eps && ang < angtol)
+		groups[0].push_back(shared_ptr<ParamSurface>(tmp_surf->clone()));
+	    }
+	}
+      else
+	{
+	  // Make trimmed surfaces
+	  vector<shared_ptr<BoundedSurface> > trim_sfs;
+	  shared_ptr<BoundedSurface> bd_sf1 = 
+	    dynamic_pointer_cast<BoundedSurface,ParamSurface>(sfs1[ki]);
+	  if (bd_sf1.get())
+	    {
+	      try {
+		trim_sfs = 
+		  BoundedUtils::splitWithTrimSegments(bd_sf1, cvs1[ki], eps);
+	      }
+	      catch(...)
+		{
+		  std::cout << "Trimmed surfaces missing" << std::endl;
+		}
+	    }
+	  for (size_t kr=0; kr<trim_sfs.size(); ++kr)
+	    {
+#ifdef DEBUG
+	      int state;
+	      trim_sfs[kr]->analyzeLoops();
+ 	      bool valid = trim_sfs[kr]->isValid(state);
+// 	      if (!valid)
+// 		std::cout << "Surface not valid: " << state << std::endl;
+#endif
+
+	      // Check if the trimmed surface lies inside or outside the 
+	      // other surface model.
+	      double u, v;
+	      Point pnt =  trim_sfs[kr]->getInternalPoint(u,v);
+
+#ifdef DEBUG
+	      std::ofstream of1("curr1.g2");
+	      trim_sfs[kr]->writeStandardHeader(of1);
+	      trim_sfs[kr]->write(of1);
+#endif
+
+	      double pt_dist, ang;
+	      bool inside = model2->isInside(pnt, pt_dist, ang);
+	      if (inside)
+		{
+		  groups[0].push_back(trim_sfs[kr]);
+		  if (fabs(pt_dist) < eps && M_PI-ang < angtol)
+		    groups[1].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
+		}
+			      
+	      else
+		{
+		  groups[1].push_back(trim_sfs[kr]);
+		  if (fabs(pt_dist) < eps && ang < angtol)
+		    groups[0].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
+		}
+	    }
+	}
+    }
+  
+  for (size_t ki=0; ki<cvs2.size(); ki++)
+    {
+      if (cvs2[ki].size() == 0)
+	{
+	  // The surface is not involved in any intersections. Check if
+	  // it lies inside or outside the other surface model
+	  // Fetch a point in the surface
+	  double u, v;
+	  Point pnt = sfs2[ki]->getInternalPoint(u,v);
+
+#ifdef DEBUG
+	  int state;
+	  shared_ptr<BoundedSurface> bd_sf = 
+	    dynamic_pointer_cast<BoundedSurface,ParamSurface>(sfs2[ki]);
+	  if (bd_sf.get())
+	    {
+	      bd_sf->analyzeLoops();
+	      bool valid = bd_sf->isValid(state);
+	      // if (!valid)
+	      // 	std::cout << "Surface not valid: " << state << std::endl;
+
+	      std::ofstream of1("curr2.g2");
+	      bd_sf->writeStandardHeader(of1);
+	      bd_sf->write(of1);
+	    }
+#endif
+
+	  double pt_dist, ang;
+	  bool inside = model1->isInside(pnt, pt_dist, ang);
+	  shared_ptr<ParamSurface> tmp_surf = 
+	    shared_ptr<ParamSurface>(sfs2[ki]->clone());
+	  if (inside)
+	    {
+	      groups[2].push_back(tmp_surf);
+	      if (fabs(pt_dist) < eps && M_PI-ang < angtol)
+		groups[3].push_back(shared_ptr<ParamSurface>(tmp_surf->clone()));
+	    }
+	  else
+	    {
+	      groups[3].push_back(shared_ptr<ParamSurface>(tmp_surf));
+	      if (fabs(pt_dist) < eps && ang < angtol)
+		groups[2].push_back(shared_ptr<ParamSurface>(tmp_surf->clone()));
+	    }
+	}
+      else
+	{
+	  // Make bounded surfaces
+	  vector<shared_ptr<BoundedSurface> > trim_sfs;
+	  shared_ptr<BoundedSurface> bd_sf2 = 
+	    dynamic_pointer_cast<BoundedSurface,ParamSurface>(sfs2[ki]);
+	  if (bd_sf2.get())
+	    {
+	      try {
+		trim_sfs = 
+		  BoundedUtils::splitWithTrimSegments(bd_sf2, cvs2[ki], eps);
+	      }
+	      catch(...)
+		{
+		  std::cout << "Trimmed surfaces missing" << std::endl;
+		}
+	    }
+	  for (size_t kr=0; kr<trim_sfs.size(); ++kr)
+	    {
+#ifdef DEBUG
+	      int state;
+	      trim_sfs[kr]->analyzeLoops();
+// 	      bool valid = trim_sfs[kr]->isValid(state);
+// 	      if (!valid)
+// 		std::cout << "Surface not valid: " << state << std::endl;
+#endif
+
+	  // Check if the trimmed surface lies inside or outside the 
+	  // other surface model.
+	      double u, v;
+	      Point pnt =  trim_sfs[kr]->getInternalPoint(u,v);
+
+#ifdef DEBUG
+	      std::ofstream of1("curr2.g2");
+	      trim_sfs[kr]->writeStandardHeader(of1);
+	      trim_sfs[kr]->write(of1);
+#endif
+
+	      double pt_dist, ang;
+	      bool inside = model1->isInside(pnt, pt_dist, ang);
+	      if (inside)
+		{
+		  groups[2].push_back(trim_sfs[kr]);
+		  if (fabs(pt_dist) < eps && M_PI-ang < angtol)
+		    groups[3].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
+		}			      
+	      else
+		{
+		  groups[3].push_back(trim_sfs[kr]);
+		  if (fabs(pt_dist) < eps && ang < angtol)
+		    groups[2].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
+		}
+	    }
+	}
+    }
+  std::ofstream of1("inside1.g2");
+  std::ofstream of2("outside1.g2");
+  std::ofstream of3("inside2.g2");
+  std::ofstream of4("outside2.g2");
+  for (size_t ki=0; ki<groups[0].size(); ++ki)
+    {
+      groups[0][ki]->writeStandardHeader(of1);
+      groups[0][ki]->write(of1);
+    }
+  for (size_t ki=0; ki<groups[1].size(); ++ki)
+    {
+      groups[1][ki]->writeStandardHeader(of2);
+      groups[1][ki]->write(of2);
+    }
+  for (size_t ki=0; ki<groups[2].size(); ++ki)
+    {
+      groups[2][ki]->writeStandardHeader(of3);
+      groups[2][ki]->write(of3);
+    }
+  for (size_t ki=0; ki<groups[3].size(); ++ki)
+    {
+      groups[3][ki]->writeStandardHeader(of4);
+      groups[3][ki]->write(of4);
+    }
 }

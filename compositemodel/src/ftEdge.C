@@ -458,8 +458,11 @@ void ftEdge::closestPoint(const Point& pt,
 // 		"Cannot split edge, already has twin!");
 //     ALWAYS_ERROR_IF(!prev() || !next(), 
 // 		"Cannot split edge, not fully connected");
-    ALWAYS_ERROR_IF(t <= low_param_ || t >= high_param_,
-		"Split parameter not in interior of edge range");
+    if (t <= low_param_ || t >= high_param_)
+      {
+	int stop_break = 1;
+	THROW("Split parameter not in interior of edge range");
+      }
 
     // Save initial vertices
     shared_ptr<Vertex> v1 = v1_;
@@ -550,8 +553,13 @@ shared_ptr<ftEdge> ftEdge::splitAtVertex(shared_ptr<Vertex> vx)
     Point pt;
     closestPoint(vx->getVertexPoint(), par, pt, dist);
 
-    ALWAYS_ERROR_IF(par <= low_param_ || par >= high_param_,
-		"Split parameter not in interior of edge range");
+    // ALWAYS_ERROR_IF(par <= low_param_ || par >= high_param_,
+    // 		"Split parameter not in interior of edge range");
+    if (par <= low_param_ || par >= high_param_)
+      {
+	int stop_break = 1;
+	THROW("Split parameter not in interior of edge range");
+      }
 
     // If the split parameter is close, but not equal, to existing knot, 
     // we make it equal.

@@ -416,6 +416,20 @@ shared_ptr<SurfaceModel> RegularizeFaceSet::getRegularModel(bool reverse_sequenc
       }
 #endif
 
+    // Remove superflous divisions. This function is very specific,
+    // but can be extended if relevant cases appear
+    removeExtraDiv();
+
+#ifdef DEBUG_REG
+    std::ofstream ofc("post_clean.g2");
+    for (int kr=0; kr<model_->nmbEntities(); ++kr)
+      {
+	shared_ptr<ParamSurface> sf = model_->getSurface(kr);
+	sf->writeStandardHeader(ofc);
+	sf->write(ofc);
+      }
+#endif
+
     vector<shared_ptr<Vertex> > post_vx;
     model_->getAllVertices(post_vx);
 
@@ -2222,6 +2236,49 @@ RegularizeFaceSet::defineSplitVx(vector<shared_ptr<ftSurface> >& faces,
 		  vx_pri_.push_back(make_pair(Tvx[kj],perm[ix]));
 		}
 	      ix++;
+	    }
+	}
+    }
+}
+
+//==========================================================================
+void
+RegularizeFaceSet::removeExtraDiv()
+//==========================================================================
+{
+  int nmb_faces = model_->nmbEntities();
+  tpTolerances tptol = model_->getTolerances();
+  for (int ki; ki<nmb_faces; ++ki)
+    {
+      shared_ptr<ftSurface> f1 = model_->getFace(ki);
+      shared_ptr<ParamSurface> sf1 = model_->getSurface(ki);
+      shared_ptr<BoundedSurface> sf1_bd = 
+	dynamic_pointer_cast<BoundedSurface, ParamSurface>(sf1);
+      if (!sf1_bd.get())
+	continue;
+
+      for (int kj=ki+1; kj<nmb_faces; ++kj)
+	{
+	  shared_ptr<ftSurface> f2 = model_->getFace(kj);
+	  shared_ptr<ParamSurface> sf2 = model_->getSurface(kj);
+	  shared_ptr<BoundedSurface> sf2_bd = 
+	    dynamic_pointer_cast<BoundedSurface, ParamSurface>(sf2);
+	  if (!sf2_bd.get())
+	    continue;
+
+	  if (sf1_bd->underlyingSurface().get() == sf2_bd->underlyingSurface().get())
+	    {
+	      // Potential for simplification
+	      int nmb_twin = f1->nmbAdjacencies(f2.get());
+	      vector<shared_ptr<Vertex> > corner1 = f1->getCornerVertices(tptol.bend);
+	      vector<shared_ptr<Vertex> > corner2 = f2->getCornerVertices(tptol.bend);
+	      if (nmb_twin == 1 && corner1.size() == 3 && corner2.size() == 3)
+		{
+		  // Merge
+		  vector<Point> seam_joints;
+		  shared_ptr<ftSurface> merged =
+		    model_->mergeSeamCrvFaces(f1.get(), f2.get(), seam_joints);
+		}
 	    }
 	}
     }

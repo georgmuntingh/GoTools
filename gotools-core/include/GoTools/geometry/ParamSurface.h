@@ -442,6 +442,12 @@ public:
       return true;  // Default answer
     }
 
+    /// Check if the current surface is trimmed its boundary curves
+    virtual bool isBoundaryTrimmed(double tol) const
+    {
+      return true;  // Default answer
+    }
+
     /// Check if the surface is of type spline
     virtual bool isSpline() const
     {

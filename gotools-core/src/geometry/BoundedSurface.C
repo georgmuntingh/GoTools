@@ -1016,6 +1016,7 @@ BoundedSurface::constParamCurves(double parameter, bool pardir_is_u) const
     double epsgeo = getEpsGeo();
     Point pareps = SurfaceTools::getParEpsilon(*this, epsgeo);
     double eps = 0.5*(pareps[0]+pareps[1]);
+    eps = std::max(1.0e-6, eps);
 
     vector<shared_ptr<ParamCurve> > dummy;
 
@@ -1298,7 +1299,8 @@ void BoundedSurface::closestPoint(const Point& pt,
 
     Vector2D new_seed_vec;
     double *new_seed = seed;
-    double domain_tol = std::max(epsilon, 1.0e-7);
+    double domain_tol = boundary_loops_[0]->getSpaceEpsilon();
+    domain_tol = std::max(domain_tol, 1.0e-7);
     if (seed) {
         new_seed_vec[0] = seed[0];
         new_seed_vec[1] = seed[1];
@@ -2021,28 +2023,28 @@ bool
 BoundedSurface::isIsoTrimmed(double tol) const
 //===========================================================================
 {
-    if (iso_trim_tol_ - tol < 1.0e-12)
+    if (iso_trim_tol_ >= 0.0 && iso_trim_tol_ - tol < 1.0e-12)
     {
-	return iso_trim_;   // Already checked with "the same" or smaller tolerance
+      return (iso_trim_ > 0);   // Already checked with "the same" or smaller tolerance
     }
     iso_trim_tol_ = tol;
-    iso_trim_ = true;  // Until the opposite is found
+    iso_trim_ = 1;  // Until the opposite is found
 
     if (boundary_loops_.size() == 0)
     {
 	// Surface not trimmed?
-	return iso_trim_;
+      return (iso_trim_ > 0);
     }
 
     if (boundary_loops_.size() > 1)
     {
 	// The surface has inner trimming curves. Not iso-trimmed
-	iso_trim_ = false;
-	return iso_trim_;
+	iso_trim_ = 0;
+	return (iso_trim_ > 0);
     }
     
     // Check boxes around the 2D curves. NB! Assumes that the 2D curves is OK
-    int nmb_crvs = boundary_loops_[0]->size();
+   int nmb_crvs = boundary_loops_[0]->size();
     vector<double> par_u, par_v;
     for (int ki=0; ki<nmb_crvs; ++ki)
     {
@@ -2059,8 +2061,8 @@ BoundedSurface::isIsoTrimmed(double tol) const
 	if (!pcrv.get())
 	{
 	    // No 2D parameter curve
-	    iso_trim_ = false;
-	    return iso_trim_;
+	    iso_trim_ = 0;
+	    return (iso_trim_ > 0);
 	}
 
 	// Make box around curve
@@ -2070,8 +2072,8 @@ BoundedSurface::isIsoTrimmed(double tol) const
 	if (high[0] - low[0] > tol && high[1]-low[1] > tol)
 	{
 	    // 2D curve different from a iso-line
-	    iso_trim_ = false;
-	    return iso_trim_;
+	  iso_trim_ = 0;
+	  return (iso_trim_ > 0);
 	}
 	if (high[0] - low[0] <= tol)
 	  par_u.push_back(0.5*(low[0]+high[0]));
@@ -2088,16 +2090,45 @@ BoundedSurface::isIsoTrimmed(double tol) const
       if (par_u[kj] - par_u[kj-1] > tol)
 	nmb++;
     if (nmb > 1)
-      iso_trim_ = false;
+      iso_trim_ = 0;
 
     nmb = 0;
     for (kj=1; kj<par_v.size(); kj++)
       if (par_v[kj] - par_v[kj-1] > tol)
 	nmb++;
     if (nmb > 1)
-      iso_trim_ = false;
+      iso_trim_ = 0;
 
-    return iso_trim_;
+    // Check if the iso parameter coincides with the boundary
+    if (surface_->instanceType() != Class_BoundedSurface)
+      {
+	RectDomain dom = surface_->containingDomain();
+	int nmb1=0, nmb2=0;
+	for (kj=0; kj<par_u.size(); kj++)
+	  if (fabs(par_u[kj]-dom.umin()) < tol || fabs(par_u[kj]-dom.umax()) < tol)
+	    nmb1++;
+	for (kj=0; kj<par_v.size(); kj++)
+	  if (fabs(par_v[kj]-dom.vmin()) < tol || fabs(par_v[kj]-dom.vmax()) < tol)
+	    nmb2++;
+	if (nmb1 == (int)par_u.size() && nmb2 == (int)par_v.size())
+	  iso_trim_ = 2;
+      }
+	
+    return (iso_trim_ > 0);
+}
+
+//===========================================================================
+bool
+BoundedSurface::isBoundaryTrimmed(double tol) const
+//===========================================================================
+{
+    if (iso_trim_tol_ >= 0.0 && iso_trim_tol_ - tol < 1.0e-12)
+    {
+      return (iso_trim_ > 1);   // Already checked with "the same" or smaller tolerance
+    }
+    
+    bool iso_trim = isIsoTrimmed(tol);
+    return (iso_trim_ > 1);
 }
 
 //===========================================================================

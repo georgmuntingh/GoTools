@@ -157,6 +157,7 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 
   // Fetch a vector in the given vertex pointing into the surface
   Point in_vec = getInVec(vx, face);
+  in_vec.normalize();
 
   // A patch with 5 sides requires a special treatment to avoid
   // a degenerate solution. Check the number of corners
@@ -311,7 +312,7 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 	  // parameter domain
 	  Point parval2 = prio_vx[min_idx]->getFacePar(face.get());
 	  shared_ptr<ParamCurve> pcurve = checkStrightParCv(face, vx, prio_vx[min_idx], 
-							    epsge);
+							    epsge, bend);
 	  if (pcurve.get())
 	    {
 	      trim_segments = BoundedUtils::getTrimCrvsPcrv(surf, pcurve, epsge,
@@ -400,7 +401,7 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 	      // parameter domain
 	      Point parval2 = cand_vx[min_idx]->getFacePar(face.get());
 	      shared_ptr<ParamCurve> pcurve = checkStrightParCv(face, vx, cand_vx[min_idx], 
-								epsge);
+								epsge, bend);
 	      if (pcurve.get())
 		{
 		  trim_segments = BoundedUtils::getTrimCrvsPcrv(surf, pcurve, epsge,
@@ -694,8 +695,13 @@ RegularizeUtils::createFaces(vector<shared_ptr<BoundedSurface> >& sub_sfs,
 	      double par, dist;
 	      Point close;
 	      edges[kh]->closestPoint(vx_pt, par, close, dist);
+	      double len1 = 
+		edges[kh]->estimatedCurveLength(edges[kh]->tMin(), par);
+	      double len2 = 
+		edges[kh]->estimatedCurveLength(par, edges[kh]->tMax());
 	      if (dist < tol2 && 
-		  (par-t1 > frac*(t2-t1) && t2-par > frac*(t2-t1)))
+		  (par-t1 > frac*(t2-t1) && t2-par > frac*(t2-t1)) &&
+		  len1 > epsge && len2 > epsge)
 		{
 		  shared_ptr<ftEdgeBase> new_edge = edges[kh]->split2(par);
 		  shared_ptr<ftEdge> curr_edge = 
@@ -1412,7 +1418,7 @@ RegularizeUtils::getMaxParFrac(shared_ptr<ftSurface> face)
 int
 RegularizeUtils::selectCandVx(shared_ptr<ftSurface> face,
 			      shared_ptr<Vertex> vx, const Point& in_vec,
-			      vector<shared_ptr<Vertex> > cand_vx,
+			      vector<shared_ptr<Vertex> >& cand_vx,
 			      RectDomain& dom,
 			      double epsge, double angtol, 
 			      const Point& centre, const Point& normal,
@@ -1471,6 +1477,8 @@ RegularizeUtils::selectCandVx(shared_ptr<ftSurface> face,
       Point cand_vx_pt = cand_vx[ki]->getVertexPoint();
       Point vec = cand_vx_pt - vx_point;
       double dist = vec.length();
+      if (dist > epsge)
+	vec.normalize();
       double dist1 = fabs(vx_par[0]-curr_vx_par2[0]);
       double dist2 = fabs(vx_par[1]-curr_vx_par2[1]);
       dist1 /= (dom.umax() - dom.umin());
@@ -1491,7 +1499,7 @@ RegularizeUtils::selectCandVx(shared_ptr<ftSurface> face,
 
       // Skip vertices lying in the wrong direction compared to the material
       // of the surface
-      if (vec*in_vec < -tol)
+      if (vec*in_vec < -angtol /*-tol*/)
 	continue;   // The tolerances is arbitrary here, but do not want
       // to rule out orthogonal cases when the face is curved. The
       // test should be made more precise by taking the shape of the
@@ -1657,16 +1665,16 @@ RegularizeUtils::selectCandVx(shared_ptr<ftSurface> face,
    double ang = 0.0;
    double ang2 = 0.0;
    double ang3 = 0.0;
-   Point vec;
+   Point curr_vec;
    if (min_idx >= 0)
      {
-       vec = cand_vx[min_idx]->getVertexPoint() - vx_point;
-       ang = vec.angle(normal);
+       curr_vec = cand_vx[min_idx]->getVertexPoint() - vx_point;
+       ang = curr_vec.angle(normal);
 
        // Compute also the angle in the candidate end point of the split
        Point pnt2, normal2;
        getDivisionPlane(face, cand_vx[min_idx], epsge, pnt2, normal2);
-       ang2 = vec.angle(normal2);
+       ang2 = curr_vec.angle(normal2);
        ang3 = normal.angle(normal2);
      }
 
@@ -1675,8 +1683,8 @@ RegularizeUtils::selectCandVx(shared_ptr<ftSurface> face,
        double deriv_ang1 = min_deriv.angle(normal);
        deriv_ang1 = fabs(0.5*M_PI - deriv_ang1);
        double deriv_ang2 = min_deriv.angle(close_vec);
-       double close_ang = close_vec.angle(vec);
-       // if (min_deriv.angle(vec) > level_frac*level_ang && 
+       double close_ang = close_vec.angle(curr_vec);
+       // if (min_deriv.angle(curr_vec) > level_frac*level_ang && 
        // 	   close_ang > 2.0*min_close_ang)
        // 	 min_frac = max_frac;   // Not the same parameter direction
        if (curr_rad_dist < epsge)
@@ -1710,9 +1718,13 @@ RegularizeUtils::selectCandVx(shared_ptr<ftSurface> face,
 		     deriv_ang2 > level_frac*level_ang &&
 		     close_ang > 2.0*min_close_ang)*/)
 	     {
-	       // Not a good candidate. Remove it from the list
-	       cand_vx.erase(cand_vx.begin()+min_idx);
-	       min_idx = -1;
+	       // Not a good candidate. Remove it from the list if it is
+	       // not a T-joint
+	       if (cand_vx[min_idx]->isCornerInFace(face.get(), angtol))
+		 {
+		   cand_vx.erase(cand_vx.begin()+min_idx);
+		   min_idx = -1;
+		 }
 	     }
 	   else
 	     {
@@ -2195,7 +2207,8 @@ Point RegularizeUtils::getInVec(shared_ptr<Vertex> vx,
 shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> face,
 							  shared_ptr<Vertex> vx1, 
 							  shared_ptr<Vertex> vx2,
-							  double epsge)
+							  double epsge,
+							  double angtol)
 //==========================================================================
 {
   vector<ftEdge*> edges1 = vx1->getFaceEdges(face.get());
@@ -2272,7 +2285,6 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
   double fac = 0.9;
   Point d1(0.0, 0.0), d2(0.0, 0.0);
   
-  double angtol = 10.0*epsge;
   if (ang1 < angtol && std::max(ang2, ang3) < angtol)
     {
       make_pcrv = true;
@@ -2379,7 +2391,8 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
 shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> face,
 							  const Point& pos1, 
 							  const Point& pos2,
-							  double epsge)
+							  double epsge,
+							  double angtol)
 //==========================================================================
 {
   // Find end boundary points associated to the input points
@@ -2434,10 +2447,9 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
   bool make_pcrv = false;
   double fac = 0.9;
   Point d1(0.0, 0.0), d2(0.0, 0.0);
-  double ang_tol = 0.15;
   d1[0] = -ptan[0][1];
   d1[1] = ptan[0][0];
-  if (ang1 < ang_tol || d1*(par2-par1) <= 0)
+  if (ang1 < angtol || d1*(par2-par1) <= 0)
     {
       make_pcrv = true;
       d1.normalize();
@@ -2453,7 +2465,7 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
 
   d2[0] = -ptan[1][1];
   d2[1] = ptan[1][0];
-  if (ang2 < ang_tol || d2*vec <= 0)
+  if (ang2 < angtol || d2*vec <= 0)
     {
       make_pcrv = true;
       d2.normalize();
@@ -2521,7 +2533,8 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
 shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> face,
 							  shared_ptr<Vertex> vx1, 
 							  const Point& mid,
-							  double epsge)
+							  double epsge,
+							  double angtol)
 //==========================================================================
 {
   vector<ftEdge*> edges1 = vx1->getFaceEdges(face.get());
@@ -2584,8 +2597,6 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
   bool make_pcrv = false;
   double fac = 0.9;
   Point d1(0.0, 0.0);
-  double ang_tol = 0.15;
-  double angtol = 10.0*epsge;
   if (ang1 < angtol && std::max(ang2, ang3) < angtol)
     {
       make_pcrv = true;
@@ -2635,7 +2646,7 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
 
       d2[0] = -ptan2[1];
       d2[1] = ptan2[0];
-      if (angle < ang_tol || d2*(par1-par2) <= 0)
+      if (angle < angtol || d2*(par1-par2) <= 0)
 	{
 	  make_pcrv = true;
 	  d2.normalize();

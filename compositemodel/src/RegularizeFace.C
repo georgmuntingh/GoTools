@@ -353,7 +353,7 @@ void RegularizeFace::splitInTJoints()
 	  // Remove the insignificant ones and the ones representing
 	  // a seam
 	  if (divideInT_ != 2)
-	    removeInsignificantVertices(Tvx, false, curr.get());
+	    removeInsignificantVertices(Tvx, vx_pri_.size()>0, curr.get());
 #ifdef DEBUG_REG
 	  of2 << "400 1 0 4 155 0 100 255" << std::endl;
 	  of2 << Tvx.size() << std::endl;
@@ -1520,7 +1520,8 @@ RegularizeFace::computeCornerSplit(shared_ptr<Vertex> corner,
 	  // Try to define a curve in the parameter domain of the surface
 	  Point close_pos = face_->point(close_par[0], close_par[1]);
 	  shared_ptr<ParamCurve> pcrv = 
-	    RegularizeUtils::checkStrightParCv(face_, corner, close_pos, epsge_);
+	    RegularizeUtils::checkStrightParCv(face_, corner, close_pos, 
+					       epsge_, bend_);
 	  if (pcrv.get())
 	    {
 	      // Create corresponding curve-on-surface curve
@@ -1616,7 +1617,8 @@ RegularizeFace::computeCornerSplit(shared_ptr<Vertex> corner,
       {
 	// Try to define a curve in the parameter domain of the surface
 	shared_ptr<ParamCurve> pcrv = 
-	  RegularizeUtils::checkStrightParCv(face_, corner, centre_, epsge_);
+	  RegularizeUtils::checkStrightParCv(face_, corner, centre_, 
+					     epsge_, bend_);
 	if (pcrv.get())
 	  {
 	    // Create corresponding curve-on-surface curve
@@ -6579,16 +6581,16 @@ void RegularizeFace::updateTrimSeg(std::vector<shared_ptr<CurveOnSurface> >& tri
 	  shared_ptr<ParamCurve> pcrv;
 	  if (idx1 >=0 && idx2 >= 0)
 	    pcrv = RegularizeUtils::checkStrightParCv(face_, vx1[idx1], vx2[idx2],
-						      epsge_);
+						      epsge_, bend_);
 	  else if (idx1 >= 0)
 	    pcrv = RegularizeUtils::checkStrightParCv(face_, vx1[idx1], pnt2,
-						      epsge_);
+						      epsge_, bend_);
 	  else if (idx2 >= 0)
 	    pcrv = RegularizeUtils::checkStrightParCv(face_, vx2[idx2], pnt1,
-						      epsge_);
+						      epsge_, bend_);
 	  else
 	    pcrv = RegularizeUtils::checkStrightParCv(face_, pos1, pos2,
-						      epsge_);
+						      epsge_, bend_);
 
 	  vector<shared_ptr<CurveOnSurface> > local_seg;
 	  if (pcrv.get())

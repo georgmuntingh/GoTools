@@ -561,6 +561,21 @@ namespace Go
     }
 
 //===========================================================================
+    vector<ftEdge*> Vertex::getEdges(ftSurface* face)
+//===========================================================================
+    {
+      vector<ftEdge*> result;
+      for (size_t ki=0; ki<edges_.size(); ++ki)
+	{
+	  if (edges_[ki].first->face() == face)
+	    result.push_back(edges_[ki].first);
+	  if (edges_[ki].second->face() == face)
+	    result.push_back(edges_[ki].second);
+	}
+      return result;
+    }
+
+//===========================================================================
   vector<pair<ftSurface*, Point> > Vertex::getFaces()
 //===========================================================================
     {

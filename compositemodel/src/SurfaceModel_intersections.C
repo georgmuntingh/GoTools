@@ -798,9 +798,9 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	  if (bdsf.get())
 	    {
 	      bdsf->analyzeLoops();
-	      bool valid = bdsf->isValid(state);
-	      if (!valid)
-		std::cout << "Surface not valid: " << state << std::endl;
+	      // bool valid = bdsf->isValid(state);
+	      // if (!valid)
+	      // 	std::cout << "Surface not valid: " << state << std::endl;
 	    }
 	  std::ofstream of1("curr1.g2");
 	  surf->writeStandardHeader(of1);
@@ -838,9 +838,9 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 #ifdef DEBUG
 	      int state;
 	      trim_sfs[kr]->analyzeLoops();
-	      bool valid = trim_sfs[kr]->isValid(state);
-	      if (!valid)
-		std::cout << "Surface not valid: " << state << std::endl;
+// 	      bool valid = trim_sfs[kr]->isValid(state);
+// 	      if (!valid)
+// 		std::cout << "Surface not valid: " << state << std::endl;
 #endif
 
 	  // Check if the trimmed surface lies inside or outside the 
@@ -888,9 +888,9 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	  if (bdsf.get())
 	    {
 	      bdsf->analyzeLoops();
-	      bool valid = bdsf->isValid(state);
-	      if (!valid)
-		std::cout << "Surface not valid: " << state << std::endl;
+	      // bool valid = bdsf->isValid(state);
+	      // if (!valid)
+	      // 	std::cout << "Surface not valid: " << state << std::endl;
 	    }
 
 	  std::ofstream of1("curr2.g2");
@@ -928,9 +928,9 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 #ifdef DEBUG
 	      int state;
 	      trim_sfs[kr]->analyzeLoops();
-	      bool valid = trim_sfs[kr]->isValid(state);
-	      if (!valid)
-		std::cout << "Surface not valid: " << state << std::endl;
+// 	      bool valid = trim_sfs[kr]->isValid(state);
+// 	      if (!valid)
+// 		std::cout << "Surface not valid: " << state << std::endl;
 #endif
 
 	  // Check if the trimmed surface lies inside or outside the 
@@ -1120,9 +1120,9 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	  if (bdsf.get())
 	    {
 	      bdsf->analyzeLoops();
-	      bool valid = bdsf->isValid(state);
-	      if (!valid)
-		std::cout << "Surface not valid: " << state << std::endl;
+	      // bool valid = bdsf->isValid(state);
+	      // if (!valid)
+	      // 	std::cout << "Surface not valid: " << state << std::endl;
 	    }
 	  std::ofstream of1("curr1.g2");
 	  surf->writeStandardHeader(of1);
@@ -1160,11 +1160,11 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 #ifdef DEBUG
 	      int state;
 	      trim_sfs[kr]->analyzeLoops();
-	      bool valid = trim_sfs[kr]->isValid(state);
-	      if (!valid)
-		std::cout << "Surface not valid: " << state << std::endl;
-	      trim_sfs[kr]->writeStandardHeader(of1);
-	      trim_sfs[kr]->write(of1);
+// 	      bool valid = trim_sfs[kr]->isValid(state);
+// 	      if (!valid)
+// 		std::cout << "Surface not valid: " << state << std::endl;
+// 	      trim_sfs[kr]->writeStandardHeader(of1);
+// 	      trim_sfs[kr]->write(of1);
 #endif
 
 	  // Check if the trimmed surface lies inside or outside the 
@@ -1209,9 +1209,9 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	  if (bdsf.get())
 	    {
 	      bdsf->analyzeLoops();
-	      bool valid = bdsf->isValid(state);
-	      if (!valid)
-		std::cout << "Surface not valid: " << state << std::endl;
+	      // bool valid = bdsf->isValid(state);
+	      // if (!valid)
+	      // 	std::cout << "Surface not valid: " << state << std::endl;
 	    }
 
 	  std::ofstream of1("curr2.g2");
@@ -1248,11 +1248,11 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 #ifdef DEBUG
 	      int state;
 	      trim_sfs[kr]->analyzeLoops();
-	      bool valid = trim_sfs[kr]->isValid(state);
-	      if (!valid)
-		std::cout << "Surface not valid: " << state << std::endl;
-	      trim_sfs[kr]->writeStandardHeader(of1);
-	      trim_sfs[kr]->write(of1);
+// 	      bool valid = trim_sfs[kr]->isValid(state);
+// 	      if (!valid)
+// 		std::cout << "Surface not valid: " << state << std::endl;
+// 	      trim_sfs[kr]->writeStandardHeader(of1);
+// 	      trim_sfs[kr]->write(of1);
 #endif
 
 	  // Check if the trimmed surface lies inside or outside the 

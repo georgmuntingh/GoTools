@@ -332,19 +332,23 @@ namespace Go
 //===========================================================================
   vector<shared_ptr<SplineCurve> > 
   AdaptSurface::curveApprox(shared_ptr<ParamCurve> cvs[], int nmb_cvs,
-			    const BsplineBasis& init_basis, double tol)
+			    const BsplineBasis& init_basis, double tol,
+			    int nmb_init_sample_pr_seg)
 //===========================================================================
   {
-    return CurveCreators::curveApprox(cvs, nmb_cvs, init_basis, tol);
+    return CurveCreators::curveApprox(cvs, nmb_cvs, init_basis, tol,
+				      nmb_init_sample_pr_seg);
   }
 
 //===========================================================================
   vector<shared_ptr<SplineCurve> > 
   AdaptSurface::curveApprox(shared_ptr<ParamCurve> cvs[], int nmb_cvs,
-			    double tol, double degree)
+			    double tol, double degree,
+			    int nmb_init_sample_pr_seg)
 //===========================================================================
   {
-    return CurveCreators::curveApprox(cvs, nmb_cvs, tol, degree);
+    return CurveCreators::curveApprox(cvs, nmb_cvs, tol, degree,
+				      nmb_init_sample_pr_seg);
   }
 
 //===========================================================================
