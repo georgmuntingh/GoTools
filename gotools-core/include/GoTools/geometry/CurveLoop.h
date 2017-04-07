@@ -104,6 +104,9 @@ inline double computeLoopGap(const std::vector< PtrToCurveType >& curves)
      *  the boundary of a surface.
      */
 
+ class CurveOnSurface;
+
+
 class GO_API CurveLoop
 {
 public:
@@ -254,6 +257,12 @@ public:
     {
       return computeLoopGap(curves_);
     }
+
+    /// Remove curve and tighten gap if possible
+    /// Return value: 0 - curve not found
+    ///               1 - curve removed, adjacent curves not changed
+    ///               2 - curve removed, adjacent curves updated
+    int removeCrvAndFix(shared_ptr<CurveOnSurface> cv);
 
 private:
     std::vector< shared_ptr<ParamCurve> > curves_;

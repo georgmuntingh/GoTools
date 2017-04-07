@@ -472,8 +472,8 @@ public:
     virtual bool isLinear(Point& dir1, Point& dir2, double tol);
 
     /// Estimate the size of the surface in the two parameter directions
-    void estimateSfSize(double& u_size, double& v_size, int u_nmb = 5,
-			int v_nmb = 5) const;
+    virtual void estimateSfSize(double& u_size, double& v_size, int u_nmb = 5,
+				int v_nmb = 5) const;
 
    /// Check if a polynomial element (for spline surfaces) intersects the
     /// (trimming) boundaries of this surface

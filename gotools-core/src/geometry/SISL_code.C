@@ -42759,7 +42759,7 @@ void s1310(SISLSurf *psurf1,SISLSurf *psurf2,SISLIntcurve *pinter,
   SISLCurve *q3dcur=SISL_NULL;/* Pointer to 3-D curve                     */
   SISLCurve *qp1cur=SISL_NULL;/* Pointer to curve in first parameter plane*/
   SISLCurve *qp2cur=SISL_NULL;/* Pointer to curve in 2.nd  parameter plane*/
-
+  double aepsge2 = aepsge;    /* Local tolerance                          */
 
   *jstat = 0;
 
@@ -43093,6 +43093,18 @@ void s1310(SISLSurf *psurf1,SISLSurf *psurf2,SISLIntcurve *pinter,
   s9iterate(s3dinf,spnt1,spnt2,spar1,spar2,psurf1,psurf2,tstep,
 	    aepsge,sipnt1,sipnt2,sipar1,sipar2,&kstat);
   if (kstat < 0) goto error;
+
+  /* VSK 0417. Check if the intersection point is still inside the surface
+     parameter domains. */
+  if (sipar1[0] < sval1[0] || sipar1[0] > sval1[1] ||
+      sipar1[1] < sval2[0] || sipar1[1] > sval2[1] ||
+      sipar2[0] < sval3[0] || sipar2[0] > sval3[1] ||
+      sipar2[1] < sval4[0] || sipar2[1] > sval4[1])
+    {
+      kstat = 3;  // Do not use iterated point
+      aepsge2 = max(aepsge2,
+		    max(s6dist(spnt1,sipnt1,3), s6dist(spnt2,sipnt2,3)));
+    }
 
   /* Copy result of iteration into spnt1,spnt2,spar1,spar2 */
 
@@ -43499,6 +43511,19 @@ void s1310(SISLSurf *psurf1,SISLSurf *psurf2,SISLIntcurve *pinter,
 			aepsge,sipnt1,sipnt2,sipar1,sipar2,&kstat);
 	      if (kstat < 0) goto error;
 
+	      /* VSK 0417. Check if the intersection point is still inside 
+		 the surface parameter domains. */
+	      if (kstat == 0 && DEQUAL(tstep, DZERO) &&
+		  (sipar1[0] < sval1[0] || sipar1[0] > sval1[1] ||
+		  sipar1[1] < sval2[0] || sipar1[1] > sval2[1] ||
+		  sipar2[0] < sval3[0] || sipar2[0] > sval3[1] ||
+		   sipar2[1] < sval4[0] || sipar2[1] > sval4[1]))
+		{
+		  kstat = 3;  // Do not use iterated point
+		  aepsge2 = max(aepsge2,
+				max(s6dist(spnt1,sipnt1,3), s6dist(spnt2,sipnt2,3)));
+		}
+
 	      /* Initiate distance between midpoint and iteration point
 		 to -1 to enable detection of divergence */
 
@@ -43520,7 +43545,7 @@ void s1310(SISLSurf *psurf1,SISLSurf *psurf2,SISLIntcurve *pinter,
 		     the relative computer resolution or is a singular point.
 		     We stop the marching in this direction here
 		     Half step length if possible, find new endpoint of
-		     segement. */
+		     segment. */
 
 		  kstpch = 0;
 		  koutside_resolution = 0;
@@ -43548,9 +43573,9 @@ void s1310(SISLSurf *psurf1,SISLSurf *psurf2,SISLIntcurve *pinter,
 		  /* If point is singular or not within resolution a new
 		     Hermit segment has to be made */
 
-		  if (kstat == 2 || (fabs(tdist) > aepsge ||
+		  if (kstat == 2 || (fabs(tdist) > aepsge2 ||
 				     (fabs(tang) > ANGULAR_TOLERANCE &&
-				      tstep      > aepsge)))
+				      tstep      > aepsge2)))
                     {
 		      kstpch = 0;
 		      koutside_resolution = 0;
@@ -43624,20 +43649,22 @@ void s1310(SISLSurf *psurf1,SISLSurf *psurf2,SISLIntcurve *pinter,
                         }
                     }
                 }
-	      else
+	      else 
                 {
-		  /* We iterated to find end point of segment,
-		     update pointer */
-
-		  memcopy(spntend1,sipnt1,21,DOUBLE);
-		  memcopy(sparend1,sipar1,2,DOUBLE);
-		  memcopy(spntend2,sipnt2,21,DOUBLE);
-		  memcopy(sparend2,sipar2,2,DOUBLE);
-
-		  s1304(sipnt1,sipnt2,sipar1,sipar2,s3dinf+10*knbinf,
-			sp1inf+7*knbinf,sp2inf+7*knbinf,&kstat);
-		  if (kstat<0) goto error;
-
+		  if (kstat != 3)
+		    {
+		      /* We iterated to find end point of segment,
+			 update pointer */
+		      
+		      memcopy(spntend1,sipnt1,21,DOUBLE);
+		      memcopy(sparend1,sipar1,2,DOUBLE);
+		      memcopy(spntend2,sipnt2,21,DOUBLE);
+		      memcopy(sparend2,sipar2,2,DOUBLE);
+		      
+		      s1304(sipnt1,sipnt2,sipar1,sipar2,s3dinf+10*knbinf,
+			    sp1inf+7*knbinf,sp2inf+7*knbinf,&kstat);
+		      if (kstat<0) goto error;
+		    }
 		  /* Make sure that the tangents of previous and the new point
 		     point in the same direction, singular end point allowed' */
 
@@ -43946,7 +43973,7 @@ void s1310(SISLSurf *psurf1,SISLSurf *psurf2,SISLIntcurve *pinter,
                     }
 		  else
                     {
-		      tfak = MAX(tdist/aepsge,(double)1.0);
+		      tfak = MAX(tdist/aepsge2,(double)1.0);
 		      tfak = (double)2.0*pow(tfak,ONE_FOURTH);
 		      tnew = MIN(tstep/(double)2.0,tstep/tfak);
                     }
@@ -44032,6 +44059,8 @@ void s1310(SISLSurf *psurf1,SISLSurf *psurf2,SISLIntcurve *pinter,
   scorpr1 = sp1inf;
   scorpr2 = sp2inf;
 
+  if (knb1 < 1)
+    knb1 = 1;  // To avoid picking up random points
   if (kstpch !=3 && kpoint>1)
     {
 

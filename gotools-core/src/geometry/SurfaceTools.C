@@ -819,7 +819,8 @@ Point SurfaceTools::getParEpsilon(const ParamSurface& sf, double epsgeo)
       double len = bbox.low().dist(bbox.high());
       double fac = 10000.0;
       int num_samples = (len/epsgeo < fac) ? 5 : 10;
-	sf.estimateSfSize(sf_length_u, sf_length_v, num_samples, num_samples);
+      sf.ParamSurface::estimateSfSize(sf_length_u, sf_length_v, 
+				      num_samples, num_samples);
 
 	RectDomain rect_dom = sf.containingDomain();
 	double dom_length_u = rect_dom.umax() - rect_dom.umin();

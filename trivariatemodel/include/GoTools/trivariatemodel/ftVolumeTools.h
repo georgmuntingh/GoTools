@@ -52,6 +52,7 @@ namespace Go
   class SurfaceModel;
   class ParamVolume;
   class CurveOnSurface;
+  class SplineCurve;
   class BoundedSurface;
 
   /// This namespace contains service functions related to ftVolume
@@ -104,9 +105,17 @@ namespace Go
  
     void
       projectTrimCurves(shared_ptr<ftSurface> face1,
-			shared_ptr<ftSurface> face2, double eps,
+			shared_ptr<ftSurface> face2, 
+			double eps, double eps2,
 			std::vector<shared_ptr<CurveOnSurface> >& proj_cvs,
 			shared_ptr<BoundedSurface>& bd_sf1);
+
+    bool
+      checkCoincCurves(std::vector<shared_ptr<SplineCurve> >& bd_cvs,
+		       std::vector<std::vector<shared_ptr<CurveOnSurface> > >& int_cvs1,
+		       std::vector<std::vector<shared_ptr<CurveOnSurface> > >& int_cvs2,
+		       double tol);
+
   }  // namespace ftVolumeTools
 } // namespace Go
 

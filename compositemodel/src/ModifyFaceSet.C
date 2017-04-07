@@ -113,15 +113,26 @@ int ModifyFaceSet::divide()
 		adj_face[kj] = fetchNextFace(curr_edges[kj], vxs[kj].get(),
 					     tptol.bend, next_edge[kj], angle[kj]);
 	    }
+
+	  bool is_concave[2];
+	  for (int kj=0; kj<2; ++kj)
+	    is_concave[kj] = vxs[kj]->isConcave(adj_face[kj], tptol.bend);
+
 	  if (adj_face[0] == adj_face[1])
 	    {
-	      adj_face[1] = NULL;   // Same face, split only once
+	      if (is_concave[0])
+		adj_face[0] = NULL;
+	      else
+		adj_face[1] = NULL;   // Same face, split only once
 	      finish = true;
 	    }
 
 	  for (int kj=0; kj<2; ++kj)
 	    {
-	      if (adj_face[kj] && M_PI-angle[kj] > tptol.bend)
+	      if (is_concave[kj] && (!is_concave[1-kj]))
+		continue;  // Ambigous situation, postpone if possible
+
+	      if (adj_face[kj] && (!next_edge[kj])/*M_PI-angle[kj] > tptol.bend*/)
 		{
 		  // Regularize face
 		  shared_ptr<ftSurface> curr = 
@@ -296,7 +307,7 @@ ftSurface*  ModifyFaceSet::fetchNextFace(ftEdge* edge, Vertex* vx, double angtol
 	  Point tan2 = edgs[kr]->tangent(edgs[kr]->parAtVertex(vx));
 	  double ang = tan1.angle(tan2);
 	  angle = std::min(angle, ang);
-	  if (M_PI-ang < angtol)
+	  if (ang < angtol || M_PI-ang < angtol)
 	    {
 	      angle = ang;   // Continue along edge chain without face split
 

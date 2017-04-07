@@ -54,7 +54,7 @@
 
 #include <fstream>
 
-//#define DEBUG
+#define DEBUG
 
 using std::vector;
 using std::pair;
@@ -106,6 +106,12 @@ SurfaceModelUtils::checkClosedFaces(shared_ptr<ParamSurface> surface, double tol
   vector<shared_ptr<ParamCurve> > cvs_v1 = sf->constParamCurves(dom.vmin(), true);
   vector<shared_ptr<ParamCurve> > cvs_v2 = sf->constParamCurves(dom.vmax(), true);
 
+  // Compare also with middle curve
+  vector<shared_ptr<ParamCurve> > cvs_u3 = 
+    sf->constParamCurves(0.5*(dom.umin()+dom.umax()), false);
+  vector<shared_ptr<ParamCurve> > cvs_v3 = 
+    sf->constParamCurves(0.5*(dom.vmin()+dom.vmax()), true);
+  
   Identity ident;
   int coinc1 = ident.identicalCvs(cvs_u1[0], cvs_u1[0]->startparam(), cvs_u1[0]->endparam(),
 				  cvs_u2[0], cvs_u2[0]->startparam(), cvs_u2[0]->endparam(),
@@ -113,7 +119,17 @@ SurfaceModelUtils::checkClosedFaces(shared_ptr<ParamSurface> surface, double tol
   int coinc2 = ident.identicalCvs(cvs_v1[0], cvs_v1[0]->startparam(), cvs_v1[0]->endparam(),
 				  cvs_v2[0], cvs_v2[0]->startparam(), cvs_v2[0]->endparam(),
 				  tol);
-  vector<shared_ptr<ParamSurface> > sub_sfs1;
+  int coinc3 = ident.identicalCvs(cvs_u1[0], cvs_u1[0]->startparam(), cvs_u1[0]->endparam(),
+				  cvs_u3[0], cvs_u3[0]->startparam(), cvs_u3[0]->endparam(),
+				  tol);
+  int coinc4 = ident.identicalCvs(cvs_v1[0], cvs_v1[0]->startparam(), cvs_v1[0]->endparam(),
+				  cvs_v3[0], cvs_v3[0]->startparam(), cvs_v3[0]->endparam(),
+				  tol);  vector<shared_ptr<ParamSurface> > sub_sfs1;
+  if (coinc3)
+    coinc1 = false;   // More likely to be a sliver face
+  if (coinc4)
+    coinc2 = false;   // More likely to be a sliver face
+
   if (coinc1)
     {
       // Split in the first parameter direction

@@ -50,6 +50,7 @@
 #include "GoTools/geometry/ElementarySurface.h"
 #include "GoTools/geometry/Cylinder.h"
 #include "GoTools/geometry/BsplineBasis.h"
+#include "GoTools/geometry/GapRemoval.h"
 #include <fstream>
 #include <cstdlib>
 
@@ -79,8 +80,10 @@ CreateTrimVolume::~CreateTrimVolume()
 shared_ptr<ftVolume> CreateTrimVolume::fetchOneTrimVol()
 //==========================================================================
 {
+  // Simplify input shell and mend gaps due to bad trimming curves
   int degree = 3;
-  SurfaceModelUtils::simplifySurfaceModel(model_, degree);
+  repairShell(degree);
+
 #ifdef DEBUG
   std::ofstream of1("simplified_shell.g2");
   int nmb = model_->nmbEntities();
@@ -1438,3 +1441,104 @@ CreateTrimVolume::checkIsoPar(shared_ptr<ParamSurface> surf,
   return true;
 }
 
+//==========================================================================
+void CreateTrimVolume::repairShell(int degree)
+//==========================================================================
+{
+  double epsge = model_->getTolerances().gap;
+
+  // Merge adjacent spline surfaces with g1 continuity
+  model_->simplifyShell();
+
+  // Further model simplification by approximating surfaces patches
+  // that compose a four sided domain by one large surface
+  SurfaceModelUtils::simplifySurfaceModel(model_, degree);
+
+  // Regenerate trimming curves to reduce gaps between surfaces
+  // First identify occurances
+  vector<shared_ptr<ftEdge> > gap_edges = model_->getUniqueInnerEdges();
+  //model_->getGaps(gap_edges);
+
+  // Make sure that the corresponding vertex positions are updated
+  std::set<shared_ptr<Vertex> > vertices;
+  for (size_t ki=0; ki<gap_edges.size(); ++ki)
+    {
+      shared_ptr<Vertex>  vx1, vx2;
+      gap_edges[ki]->getVertices(vx1, vx2);
+      vertices.insert(vertices.end(), vx1);
+      vertices.insert(vertices.end(), vx2);
+    }
+
+  std::set<shared_ptr<Vertex> >::iterator it = vertices.begin();
+  while (it != vertices.end())
+    {
+      (*it)->updateVertexPos(epsge);
+      ++it;
+    }
+  
+  // Update trimming curves
+  for (size_t ki=0; ki<gap_edges.size(); ++ki)
+    {
+      // Fetch the related faces
+      ftSurface *face1 = gap_edges[ki]->face()->asFtSurface();
+      ftSurface *face2 = gap_edges[ki]->twin()->face()->asFtSurface();
+
+      if (!(face1 && face2))
+	continue;   // This should not happen. Cannot mend gaps
+
+      // Check edge curves
+      ftEdge* e1g = gap_edges[ki].get();
+      ftEdge* e2g = gap_edges[ki]->twin()->geomEdge();
+      shared_ptr<CurveOnSurface> sfcv1 =
+	dynamic_pointer_cast<CurveOnSurface, ParamCurve>
+	(e1g->geomCurve());
+      shared_ptr<CurveOnSurface> sfcv2 =
+	dynamic_pointer_cast<CurveOnSurface, ParamCurve>
+	(e2g->geomCurve());
+      if (!(sfcv1.get() && sfcv2.get()))
+	continue;
+
+      bool same1 = sfcv1->sameCurve(epsge);
+      bool same2 = sfcv2->sameCurve(epsge);
+      shared_ptr<FaceConnectivity<ftEdgeBase> > info = 
+	gap_edges[ki]->getConnectivityInfo();
+      int kj=-1;
+      if (info.get())
+	{
+	  for (kj=0; kj<info->status_.size(); ++kj)
+	    if (info->status_[kj] >= 3)
+	      break;
+	}
+      if (same1 && same2 && info.get() && info.get() && 
+	  kj >= info->status_.size())
+	continue;
+
+      // Check if both faces are trimmed. In that case a better positioning
+      // of the trim curve may remove the gap
+      shared_ptr<BoundedSurface> bd1 = 
+	dynamic_pointer_cast<BoundedSurface, ParamSurface>(face1->surface());
+      shared_ptr<BoundedSurface> bd2 = 
+	dynamic_pointer_cast<BoundedSurface, ParamSurface>(face2->surface());
+
+      if (!(bd1.get() && bd2.get()))
+	{
+	  continue;   // Not handled 
+	}
+#ifdef DEBUG
+      std::ofstream of("gap_sfs.g2");
+      bd1->writeStandardHeader(of);
+      bd1->write(of);
+      bd2->writeStandardHeader(of);
+      bd2->write(of);
+#endif
+
+      Point vertex1 = e1g->getVertex(true)->getVertexPoint();
+      Point vertex2 = e1g->getVertex(false)->getVertexPoint();
+      double max_gap = 
+	GapRemoval::removeGapTrim(sfcv1, e1g->tMin(), e1g->tMax(),
+				  sfcv2, e2g->tMin(), e2g->tMax(),
+				  vertex1, vertex2, epsge);
+      int stop_break = 1;
+    }
+   
+}

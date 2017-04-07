@@ -349,6 +349,13 @@ public:
     /// See also \ref ParamCurve::nextSegmentVal()
     virtual double nextSegmentVal(double par, bool forward, double tol) const;
 
+    /// Modify the curve by changing on endpoint
+    /// \param pnt new end point			
+    /// \param at_start whether or not the start coefficient should be changed
+    /// Returns false if not both the space curve and the parameter curve
+    /// are spline curves
+    bool replaceEndPoint(Point pnt, bool at_start,
+			 double eps = DEFAULT_PARAMETER_EPSILON);
 
     /// Get a shared pointer to the underlying surface
     /// \return a shared pointer to the underlying surface

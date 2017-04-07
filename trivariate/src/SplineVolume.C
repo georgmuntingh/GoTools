@@ -823,6 +823,49 @@ vector<shared_ptr<SplineSurface> > SplineVolume::getBoundarySurfaces(bool do_cle
     return boundary_sfs;
 }
 
+ //===========================================================================
+vector<shared_ptr<SplineCurve> > SplineVolume::getBoundaryCurves() const
+//===========================================================================
+{
+  vector<shared_ptr<SplineCurve> > boundary_cvs(12);
+  int dim = dim_;  // Array dimension of coefficient
+  if (rational_)
+    dim++;  
+
+  vector<double>::const_iterator vol_coefs = ctrl_begin();  // Coefficients of volume
+  int n1 = numCoefs(0);
+  int n2 = numCoefs(1);
+  int n3 = numCoefs(2);
+
+  // For each parameter direction
+  int ki, kj, ka, kh;
+  int ix_start[3][4] = {{0, n1*(n2-1), n1*n2*(n3-1), n1*(n2*n3-1)},
+			{0, n1-1, n1*n2*(n3-1), n1*n2*(n3-1)+n1-1},
+			{0, n1-1, n1*(n2-1), n1*n2-1}};
+  int del[3] = {1, n1, n1*n2};
+  for (ki=0, ka=0; ki<3; ++ki)
+    {
+      // Parameter ki is running
+      int nmb = numCoefs(ki);
+      vector<double> coefs(nmb*dim);
+	      
+      for (kj=0; kj<4; ++kj, ++ka)
+	{
+	  vector<double>::const_iterator vc = vol_coefs;  // Running coefficient pointer
+	  for (kh=0, vc+=ix_start[ki][kj]*dim; kh<nmb; 
+	       ++kh, vc+=del[ki]*dim)
+	    {
+	      std::copy(vc, vc+dim, coefs.begin()+kh*dim);
+	    }
+	  
+	  boundary_cvs[ka] = 
+	    shared_ptr<SplineCurve>(new SplineCurve(basis(ki), &coefs[0], 
+						    dim_, rational_));
+	}
+    }
+  return boundary_cvs;
+}
+
 //===========================================================================
 void SplineVolume::checkDegeneracy(double tol, int is_degenerate[]) const
 //===========================================================================

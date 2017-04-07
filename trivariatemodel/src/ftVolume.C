@@ -37,8 +37,8 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-//#define DEBUG_VOL1
-//#define DEBUG
+#define DEBUG_VOL1
+#define DEBUG
 
 #include "GoTools/trivariatemodel/ftVolume.h"
 #include "GoTools/trivariatemodel/ftVolumeTools.h"
@@ -5513,9 +5513,9 @@ void ftVolume::makeSurfacePair(vector<ftEdge*>& loop,
 		  min_ang = ang;
 		  min_ix = (int)ki;
 		}
-	      pts1 = pts2;
+	      pts1 = cvs1[ki]->point(cvs1[ki]->endparam(), 1);
 	    }
-	  if (min_ang < toptol_.bend)
+	  if (min_ang < 1.5*toptol_.bend)
 	    {
 	      Point joint = space_cvs[min_ix]->point(space_cvs[min_ix]->startparam());
 	      int ix2 = (min_ix == 0) ? (int)(cvs1.size()-1) : min_ix-1;

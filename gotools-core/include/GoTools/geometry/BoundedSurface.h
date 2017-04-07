@@ -687,6 +687,10 @@ public:
     /// Check if the surface is linear in one or both parameter directions
     virtual bool isLinear(Point& dir1, Point& dir2, double tol);
 
+    /// Estimate the size of the surface in the two parameter directions
+    virtual void estimateSfSize(double& u_size, double& v_size, int u_nmb = 5,
+				int v_nmb = 5) const;
+
     /// Return associated elementary surface, if any
     virtual ElementarySurface* elementarySurface()
     {

@@ -37,7 +37,7 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-//#define DEBUG1
+#define DEBUG1
 
 #include "GoTools/geometry/BoundedUtils.h"
 #include <fstream>
@@ -216,7 +216,19 @@ BoundedUtils::intersectWithSurface(CurveOnSurface& curve,
 	  to_par = curve.endparam();
 	double med_par = 0.5*(from_par + to_par);
 	Point med_pt = first_curve->ParamCurve::point(med_par);
-	if (domain.isInDomain(Vector2D(med_pt[0], med_pt[1]), knot_diff_tol))
+	bool is_in_domain = false;
+	try {
+	  is_in_domain = domain.isInDomain(Vector2D(med_pt[0], med_pt[1]), 
+					   knot_diff_tol);
+	}
+	catch (...)
+	  {
+	    if (len > 10.0*epsge)
+	      THROW("Could not trim intersection curve with surface boundary");
+	    else
+	      is_in_domain = false;
+	  }
+	if (is_in_domain)
 	  inside_segments.push_back(shared_ptr<CurveOnSurface>
 				    (dynamic_cast<CurveOnSurface*>
 				     (curve.subCurve(from_par, to_par))));
@@ -1291,22 +1303,32 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 		    if (sf_cv.get())
 		      sf_cv->ensureParCrvExistence(eps);
 		  }
-		old_loop_cvs[kj] =  
-		  dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[0]);
-		shared_ptr<CurveOnSurface> sub_cv =  
-		  dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[1]);
-		old_loop_cvs.insert(old_loop_cvs.begin() + kj, sub_cv);
-		kj++;
+		double len1 = sub_cvs[0]->estimatedCurveLength(3);
+		double len2 = sub_cvs[1]->estimatedCurveLength(3);
+		if (len1 > min_loop_tol || len1 > len2)
+		  old_loop_cvs[kj] =  
+		    dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[0]);
+		else
+		  old_loop_cvs[kj] =  
+		    dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[1]);
+
+		if (len1 > min_loop_tol && len2 > min_loop_tol)
+		  {
+		    shared_ptr<CurveOnSurface> sub_cv =  
+		      dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[1]);
+		    old_loop_cvs.insert(old_loop_cvs.begin() + kj, sub_cv);
+		    kj++;
+		  }
 
 		// Check
-		Point tmp_pos1 = sub_cvs[0]->point(start_t);
-		Point tmp_pos2 = sub_cvs[1]->point(start_t);
-		Point tmp_par1 = old_loop_cvs[kj-1]->parameterCurve()->point(start_t);
-		Point tmp_par2 = old_loop_cvs[kj]->parameterCurve()->point(start_t);
-		Point tmp_sf1 = sf.ParamSurface::point(tmp_par1[0],tmp_par1[1]);
-		Point tmp_sf2 = sf.ParamSurface::point(tmp_par2[0],tmp_par2[1]);
-		int stop_break;
-		stop_break = 1;
+		// Point tmp_pos1 = sub_cvs[0]->point(start_t);
+		// Point tmp_pos2 = sub_cvs[1]->point(start_t);
+		// Point tmp_par1 = old_loop_cvs[kj-1]->parameterCurve()->point(start_t);
+		// Point tmp_par2 = old_loop_cvs[kj]->parameterCurve()->point(start_t);
+		// Point tmp_sf1 = sf.ParamSurface::point(tmp_par1[0],tmp_par1[1]);
+		// Point tmp_sf2 = sf.ParamSurface::point(tmp_par2[0],tmp_par2[1]);
+		// int stop_break;
+		// stop_break = 1;
 		
 
 		// shared_ptr<ParamCurve> sub1(old_loop_cvs[kj]->subCurve(old_loop_cvs[kj]->startparam(), 
@@ -1339,22 +1361,32 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 		    if (sf_cv.get())
 		      sf_cv->ensureParCrvExistence(eps);
 		  }
-		old_loop_cvs[kj] =  
-		  dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[0]);
-		shared_ptr<CurveOnSurface> sub_cv =  
-		  dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[1]);
-		old_loop_cvs.insert(old_loop_cvs.begin() + kj, sub_cv);
-		kj++;
+		double len1 = sub_cvs[0]->estimatedCurveLength(3);
+		double len2 = sub_cvs[1]->estimatedCurveLength(3);
+		if (len1 > min_loop_tol || len1 > len2)
+		  old_loop_cvs[kj] =  
+		    dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[0]);
+		else
+		  old_loop_cvs[kj] =  
+		    dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[1]);
+
+		if (len1 > min_loop_tol && len2 > min_loop_tol)
+		  {
+		    shared_ptr<CurveOnSurface> sub_cv =  
+		      dynamic_pointer_cast<CurveOnSurface, ParamCurve>(sub_cvs[1]);
+		    old_loop_cvs.insert(old_loop_cvs.begin() + kj, sub_cv);
+		    kj++;
+		  }
 
 		// Check
-		Point tmp_pos1 = sub_cvs[0]->point(end_t);
-		Point tmp_pos2 = sub_cvs[1]->point(end_t);
-		Point tmp_par1 = old_loop_cvs[kj-1]->parameterCurve()->point(end_t);
-		Point tmp_par2 = old_loop_cvs[kj]->parameterCurve()->point(end_t);
-		Point tmp_sf1 = sf.ParamSurface::point(tmp_par1[0],tmp_par1[1]);
-		Point tmp_sf2 = sf.ParamSurface::point(tmp_par2[0],tmp_par2[1]);
-		int stop_break;
-		stop_break = 1;
+		// Point tmp_pos1 = sub_cvs[0]->point(end_t);
+		// Point tmp_pos2 = sub_cvs[1]->point(end_t);
+		// Point tmp_par1 = old_loop_cvs[kj-1]->parameterCurve()->point(end_t);
+		// Point tmp_par2 = old_loop_cvs[kj]->parameterCurve()->point(end_t);
+		// Point tmp_sf1 = sf.ParamSurface::point(tmp_par1[0],tmp_par1[1]);
+		// Point tmp_sf2 = sf.ParamSurface::point(tmp_par2[0],tmp_par2[1]);
+		// int stop_break;
+		// stop_break = 1;
 		
 		// shared_ptr<ParamCurve> sub1
 		//     (old_loop_cvs[kj]->subCurve(old_loop_cvs[kj]->startparam(), end_t));
@@ -1980,7 +2012,7 @@ BoundedUtils::getIntersectionCurve(shared_ptr<ParamSurface>& sf1,
     int status = 0;
     int ki;
     //double march_eps = std::min(0.01,100.0*epsgeo); //0.01;
-    double march_eps = 0.75*epsgeo; //std::min(0.001,10.0*epsgeo); //0.01;
+    double march_eps = /*0.75**/epsgeo; //std::min(0.001,10.0*epsgeo); //0.01;
     //double march_eps = std::min(0.0005,5.0*epsgeo); //0.01;
     s1859(sisl_sf1, sisl_sf2, epsco, epsgeo, &nmb_int_pts,
 	  &pointpar1, &pointpar2, &nmb_int_cvs, &intcurves, &status);

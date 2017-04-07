@@ -37,7 +37,7 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-//#define DEBUG_REG
+#define DEBUG_REG
 
 #include "GoTools/compositemodel/RegularizeUtils.h"
 #include "GoTools/geometry/BoundedUtils.h"
@@ -674,6 +674,7 @@ RegularizeUtils::createFaces(vector<shared_ptr<BoundedSurface> >& sub_sfs,
 	shared_ptr<ftSurface>(new ftSurface(sub_sfs[kj], -1));
       curr->setBody(face->getBody());
       (void)curr->createInitialEdges(epsge, angtol/*, true*/);
+      //(void)curr->createInitialEdges(tol2, angtol/*, true*/);
 
       // Check if any non-corner vertices belongs to the new face
       double frac = 0.001;
@@ -2221,19 +2222,21 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
   double t2 = edges1[1]->parAtVertex(vx1.get());
   tan[0] = edges1[0]->tangent(t1);
   tan[1] = edges1[1]->tangent(t2);
-  // if (edges1[0]->tMax() - t1 < t1 - edges1[0]->tMin())
-  //   tan[0] *= -1;
-  // else						
-  //   tan[1] *= -1;
+  if (edges1[0]->tMax() - t1 > t1 - edges1[0]->tMin())
+    tan[0] *= -1;
+  if (edges1[1]->tMax() - t2 > t2 - edges1[1]->tMin())
+    tan[1] *= -1;
+  Point invec1 = getInVec(vx1, face);
 
   double t3 = edges2[0]->parAtVertex(vx2.get());
   double t4 = edges2[1]->parAtVertex(vx2.get());
   tan[2] = edges2[0]->tangent(t3);
   tan[3] = edges2[1]->tangent(t4);
-  // if (edges2[0]->tMax() - t3 < t3 - edges2[0]->tMin())
-  //   tan[2] *= -1;
-  // else						
-  //   tan[3] *= -1;
+  if (edges2[0]->tMax() - t3 > t3 - edges2[0]->tMin())
+    tan[2] *= -1;
+  if (edges2[1]->tMax() - t4 > t4 - edges2[1]->tMin())
+    tan[3] *= -1;
+  Point invec2 = getInVec(vx2, face);
 
   // Project into the parameter domain
   Point par1 = vx1->getFacePar(face.get());
@@ -2250,7 +2253,7 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
   int ki;
   vector<Point> ptan(4);
   int dim = surf->dimension();
-  double coef1, coef2;
+  double coef1, coef2; 
   for (ki=0; ki<2; ++ki)
     {
       CoonsPatchGen::blendcoef(&sf_der1[1][0], &sf_der1[2][0], &tan[ki][0], dim, 1, 
@@ -2263,6 +2266,13 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
 			       &coef1, &coef2);
       ptan[2+ki] = Point(coef1, coef2);
     }
+  double coef3, coef4;
+  CoonsPatchGen::blendcoef(&sf_der1[1][0], &sf_der1[2][0], &invec1[0], dim, 1, 
+			   &coef3, &coef4);
+  Point invecp1(coef3, coef4);
+  CoonsPatchGen::blendcoef(&sf_der2[1][0], &sf_der2[2][0], &invec2[0], dim, 1, 
+			   &coef3, &coef4);
+  Point invecp2(coef3, coef4);
 
   // Vector of stright curve in the parameter domain
   Point vec = par2 - par1;
@@ -2270,12 +2280,14 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
   // Check if this vector is well within the sector defined by the tangents in the
   // parameter domain
   double ang1 = ptan[0].angle(ptan[1]);
+  ang1 = std::min(ang1, fabs(M_PI-ang1));
   double ang2 = ptan[0].angle(vec);
   ang2 = std::min(ang2, fabs(M_PI-ang2));
   double ang3 = ptan[1].angle(vec);
   ang3 = std::min(ang3, fabs(M_PI-ang3));
 
   double ang4 = ptan[2].angle(ptan[3]);
+  ang4 = std::min(ang4, fabs(M_PI-ang4));
   double ang5 = ptan[2].angle(vec);
   ang5 = std::min(ang5, fabs(M_PI-ang5));
   double ang6 = ptan[3].angle(vec);
@@ -2285,7 +2297,8 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
   double fac = 0.9;
   Point d1(0.0, 0.0), d2(0.0, 0.0);
   
-  if (ang1 < angtol && std::max(ang2, ang3) < angtol)
+  if (ang1 < angtol && 
+      (std::max(ang2, ang3) < angtol || vec*invecp1 < 0.0))
     {
       make_pcrv = true;
       d1[0] = -ptan[0][1];
@@ -2311,7 +2324,8 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
       d1 = (1.0-fac2)*d1 + fac2*tmp;
     }
 
-  if (ang4 < angtol && std::max(ang5, ang6) < angtol)
+  if (ang4 < angtol && 
+      (std::max(ang5, ang6) < angtol || vec*invecp2 > 0.0))
     {
       make_pcrv = true;
       d2[0] = -ptan[2][1];

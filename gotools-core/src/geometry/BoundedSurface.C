@@ -3230,6 +3230,54 @@ bool BoundedSurface::isPlanar(Point& normal, double tol)
 }
 
 //===========================================================================
+void BoundedSurface::estimateSfSize(double& u_size, double& v_size, int u_nmb,
+				    int v_nmb) const
+//===========================================================================
+{
+  if (nmb_size_u_ >= u_nmb && nmb_size_v_ >= v_nmb)
+    {
+      u_size = est_sf_size_u_;
+      v_size = est_sf_size_v_;
+    }
+  else
+    {
+      RectDomain dom = containingDomain();
+      double del_u = (dom.umax() - dom.umin())/(double)(u_nmb-1);
+      double del_v = (dom.vmax() - dom.vmin())/(double)(v_nmb-1);
+      double u_par, v_par;
+
+      int ki;
+      u_size = v_size = 0.0;
+      for (ki=0, v_par=dom.vmin(); ki<v_nmb; ++ki, v_par+=del_v)
+	{
+	  vector<shared_ptr<ParamCurve> > cvs = 
+	    constParamCurves(v_par, true);
+	  double len = 0.0;
+	  for (size_t kj=0; kj<cvs.size(); ++kj)
+	    len += cvs[kj]->estimatedCurveLength();
+	  v_size += len;
+	}
+      v_size /= (double)v_nmb;
+
+       for (ki=0, u_par=dom.umin(); ki<u_nmb; ++ki, u_par+=del_u)
+	{
+	  vector<shared_ptr<ParamCurve> > cvs = 
+	    constParamCurves(u_par, false);
+	  double len = 0.0;
+	  for (size_t kj=0; kj<cvs.size(); ++kj)
+	    len += cvs[kj]->estimatedCurveLength();
+	  u_size += len;
+	}
+      u_size /= (double)u_nmb;
+
+      est_sf_size_u_ = u_size;
+      est_sf_size_v_ = v_size;
+      nmb_size_u_ = u_nmb;
+      nmb_size_v_ = v_nmb;
+   }
+}
+
+//===========================================================================
 bool BoundedSurface::isLinear(Point& dir1, Point& dir2, double tol)
 //===========================================================================
 {

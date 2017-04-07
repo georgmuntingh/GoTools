@@ -41,7 +41,7 @@
 #include "GoTools/geometry/SplineCurve.h"
 #include <fstream>
 
-//#define DEBUG
+#define DEBUG
 
 using std::vector;
 

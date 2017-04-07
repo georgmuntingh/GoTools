@@ -106,6 +106,8 @@ namespace Go
     bool checkIsoPar(shared_ptr<ParamSurface> surf,
 		     shared_ptr<ParamVolume> vol,
 		     int pardir, double parval, double tol);
+
+    void repairShell(int degree);
   };
 } // namespace Go
 

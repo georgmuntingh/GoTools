@@ -37,8 +37,8 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-//#define DEBUG_VOL
-//#define DEBUG
+#define DEBUG_VOL
+#define DEBUG
 
 #include "GoTools/trivariatemodel/ftVolumeTools.h"
 #include "GoTools/trivariatemodel/ftVolume.h"
@@ -49,6 +49,7 @@
 #include "GoTools/geometry/GoIntersections.h"
 #include "GoTools/geometry/ClosestPoint.h"
 #include "GoTools/trivariate/ParamVolume.h"
+#include "GoTools/trivariate/SplineVolume.h"
 #include "GoTools/trivariate/SurfaceOnVolume.h"
 #include "GoTools/compositemodel/ftSurface.h"
 #include "GoTools/compositemodel/Body.h"
@@ -778,9 +779,12 @@ ftVolumeTools::splitElement(shared_ptr<ParamVolume>& elem_vol,
   // risky in itself.
   size_t nmb_elem = elem_faces.size();
   vector<shared_ptr<SurfaceModel> > shells = trim_vol->getAllShells();
+  if (shells.size() == 0)
+    return result;   // No splitting faces
   vector<shared_ptr<ftSurface> > faces;
   vector<vector<shared_ptr<CurveOnSurface> > > all_int_cvs1(nmb_elem);
   vector<shared_ptr<ParamSurface> > sfs1(nmb_elem);
+  tpTolerances toptol = shells[0]->getTolerances();
   for (size_t ki=0; ki<shells.size(); ++ki)
     {
       int nmb = shells[ki]->nmbEntities();
@@ -818,7 +822,7 @@ ftVolumeTools::splitElement(shared_ptr<ParamVolume>& elem_vol,
 		  vector<shared_ptr<CurveOnSurface> > int_cvs;
 		  shared_ptr<BoundedSurface> bd_sf;
 		  projectTrimCurves(elem_faces[kr], curr_face, eps,
-				    int_cvs, bd_sf);
+				    toptol.neighbour, int_cvs, bd_sf);
 		  if (int_cvs.size() > 0)
 		    {
 		      all_int_cvs1[kr].insert(all_int_cvs1[kr].end(), int_cvs.begin(),
@@ -938,6 +942,62 @@ ftVolumeTools::splitElement(shared_ptr<ParamVolume>& elem_vol,
     }
 #endif
 
+  // Identify intersection/projection curves being coincident with element 
+  // edges
+  shared_ptr<SplineVolume> spline_vol = 
+    dynamic_pointer_cast<SplineVolume,ParamVolume>(elem_vol);
+  vector<shared_ptr<SplineCurve> > bd_cvs = spline_vol->getBoundaryCurves();
+#ifdef DEBUG
+  std::ofstream of3("vol_bd_cvs.g2");
+  for (size_t ki=0; ki<bd_cvs.size(); ++ki)
+    {
+      bd_cvs[ki]->writeStandardHeader(of3);
+      bd_cvs[ki]->write(of3);
+    }
+#endif
+  bool modified = checkCoincCurves(bd_cvs, all_int_cvs1, all_int_cvs2, 
+				   toptol.neighbour);
+
+#ifdef DEBUG
+  std::ofstream of0_2("intcurves2.g2");
+  for (size_t ki=0; ki<nmb_elem; ++ki)
+    {
+      for (size_t km=0; km<all_int_cvs1[ki].size(); ++km)
+	{
+	  shared_ptr<ParamCurve> tmpcv = all_int_cvs1[ki][km]->spaceCurve();
+	  tmpcv->writeStandardHeader(of0_2);
+	  tmpcv->write(of0_2);
+	}
+    }
+  for (size_t ki=0; ki<nmb_trim; ++ki)
+    {
+      for (size_t km=0; km<all_int_cvs2[ki].size(); ++km)
+	{
+	  shared_ptr<ParamCurve> tmpcv = all_int_cvs2[ki][km]->spaceCurve();
+	  tmpcv->writeStandardHeader(of0_2);
+	  tmpcv->write(of0_2);
+	}
+    }
+  std::ofstream of01_2("parcurves2.g2");
+  for (size_t ki=0; ki<nmb_elem; ++ki)
+    {
+      for (size_t km=0; km<all_int_cvs1[ki].size(); ++km)
+	{
+	  shared_ptr<ParamCurve> tmpcv = all_int_cvs1[ki][km]->parameterCurve();
+	  tmpcv->writeStandardHeader(of01_2);
+	  tmpcv->write(of01_2);
+	}
+    }
+  for (size_t ki=0; ki<nmb_trim; ++ki)
+    {
+      for (size_t km=0; km<all_int_cvs2[ki].size(); ++km)
+	{
+	  shared_ptr<ParamCurve> tmpcv = all_int_cvs2[ki][km]->parameterCurve();
+	  tmpcv->writeStandardHeader(of01_2);
+	  tmpcv->write(of01_2);
+	}
+    }
+#endif
   // Make trimmed surfaces and sort trimmed and non-trimmed surfaces according
   // to whether they are inside or outside the trimming shell
   // NB! Must probably be updated when voids are included in the model
@@ -951,13 +1011,14 @@ ftVolumeTools::splitElement(shared_ptr<ParamVolume>& elem_vol,
     if (!sfs2[kr].get())
       sfs2[kr] = faces[kr]->surface();
 
-  tpTolerances toptol = shells[0]->getTolerances();
   shared_ptr<SurfaceModel> elem_shell(new SurfaceModel(elem_faces, eps));
   shared_ptr<ftVolume> elem_vol2(new ftVolume(elem_vol, elem_shell, -1));
   vector<vector<shared_ptr<ParamSurface> > > split_groups(4);
   SurfaceModelUtils::sortTrimmedSurfaces(all_int_cvs1, sfs1, elem_vol2.get(), 
 					 all_int_cvs2, sfs2, 
-					 trim_vol, eps, toptol.bend,
+					 trim_vol, 
+					 modified ? toptol.neighbour : eps, 
+					 toptol.bend,
 					 split_groups);
 					 
 
@@ -1004,22 +1065,74 @@ ftVolumeTools::splitElement(shared_ptr<ParamVolume>& elem_vol,
   vector<int> inside;
   if (split_groups[0].size() > 0)
     {
-      shared_ptr<SurfaceModel> mod(new SurfaceModel(toptol.gap, toptol.gap,
-						    toptol.neighbour,
-						    toptol.kink, toptol.bend,
-						    split_groups[0]));
-      surf_mod.push_back(mod);
-      inside.push_back(1);
+      // Estimate minimum surface size
+      double min_len = HUGE;
+      for (size_t ki=0; ki<split_groups[0].size(); ++ki)
+	{
+	  double len_u, len_v;
+	  split_groups[0][ki]->estimateSfSize(len_u, len_v);
+	  min_len = std::min(min_len, std::min(len_u, len_v));
+	}
+      double gap = toptol.gap;
+      double neighbour = toptol.neighbour;
+      if (min_len < neighbour)
+	{
+	  neighbour = 0.9*min_len;
+	  gap = std::min(gap, 0.5*neighbour);
+	}
+      shared_ptr<SurfaceModel> mod;
+      bool failed = false;
+      try {
+	mod = shared_ptr<SurfaceModel>(new SurfaceModel(toptol.gap, gap,
+							neighbour,
+							toptol.kink, toptol.bend,
+							split_groups[0]));
+      }
+      catch (...)
+	{
+	  failed = true;
+	}
+      if (!failed)
+	{
+	  surf_mod.push_back(mod);
+	  inside.push_back(1);
+	}
     }
 
   if (split_groups[1].size() > 0)
     {
-      shared_ptr<SurfaceModel> mod(new SurfaceModel(toptol.gap, toptol.gap,
-						    toptol.neighbour,
-						    toptol.kink, toptol.bend,
-						    split_groups[1]));
-      surf_mod.push_back(mod);
-      inside.push_back(0);
+      // Estimate minimum surface size
+      double min_len = HUGE;
+      for (size_t ki=0; ki<split_groups[1].size(); ++ki)
+	{
+	  double len_u, len_v;
+	  split_groups[1][ki]->estimateSfSize(len_u, len_v);
+	  min_len = std::min(min_len, std::min(len_u, len_v));
+	}
+      double gap = toptol.gap;
+      double neighbour = toptol.neighbour;
+      if (min_len < neighbour)
+	{
+	  neighbour = 0.9*min_len;
+	  gap = std::min(gap, 0.5*neighbour);
+	}
+      shared_ptr<SurfaceModel> mod;
+      bool failed = false;
+      try {
+	mod = shared_ptr<SurfaceModel>(new SurfaceModel(toptol.gap, gap,
+							neighbour,
+							toptol.kink, toptol.bend,
+							split_groups[1]));
+      }
+      catch (...)
+	{
+	  failed = true;
+	}
+      if (!failed)
+	{
+	  surf_mod.push_back(mod);
+	  inside.push_back(0);
+	}
     }
 
   // Separate surface models into connected sets and make 
@@ -1418,7 +1531,8 @@ ftVolumeTools::boundaryStatus(ftVolume* vol,
 // 
 void
 ftVolumeTools::projectTrimCurves(shared_ptr<ftSurface> face1,
-				 shared_ptr<ftSurface> face2, double eps,
+				 shared_ptr<ftSurface> face2, 
+				 double eps, double eps2,
 				 vector<shared_ptr<CurveOnSurface> >& proj_cvs,
 				 shared_ptr<BoundedSurface>& bd_sf1)
 //===========================================================================
@@ -1441,8 +1555,10 @@ ftVolumeTools::projectTrimCurves(shared_ptr<ftSurface> face1,
 
   // Restrict the boundary/trimming curves of face2 with respect to the
   // domain of face1
-  double eps2 = 20.0*eps;
-  double ptol = 1.0e-8;
+  Point pareps1 = SurfaceTools::getParEpsilon(*surf1, eps);
+  Point pareps2 = SurfaceTools::getParEpsilon(*surf2, eps);
+  double ptol = std::max(eps, std::max(0.5*(pareps1[0]+pareps1[1]),
+				       0.5*(pareps2[0]+pareps2[1])));
   for (size_t ki=0; ki<loops2.size(); ++ki)
     {
       int nmb2 = loops2[ki].size();
@@ -1510,11 +1626,154 @@ ftVolumeTools::projectTrimCurves(shared_ptr<ftSurface> face1,
 										  dummy_start,
 										  dummy_end,
 										  eps));
-		  shared_ptr<CurveOnSurface> sf_cv(new CurveOnSurface(under, par_cv, true));
-		  (void)sf_cv->ensureSpaceCrvExistence(eps);
-		  proj_cvs.push_back(sf_cv);
+		  if (sub_cv->estimatedCurveLength() > eps2 &&
+		      par_cv->estimatedCurveLength() > ptol)
+		    {
+		      shared_ptr<CurveOnSurface> sf_cv(new CurveOnSurface(under, par_cv, true));
+		      (void)sf_cv->ensureSpaceCrvExistence(eps);
+		      proj_cvs.push_back(sf_cv);
+		    }
 		}
 	    }
 	}
     }
+}
+
+//===========================================================================
+// 
+// 
+bool
+ftVolumeTools::checkCoincCurves(vector<shared_ptr<SplineCurve> >& bd_cvs,
+				vector<vector<shared_ptr<CurveOnSurface> > >& int_cvs1,
+				vector<vector<shared_ptr<CurveOnSurface> > >& int_cvs2,
+				double tol)
+//===========================================================================
+{
+#ifdef DEBUG
+  std::ofstream of1("coinc1.g2");
+  std::ofstream of2("coinc2.g2");
+#endif
+  bool modified = false;
+  double ptol = 1.0e-8;
+  Identity ident;
+  for (size_t ki=0; ki<bd_cvs.size(); ++ki)
+    {
+      double t1 = bd_cvs[ki]->startparam();
+      double t2 = bd_cvs[ki]->endparam();
+      for (size_t kj=0; kj<int_cvs1.size(); ++kj)
+	for (size_t kr=0; kr<int_cvs1[kj].size();)
+	  {
+	    // Check for identical end points
+	    double t3 = int_cvs1[kj][kr]->startparam();
+	    double t4 = int_cvs1[kj][kr]->endparam();
+	    Point pos3 = int_cvs1[kj][kr]->ParamCurve::point(t3);
+	    Point pos4 = int_cvs1[kj][kr]->ParamCurve::point(t4);
+
+	    double ct1, ct2, cd1, cd2;
+	    Point cpt1, cpt2;
+	    bd_cvs[ki]->closestPoint(pos3, t1, t2, ct1, cpt1, cd1);
+	    bd_cvs[ki]->closestPoint(pos4, t1, t2, ct2, cpt2, cd2);
+	    double start, end;
+	    if (cd1 < tol && cd2 < tol && fabs(ct2-ct1) > ptol)
+	      {
+		start = std::min(ct1, ct2);
+		end = std::max(ct1, ct2);
+	      }
+	    else
+	      {
+		++kr;
+		continue;
+	      }
+	    
+	    int coinc = ident.identicalCvs(bd_cvs[ki], start, end,
+					   int_cvs1[kj][kr],
+					   t3, t4, tol);
+	  if (coinc > 0)
+	    {
+#ifdef DEBUG
+	      shared_ptr<ParamCurve> tmpcv = int_cvs1[kj][kr]->spaceCurve();
+	      tmpcv->writeStandardHeader(of1);
+	      tmpcv->write(of1);
+#endif
+
+	      // Remove or replace
+	      modified = true;
+	      shared_ptr<ParamCurve> sub_bd(bd_cvs[ki]->subCurve(start, end));
+	      double len = sub_bd->estimatedCurveLength();
+	      if (len < tol)
+		int_cvs1[kj].erase(int_cvs1[kj].begin()+kr);
+	      else
+		{
+		  if (ct1 > ct2)
+		    sub_bd->reverseParameterDirection();
+		  shared_ptr<CurveOnSurface> tmp_cv(new CurveOnSurface(int_cvs1[kj][kr]->underlyingSurface(),
+								       sub_bd,
+								       false));
+		  tmp_cv->ensureParCrvExistence(tol);
+		  int_cvs1[kj][kr] = tmp_cv;
+		  ++kr;
+		}
+	    }
+	  else
+	    ++kr;
+	  }
+ 	      
+      for (size_t kj=0; kj<int_cvs2.size(); ++kj)
+	for (size_t kr=0; kr<int_cvs2[kj].size();)
+	  {
+	    // Check for identical end points
+	    double t3 = int_cvs2[kj][kr]->startparam();
+	    double t4 = int_cvs2[kj][kr]->endparam();
+	    Point pos3 = int_cvs2[kj][kr]->ParamCurve::point(t3);
+	    Point pos4 = int_cvs2[kj][kr]->ParamCurve::point(t4);
+
+	    double ct1, ct2, cd1, cd2;
+	    Point cpt1, cpt2;
+	    bd_cvs[ki]->closestPoint(pos3, t1, t2, ct1, cpt1, cd1);
+	    bd_cvs[ki]->closestPoint(pos4, t1, t2, ct2, cpt2, cd2);
+	    double start, end;
+	    if (cd1 < tol && cd2 < tol && fabs(ct2-ct1) > ptol)
+	      {
+		start = std::min(ct1, ct2);
+		end = std::max(ct1, ct2);
+	      }
+	    else
+	      {
+		++kr;
+		continue;
+	      }
+	    
+	    int coinc = ident.identicalCvs(bd_cvs[ki], start, end,
+					   int_cvs2[kj][kr],
+					   t3, t4, tol);
+	  if (coinc > 0)
+	    {
+#ifdef DEBUG
+	      shared_ptr<ParamCurve> tmpcv = int_cvs2[kj][kr]->spaceCurve();
+	      tmpcv->writeStandardHeader(of2);
+	      tmpcv->write(of2);
+#endif
+	      // Remove or replace
+	      modified = true;
+	      shared_ptr<ParamCurve> sub_bd(bd_cvs[ki]->subCurve(start, end));
+	      double len = sub_bd->estimatedCurveLength();
+	      if (len < tol)
+		int_cvs2[kj].erase(int_cvs2[kj].begin()+kr);
+	      else
+		{
+		  if (ct1 > ct2)
+		    sub_bd->reverseParameterDirection();
+		  shared_ptr<CurveOnSurface> tmp_cv(new CurveOnSurface(int_cvs2[kj][kr]->underlyingSurface(),
+								       sub_bd,
+								       false));
+		  tmp_cv->ensureParCrvExistence(tol);
+		  int_cvs2[kj][kr] = tmp_cv;
+		  ++kr;
+		}
+	    }
+	  else
+	    ++kr;
+ 	}
+    }
+  return modified;
 }

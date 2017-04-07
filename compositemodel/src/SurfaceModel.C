@@ -1275,9 +1275,9 @@ void SurfaceModel::swapFaces(int idx1, int idx2)
 	  e0->getConnectivityInfo();
 	for (size_t kj=0; kj<info->status_.size(); kj++)
 	{
-	    if (info->status_[kj] == 2)
+	    if (info->status_[kj] == 2 || info->status_[kj] == 3)
 	    {
-		// A gap is found. Collect information
+		// A corner or is found. Collect information
 		ftEdge* curr_edge = e0->geomEdge();
 		if (curr_edge)
 		    corners.push_back(curr_edge);

@@ -94,8 +94,6 @@ int main(int argc, char* argv[] )
   bool isOK = sfmodel->checkShellTopology();
   std::cout << "Shell topology: " << isOK << std::endl;
 
-  sfmodel->simplifyShell();
-
   CreateTrimVolume trim(sfmodel);
 
   shared_ptr<ftVolume> vol = trim.fetchOneTrimVol();

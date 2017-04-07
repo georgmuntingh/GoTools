@@ -1257,6 +1257,42 @@ vector<shared_ptr<ParamCurve> >  CurveOnSurface::split(double param,
 }
 
 //===========================================================================
+bool CurveOnSurface::replaceEndPoint(Point pnt, bool at_start, double eps)
+//===========================================================================
+{
+  if (pcurve_->instanceType() != Class_SplineCurve ||
+      spacecurve_->instanceType() != Class_SplineCurve)
+    return false;
+  
+  // Fetch parameter value corresponding to the given position
+  Point guess;
+  double *seed = NULL;
+  if (pcurve_.get())
+    {
+      guess = pcurve_->point(at_start ? pcurve_->startparam() :
+			     pcurve_->endparam());
+      seed = guess.begin();
+    }
+    
+  double upar, vpar, dist;
+  Point close;
+  RectDomain dom = surface_->containingDomain();
+  surface_->closestPoint(pnt, upar, vpar, close, dist, eps,
+			 &dom, seed);
+
+  // Update
+  shared_ptr<SplineCurve> space =
+    dynamic_pointer_cast<SplineCurve,ParamCurve>(spacecurve_);
+  space->replaceEndPoint(pnt, at_start);
+      
+  shared_ptr<SplineCurve> pcv =
+    dynamic_pointer_cast<SplineCurve,ParamCurve>(pcurve_);
+  pcv->replaceEndPoint(Point(upar,vpar), at_start);
+
+  return true;
+}
+
+//===========================================================================
 bool CurveOnSurface::ensureParCrvExistence(double epsgeo,
 					   const RectDomain* domain_of_interest,
 					   const Point* start_par_pt,

@@ -252,6 +252,11 @@ int main( int argc, char* argv[] )
 	    {
 	      if (!is_inside[kj])
 		continue;
+	      if (sub_elem[kj]->getOuterShell()->nmbBoundaries() > 0)
+		{
+		  std::cout << "Open shell. Check" << std::endl;
+		  continue;  
+		}
 
 	      bool regular = sub_elem[kj]->isRegularized(true);
 	      std::cout << "Sub element nr " << kj+1 << ": " << regular << std::endl;

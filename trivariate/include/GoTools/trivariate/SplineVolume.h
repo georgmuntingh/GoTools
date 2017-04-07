@@ -678,6 +678,10 @@ public:
     std::vector<shared_ptr<SplineSurface> > 
 	getBoundarySurfaces(bool do_clear = false) const;
 
+    /// Fetch all 12 boundary curves
+    std::vector<shared_ptr<SplineCurve> > 
+	getBoundaryCurves() const;
+
     /// Fetch one boundary surface
     shared_ptr<SplineSurface> getBoundarySurface(int idx,
 						 bool do_clear = false) const
