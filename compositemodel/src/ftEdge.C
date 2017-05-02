@@ -527,7 +527,7 @@ void ftEdge::closestPoint(const Point& pt,
     std::cout << "Split3. Radial edge missing" << std::endl;
 #endif
 
-    return newedge;
+   return newedge;
 }
 
 //===========================================================================

@@ -367,7 +367,12 @@ public:
     shared_ptr<ParamCurve> parameterCurve()
       { return pcurve_; }
 
-    /// Get a shared pointer to the space curve
+    bool hasSpaceCurve() const
+    {
+      return (spacecurve_.get());
+    }
+
+     /// Get a shared pointer to the space curve
     /// \return a shared pointer to the space curve.
     shared_ptr<ParamCurve> spaceCurve()
     { return spacecurve_; }
@@ -376,6 +381,11 @@ public:
     /// \return a const-pointer to the underlying surface
     shared_ptr<const ParamSurface> underlyingSurface() const
     { return surface_; }
+
+    bool hasParameterCurve() const
+    {
+      return (pcurve_.get());
+    }
 
     /// Get a constant, shared pointer to the curve in the parameter domain.
     /// \return a const-pointer to the curve in the parameter domain.

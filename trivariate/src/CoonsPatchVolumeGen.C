@@ -46,7 +46,7 @@
 #include <iterator>
 #include <fstream>
 
-//#define DEBUG
+#define DEBUG
 
 using namespace Go;
 using std::vector;
@@ -695,15 +695,15 @@ SplineVolume* Go::CoonsPatchVolumeGen::createCoonsPatch(const SplineSurface* sur
 #endif
 
       // Adapt surface to fit with identify corners
-      int xs[7][4] = {{0,1,2,3}, {2,3,0,1}, {1,0,3,2}, {0,2,1,3}, {2,0,3,1}, {3,2,1,0}, {1,3,0,2}};
+      int xs[8][4] = {{0,1,2,3}, {2,3,0,1}, {1,0,3,2}, {0,2,1,3}, {2,0,3,1}, {3,2,1,0}, {1,3,0,2}, {3,1,2,0}};
       for (kr=0; kr<6; ++kr)
 	{
 	  // if (kr == par || kr == par+1)
 	  //   continue;   // Already treated
 
-	  double dist[7];
-	  dist[0] = dist[1] = dist[2] = dist[3] = dist[4] = dist[5] = dist[6] = 0.0;
-	  for (ki=0; ki<7; ++ki)
+	  double dist[8];
+	  dist[0] = dist[1] = dist[2] = dist[3] = dist[4] = dist[5] = dist[6] = dist[7] = 0.0;
+	  for (ki=0; ki<8; ++ki)
 	    {
 	      for (kj=0; kj<4; ++kj)
 		{
@@ -714,7 +714,7 @@ SplineVolume* Go::CoonsPatchVolumeGen::createCoonsPatch(const SplineSurface* sur
 	  // Find minimum accumulated distance between corners
 	  double mindist = dist[0];
 	  int minind = 0;
-	  for (ki=1; ki<7; ++ki)
+	  for (ki=1; ki<8; ++ki)
 	    {
 	      if (dist[ki] < mindist)
 		{
@@ -742,6 +742,12 @@ SplineVolume* Go::CoonsPatchVolumeGen::createCoonsPatch(const SplineSurface* sur
 	    {
 	      sfs[kr]->reverseParameterDirection(false);
 	      sfs[kr]->swapParameterDirection();
+	    }
+	  else if (minind == 7)
+	    {
+	      sfs[kr]->reverseParameterDirection(true);
+	      sfs[kr]->swapParameterDirection();
+	      sfs[kr]->reverseParameterDirection(true);
 	    }
 	  get_corners(sfs[kr], sf_pts[kr]);
 	  int stop_break = 1;

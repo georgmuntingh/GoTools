@@ -65,12 +65,12 @@ CurveLoop::CurveLoop()
 
 //===========================================================================
 CurveLoop::CurveLoop(const std::vector< shared_ptr<ParamCurve> >& curves,
-		     double space_epsilon)
+		     double space_epsilon, bool allow_fix)
     : valid_state_(0)
 //===========================================================================
 {
     setSpaceEpsilon(space_epsilon);
-    setCurves(curves);
+    setCurves(curves, allow_fix);
 }
 
 
@@ -95,7 +95,8 @@ void CurveLoop::swap(CurveLoop& other)
 
 //===========================================================================
 void
-CurveLoop::setCurves(const std::vector<shared_ptr<ParamCurve> >& curves)
+CurveLoop::setCurves(const std::vector<shared_ptr<ParamCurve> >& curves,
+		     bool allow_fix)
 //===========================================================================
 {
     if (curves.empty()) {
@@ -147,9 +148,7 @@ CurveLoop::setCurves(const std::vector<shared_ptr<ParamCurve> >& curves)
     curves_ = curves;
 
     // Try to fix
-    // if (false)
-    //   {
-    if (valid_state_ < 0)
+    if (valid_state_ < 0 && allow_fix)
       {
 	fixInvalidLoop(maxdist);
 	if (maxdist <= space_epsilon_)
@@ -158,8 +157,6 @@ CurveLoop::setCurves(const std::vector<shared_ptr<ParamCurve> >& curves)
 	    MESSAGE("Loop fixed");
 	  }
       }
-    // }
-
 }
 
 

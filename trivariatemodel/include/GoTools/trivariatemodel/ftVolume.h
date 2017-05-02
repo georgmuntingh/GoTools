@@ -50,6 +50,7 @@ namespace Go
 {
 
   class ParamCurve;
+  class BoundedSurface;
 
   /// Struct to store information about adjacency relations between two bodies
   struct VolumeAdjacencyInfo
@@ -364,6 +365,8 @@ namespace Go
     void 
       updateBoundaryInfo();
 
+    void removeSliverFaces(double len_tol);
+
     void splitElementByTrimSfs(int elem_ix, double eps,
 			       std::vector<shared_ptr<ftVolume> >& sub_elem,
 			       std::vector<int>& is_inside);
@@ -523,6 +526,15 @@ namespace Go
 				 std::vector<shared_ptr<ftSurface> >& face2) const;
 
    shared_ptr<ftEdge> splitEdge(shared_ptr<ftEdge> edge, double par) const;
+
+   bool removeSliver1(shared_ptr<ftSurface> face, 
+		      std::vector<shared_ptr<ftEdge> >& edg, 
+		      int ix1, int ix2, double tol,
+		      std::vector<shared_ptr<ParamSurface> >& mod_sfs);
+
+   shared_ptr<BoundedSurface> replaceBdCvs(shared_ptr<BoundedSurface> surf,
+					   std::vector<shared_ptr<ParamCurve> >& bd_cvs,
+					   double tol);
 
    // This class inherits SurfaceOnVolume and overrules the point evaluator
    // to return the volume parameter value corresponding to a point on

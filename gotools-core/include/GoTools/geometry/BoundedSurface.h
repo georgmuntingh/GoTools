@@ -691,6 +691,10 @@ public:
     virtual void estimateSfSize(double& u_size, double& v_size, int u_nmb = 5,
 				int v_nmb = 5) const;
 
+    virtual void estimateSfSize(double& u_size, double& min_u, double& max_u, 
+				double& v_size, double& min_v, double& max_v,
+				int u_nmb = 5, int v_nmb = 5) const;
+
     /// Return associated elementary surface, if any
     virtual ElementarySurface* elementarySurface()
     {

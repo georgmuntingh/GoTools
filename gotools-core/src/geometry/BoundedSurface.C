@@ -251,8 +251,9 @@ constructor_implementation(shared_ptr<ParamSurface> surf,
 	    }
 	    curves.push_back(loops[j][i]);
 	}
-	boundary_loops_.push_back(
-	    shared_ptr<CurveLoop>(new CurveLoop(curves, space_epsilons[j])));
+	boundary_loops_.push_back(shared_ptr<CurveLoop>(new CurveLoop(curves, 
+								      space_epsilons[j],
+								      fix_trim_cvs)));
     }
 
     if (fix_trim_cvs)
@@ -846,7 +847,8 @@ std::vector<CurveLoop> BoundedSurface::allBoundaryLoops(double degenerate_epsilo
 		curves.push_back(loop[i]);
 	}
 	if (curves.size() > 0)
-	  clvec.push_back(CurveLoop(curves, loop.getSpaceEpsilon()));
+	  clvec.push_back(CurveLoop(curves, loop.getSpaceEpsilon(),
+				    false));
     }
     return clvec;
 }
@@ -3275,6 +3277,48 @@ void BoundedSurface::estimateSfSize(double& u_size, double& v_size, int u_nmb,
       nmb_size_u_ = u_nmb;
       nmb_size_v_ = v_nmb;
    }
+}
+
+//===========================================================================
+void BoundedSurface::estimateSfSize(double& u_size, double& min_u, 
+				    double& max_u, double& v_size, 
+				    double& min_v, double& max_v,
+				    int u_nmb, int v_nmb) const
+//===========================================================================
+{
+  RectDomain dom = containingDomain();
+  double del_u = (dom.umax() - dom.umin())/(double)(u_nmb-1);
+  double del_v = (dom.vmax() - dom.vmin())/(double)(v_nmb-1);
+  double u_par, v_par;
+
+  int ki;
+  u_size = v_size = max_u = max_v = 0.0;
+  min_u = min_v = HUGE;
+  for (ki=0, v_par=dom.vmin(); ki<v_nmb; ++ki, v_par+=del_v)
+    {
+      vector<shared_ptr<ParamCurve> > cvs = 
+	constParamCurves(v_par, true);
+      double len = 0.0;
+      for (size_t kj=0; kj<cvs.size(); ++kj)
+	len += cvs[kj]->estimatedCurveLength();
+      v_size += len;
+      min_v = std::min(min_v, len);
+      max_v = std::max(max_v, len);
+    }
+  v_size /= (double)v_nmb;
+
+  for (ki=0, u_par=dom.umin(); ki<u_nmb; ++ki, u_par+=del_u)
+    {
+      vector<shared_ptr<ParamCurve> > cvs = 
+	constParamCurves(u_par, false);
+      double len = 0.0;
+      for (size_t kj=0; kj<cvs.size(); ++kj)
+	len += cvs[kj]->estimatedCurveLength();
+      u_size += len;
+      min_u = std::min(min_u, len);
+      max_u = std::max(max_u, len);
+    }
+  u_size /= (double)u_nmb;
 }
 
 //===========================================================================

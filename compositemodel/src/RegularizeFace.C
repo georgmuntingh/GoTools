@@ -375,9 +375,11 @@ void RegularizeFace::splitInTJoints()
 	      if (faces.size() > 0 &&
 		  !(faces.size() == 1 && faces[0].get() == face_.get()))
 		{
+		  int nmb_bd0 = model_->nmbBoundaries();
 		  model_->removeFace(face_);
 		  sub_faces_.erase(sub_faces_.begin()+ki);
 		  model_->append(faces, false, false);
+		  int nmb_bd = model_->nmbBoundaries();
 		  sub_faces_.insert(sub_faces_.end(), faces.begin(), faces.end());
 		  changed = true;
 		}
@@ -2136,6 +2138,7 @@ RegularizeFace::faceOuterBdFaces(vector<vector<ftEdge*> >& half_holes)
 void RegularizeFace::faceOuterBd(vector<vector<ftEdge*> >& half_holes)
 //==========================================================================
 {
+  model_->checkShellTopology();
   vector<shared_ptr<ftSurface> > subfaces = faceOuterBdFaces(half_holes);
 
 #ifdef DEBUG_REG
@@ -2155,8 +2158,12 @@ void RegularizeFace::faceOuterBd(vector<vector<ftEdge*> >& half_holes)
   int nmb_faces = (int)subfaces.size();
   if (nmb_faces > 1)
     {
+      int nmb_bd0 = model_->nmbBoundaries();
       model_->removeFace(face_);
+      model_->checkShellTopology();
       model_->append(subfaces, false, false);
+      model_->checkShellTopology();
+      int nmb_bd = model_->nmbBoundaries();
       for (int ki=0; ki<nmb_faces; )
 	{
 	  RegularizeFace regularize(subfaces[ki], model_);

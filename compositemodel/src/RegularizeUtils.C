@@ -2308,6 +2308,8 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
       tmp.normalize();
      if (tmp*vec < 0)
 	tmp *= -1;
+     if (d1*invecp1 < 0.0)
+       d1 *= -1;
       double fac2 = 0.5;
       d1 = (1.0-fac2)*d1 + fac*tmp;
     }
@@ -2335,6 +2337,8 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
       tmp.normalize();
       if (tmp*vec < 0)
 	tmp *= -1;
+      if (d2*invecp2 < 0.0)
+	d2 *= -1;
       double fac2 = 0.5;
       d2 = (1.0-fac2)*d2 + fac2*tmp;
     }

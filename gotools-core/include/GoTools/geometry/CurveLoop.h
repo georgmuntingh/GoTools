@@ -124,7 +124,7 @@ public:
     /// \param space_epsilon the given tolerance for defining coincidence between
     ///                      start/end points on curves.
     CurveLoop(const std::vector< shared_ptr<ParamCurve> >& curves,
-	      double space_epsilon);
+	      double space_epsilon, bool allow_fix=true);
 
     /// Virtual destructor allows safe inheritance
     virtual ~CurveLoop();
@@ -141,7 +141,8 @@ public:
     ///        the end point on the last curve).  Moreover, it is expected that
     ///        all curves are of the same type, and that they all lie in the 
     ///        same space (ie. have the same dimension).
-    void setCurves(const std::vector< shared_ptr<ParamCurve> >& curves);
+    void setCurves(const std::vector< shared_ptr<ParamCurve> >& curves,
+		   bool allow_fix=true);
 
     /// Reverse the direction of all curves and their mutual order.
     void turnOrientation();

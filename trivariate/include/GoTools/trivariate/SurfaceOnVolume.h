@@ -441,6 +441,11 @@ namespace Go
     /// are coincident but not identical
     int whichBoundary(double tol, int& orientation, bool& swap) const;
 
+    bool atBoundary() const
+    {
+      return (at_bd_ >= 0);
+    }
+
     /// Volume parameter corresponding to surface parameter
     Point volumeParameter(double u_par, double v_par) const;
 

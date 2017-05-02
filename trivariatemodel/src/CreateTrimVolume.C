@@ -128,9 +128,14 @@ shared_ptr<ftVolume> CreateTrimVolume::fetchOneTrimVol()
   vol->write(of7);
 #endif
 
-  // // Insert knots at iso-parametric sharp edges between trimming faces
-  // refineInSharpEdges(vol);
+  // Reparameterize volume to match geometry
+  double u_len, v_len, w_len;
+  vol->estimateVolSize(u_len, v_len, w_len, 3, 3, 3);
+  SplineVolume *vol2 = vol->asSplineVolume();
+  vol2->setParameterDomain(0.0, u_len, 0.0, v_len, 0.0, w_len);
 
+  // // Insert knots at iso-parametric sharp edges between trimming faces
+  refineInSharpEdges(vol);
 
   // Trim volume with the remaining faces
   shared_ptr<ftVolume> trimvol = createTrimVolume(vol, side_sfs);
@@ -1206,8 +1211,10 @@ CreateTrimVolume::refineInSharpEdges(shared_ptr<ParamVolume>& vol)
 
   // For each underlying curve, check if it follows an iso-parametric curve
   // in the volume
-  double ptol = 1.0e-8;
-  double eps = model_->getTolerances().gap;
+  double eps = model_->getTolerances().neighbour;
+  double angtol1 = model_->getTolerances().kink;
+  double angtol2 = model_->getTolerances().bend;
+  double ptol = eps; //1.0e-8;
   double fac = 1000.0;
   vector<vector<double> > nknot(3);
   vector<vector<double> > edglen(3);
@@ -1222,10 +1229,17 @@ CreateTrimVolume::refineInSharpEdges(shared_ptr<ParamVolume>& vol)
       int nmb = (int)(len/(fac*eps));
       nmb = std::min(50, std::max(5, nmb));
 
+      ftEdgeBase *twin = sharp_edg[ki]->twin();
+
       // Evaluate curve start point
       double t1 = sharp_edg[ki]->tMin();
       double t2 = sharp_edg[ki]->tMax();
       Point pos1 = sharp_edg[ki]->point(t1);
+      Point norm1_1 = sharp_edg[ki]->normal(t1);
+      double close_t1, close_dist1;
+      Point close1;
+      twin->closestPoint(pos1, close_t1, close1, close_dist1);
+      Point norm1_2 = twin->normal(close_t1);
 
       // Find volume parameter
       double par1[3];
@@ -1233,17 +1247,39 @@ CreateTrimVolume::refineInSharpEdges(shared_ptr<ParamVolume>& vol)
       Point clo1;
       vol->closestPoint(pos1, par1[0], par1[1], par1[2], clo1, d1, eps);
 
-      // Check equality
+      vector<Point> vol_pt1(4);
+      vol->point(vol_pt1, par1[0], par1[1], par1[2], 1);
+
+     // Check equality
       double del = (t2 - t1)/(double)(nmb-1);
       double tpar = t1 + del;
       bool isEqual[3];
       isEqual[0] = isEqual[1] = isEqual[2] = true;
+
       double accpar[3];
+      double ang3 = norm1_1.angle(norm1_2);
       for (int kr=0; kr<3; ++kr)
-	accpar[kr] = par1[kr];
+	{
+	  double ang1 = norm1_1.angle(vol_pt1[kr+1]);
+	  ang1 = std::min(ang1, M_PI-ang1);
+	  double ang2 = norm1_2.angle(vol_pt1[kr+1]);
+	  ang2 = std::min(ang1, M_PI-ang2);
+	  if (ang1 < angtol2 || ang2 < angtol2 ||
+	      ((fabs(0.5*M_PI-ang1) < angtol2 || fabs(0.5*M_PI-ang2) < angtol2) && 
+	       ang3 > angtol2))
+	    isEqual[kr] = false;
+	  accpar[kr] = par1[kr];
+	}
+
       for (int kj=1; kj<nmb; ++kj, tpar+=del)
 	{
 	  Point pos2 = sharp_edg[ki]->point(tpar);
+
+	  Point norm2_1 = sharp_edg[ki]->normal(tpar);
+	  double close_t2, close_dist2;
+	  Point close2;
+	  twin->closestPoint(pos2, close_t2, close2, close_dist2);
+	  Point norm2_2 = twin->normal(close_t2);
 
 	  // Find volume parameter
 	  double par2[3];
@@ -1251,9 +1287,20 @@ CreateTrimVolume::refineInSharpEdges(shared_ptr<ParamVolume>& vol)
 	  Point clo2;
 	  vol->closestPoint(pos2, par2[0], par2[1], par2[2], clo2, d2, eps);
 
+	  vector<Point> vol_pt2(4);
+	  vol->point(vol_pt2, par2[0], par2[1], par2[2], 1);
+
+	  double ang3_2 = norm2_1.angle(norm2_2);
 	  for (int kr=0; kr<3; ++kr)
 	    {
-	      if (fabs(par1[kr] - par2[kr]) >= ptol)
+	      double ang1 = norm2_1.angle(vol_pt2[kr+1]);
+	      ang1 = std::min(ang1, M_PI-ang1);
+	      double ang2 = norm2_2.angle(vol_pt2[kr+1]);
+	      ang2 = std::min(ang1, M_PI-ang2);
+	      if (fabs(par1[kr] - par2[kr]) >= ptol || 
+		  ang1 < angtol2 || ang2 < angtol2 ||
+		  ((fabs(0.5*M_PI-ang1) < angtol2 || fabs(0.5*M_PI-ang2) < angtol2) && 
+		   ang3_2 > angtol2))
 		isEqual[kr] = false;   // Use of geometric tolerance may be questional
 	      else
 		accpar[kr] += par2[kr];
@@ -1454,91 +1501,95 @@ void CreateTrimVolume::repairShell(int degree)
   // that compose a four sided domain by one large surface
   SurfaceModelUtils::simplifySurfaceModel(model_, degree);
 
-  // Regenerate trimming curves to reduce gaps between surfaces
-  // First identify occurances
-  vector<shared_ptr<ftEdge> > gap_edges = model_->getUniqueInnerEdges();
-  //model_->getGaps(gap_edges);
-
-  // Make sure that the corresponding vertex positions are updated
-  std::set<shared_ptr<Vertex> > vertices;
-  for (size_t ki=0; ki<gap_edges.size(); ++ki)
+  bool gap_trim = false;
+  if (gap_trim)
     {
-      shared_ptr<Vertex>  vx1, vx2;
-      gap_edges[ki]->getVertices(vx1, vx2);
-      vertices.insert(vertices.end(), vx1);
-      vertices.insert(vertices.end(), vx2);
-    }
+      // Regenerate trimming curves to reduce gaps between surfaces
+      // First identify occurances
+      vector<shared_ptr<ftEdge> > gap_edges = model_->getUniqueInnerEdges();
+      //model_->getGaps(gap_edges);
 
-  std::set<shared_ptr<Vertex> >::iterator it = vertices.begin();
-  while (it != vertices.end())
-    {
-      (*it)->updateVertexPos(epsge);
-      ++it;
-    }
+      // Make sure that the corresponding vertex positions are updated
+      std::set<shared_ptr<Vertex> > vertices;
+      for (size_t ki=0; ki<gap_edges.size(); ++ki)
+	{
+	  shared_ptr<Vertex>  vx1, vx2;
+	  gap_edges[ki]->getVertices(vx1, vx2);
+	  vertices.insert(vertices.end(), vx1);
+	  vertices.insert(vertices.end(), vx2);
+	}
+
+      std::set<shared_ptr<Vertex> >::iterator it = vertices.begin();
+      while (it != vertices.end())
+	{
+	  (*it)->updateVertexPos(epsge);
+	  ++it;
+	}
   
-  // Update trimming curves
-  for (size_t ki=0; ki<gap_edges.size(); ++ki)
-    {
-      // Fetch the related faces
-      ftSurface *face1 = gap_edges[ki]->face()->asFtSurface();
-      ftSurface *face2 = gap_edges[ki]->twin()->face()->asFtSurface();
-
-      if (!(face1 && face2))
-	continue;   // This should not happen. Cannot mend gaps
-
-      // Check edge curves
-      ftEdge* e1g = gap_edges[ki].get();
-      ftEdge* e2g = gap_edges[ki]->twin()->geomEdge();
-      shared_ptr<CurveOnSurface> sfcv1 =
-	dynamic_pointer_cast<CurveOnSurface, ParamCurve>
-	(e1g->geomCurve());
-      shared_ptr<CurveOnSurface> sfcv2 =
-	dynamic_pointer_cast<CurveOnSurface, ParamCurve>
-	(e2g->geomCurve());
-      if (!(sfcv1.get() && sfcv2.get()))
-	continue;
-
-      bool same1 = sfcv1->sameCurve(epsge);
-      bool same2 = sfcv2->sameCurve(epsge);
-      shared_ptr<FaceConnectivity<ftEdgeBase> > info = 
-	gap_edges[ki]->getConnectivityInfo();
-      int kj=-1;
-      if (info.get())
+      // Update trimming curves
+      for (size_t ki=0; ki<gap_edges.size(); ++ki)
 	{
-	  for (kj=0; kj<info->status_.size(); ++kj)
-	    if (info->status_[kj] >= 3)
-	      break;
-	}
-      if (same1 && same2 && info.get() && info.get() && 
-	  kj >= info->status_.size())
-	continue;
+	  // Fetch the related faces
+	  ftSurface *face1 = gap_edges[ki]->face()->asFtSurface();
+	  ftSurface *face2 = gap_edges[ki]->twin()->face()->asFtSurface();
 
-      // Check if both faces are trimmed. In that case a better positioning
-      // of the trim curve may remove the gap
-      shared_ptr<BoundedSurface> bd1 = 
-	dynamic_pointer_cast<BoundedSurface, ParamSurface>(face1->surface());
-      shared_ptr<BoundedSurface> bd2 = 
-	dynamic_pointer_cast<BoundedSurface, ParamSurface>(face2->surface());
+	  if (!(face1 && face2))
+	    continue;   // This should not happen. Cannot mend gaps
 
-      if (!(bd1.get() && bd2.get()))
-	{
-	  continue;   // Not handled 
-	}
+	  // Check edge curves
+	  ftEdge* e1g = gap_edges[ki].get();
+	  ftEdge* e2g = gap_edges[ki]->twin()->geomEdge();
+	  shared_ptr<CurveOnSurface> sfcv1 =
+	    dynamic_pointer_cast<CurveOnSurface, ParamCurve>
+	    (e1g->geomCurve());
+	  shared_ptr<CurveOnSurface> sfcv2 =
+	    dynamic_pointer_cast<CurveOnSurface, ParamCurve>
+	    (e2g->geomCurve());
+	  if (!(sfcv1.get() && sfcv2.get()))
+	    continue;
+
+	  bool same1 = sfcv1->sameCurve(epsge);
+	  bool same2 = sfcv2->sameCurve(epsge);
+	  shared_ptr<FaceConnectivity<ftEdgeBase> > info = 
+	    gap_edges[ki]->getConnectivityInfo();
+	  int kj=-1;
+	  if (info.get())
+	    {
+	      for (kj=0; kj<info->status_.size(); ++kj)
+		if (info->status_[kj] >= 3)
+		  break;
+	    }
+	  if (same1 && same2 && info.get() && info.get() && 
+	      kj >= info->status_.size())
+	    continue;
+
+	  // Check if both faces are trimmed. In that case a better positioning
+	  // of the trim curve may remove the gap
+	  shared_ptr<BoundedSurface> bd1 = 
+	    dynamic_pointer_cast<BoundedSurface, ParamSurface>(face1->surface());
+	  shared_ptr<BoundedSurface> bd2 = 
+	    dynamic_pointer_cast<BoundedSurface, ParamSurface>(face2->surface());
+
+	  if (!(bd1.get() && bd2.get()))
+	    {
+	      continue;   // Not handled 
+	    }
 #ifdef DEBUG
-      std::ofstream of("gap_sfs.g2");
-      bd1->writeStandardHeader(of);
-      bd1->write(of);
-      bd2->writeStandardHeader(of);
-      bd2->write(of);
+	  std::ofstream of("gap_sfs.g2");
+	  bd1->writeStandardHeader(of);
+	  bd1->write(of);
+	  bd2->writeStandardHeader(of);
+	  bd2->write(of);
 #endif
 
-      Point vertex1 = e1g->getVertex(true)->getVertexPoint();
-      Point vertex2 = e1g->getVertex(false)->getVertexPoint();
-      double max_gap = 
-	GapRemoval::removeGapTrim(sfcv1, e1g->tMin(), e1g->tMax(),
-				  sfcv2, e2g->tMin(), e2g->tMax(),
-				  vertex1, vertex2, epsge);
-      int stop_break = 1;
+	  Point vertex1 = e1g->getVertex(true)->getVertexPoint();
+	  Point vertex2 = e1g->getVertex(false)->getVertexPoint();
+	  double max_gap = 
+	    GapRemoval::removeGapTrim(sfcv1, e1g->tMin(), e1g->tMax(),
+				      sfcv2, e2g->tMin(), e2g->tMax(),
+				      vertex1, vertex2, epsge);
+	  int stop_break = 1;
+	}
     }
    
 }

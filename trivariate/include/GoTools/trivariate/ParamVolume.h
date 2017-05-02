@@ -206,6 +206,10 @@ public:
 
       /// Translate
     virtual void translate(const Point& vec) = 0;
+
+    /// Estimate volume size in each parameter direction
+    void estimateVolSize(double& u_size, double& v_size, double& w_size,
+			 int u_nmb=5, int v_nmb=5, int w_nmb=5);
 };
 
 

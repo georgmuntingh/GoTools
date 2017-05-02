@@ -475,6 +475,10 @@ public:
     virtual void estimateSfSize(double& u_size, double& v_size, int u_nmb = 5,
 				int v_nmb = 5) const;
 
+    virtual void estimateSfSize(double& u_size, double& min_u, double& max_u, 
+				double& v_size, double& min_v, double& max_v,
+				int u_nmb = 5, int v_nmb = 5) const;
+
    /// Check if a polynomial element (for spline surfaces) intersects the
     /// (trimming) boundaries of this surface
     /// \param elem_ix: Element index counted according to distinct knot

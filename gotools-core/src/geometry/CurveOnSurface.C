@@ -1134,8 +1134,10 @@ vector<shared_ptr<ParamCurve> >  CurveOnSurface::split(double param,
 {
   double ang_tol = 0.05;  // A rather arbitrary angular tolerance
   vector<shared_ptr<ParamCurve> > pcvs(2);
+  vector<shared_ptr<ParamCurve> > pcvs_copy(2);
   vector<shared_ptr<ParamCurve> > spacecvs(2);
   int nmb_replace_param = 0;
+  double sf_dist = 1.0e-4;  // A wild guess
 
   if (prefer_parameter_ && pcurve_.get() != 0) 
     {
@@ -1184,7 +1186,7 @@ vector<shared_ptr<ParamCurve> >  CurveOnSurface::split(double param,
 	  Point space = spacecurve_->point(param);
 	  Point seed = pcurve_->point(param);
 
-	  double par_u, par_v, sf_dist;
+	  double par_u, par_v;
 	  Point sf_pt;
 	  surface_->closestPoint(space, par_u, par_v,
 				 sf_pt, sf_dist, fuzzy,
@@ -1201,6 +1203,7 @@ vector<shared_ptr<ParamCurve> >  CurveOnSurface::split(double param,
 	      // to ensure correspondance in the split point
 	      vector<Point> p1(2), p2(2);
 	      tmp_par->point(p1, tmp_par->endparam(), 1);
+	      pcvs_copy[0] = shared_ptr<ParamCurve>(pcvs[0]->clone());
 	      tmp_par->replaceEndPoint(Point(par_u, par_v), false);
 
 	      // Check consistence of tangent
@@ -1221,6 +1224,7 @@ vector<shared_ptr<ParamCurve> >  CurveOnSurface::split(double param,
 	      // to ensure correspondance in the split point
 	      vector<Point> p1(2), p2(2);
 	      tmp_par->point(p1, tmp_par->startparam(), 1);
+	      pcvs_copy[1] = shared_ptr<ParamCurve>(pcvs[1]->clone());
 	      tmp_par->replaceEndPoint(Point(par_u, par_v), true);
 
 	      // Check consistence of tangent
@@ -1242,14 +1246,20 @@ vector<shared_ptr<ParamCurve> >  CurveOnSurface::split(double param,
   for (int ki=0; ki<2; ++ki)
     {
       if (nmb_replace_param == 1)
-	pcvs[ki] = dummy;  // Something wrong
-      sub_cvs[ki] = 
-	shared_ptr<ParamCurve>(new CurveOnSurface(surface_,pcvs[ki],
-						  spacecvs[ki], 
-						  prefer_parameter_,
-						  ccm_, constdir_,
-						  constval_, at_bd_,
-						  same_orientation_));
+	pcvs[ki].reset();  // Inconsistence in split point. Use original curve
+      shared_ptr<CurveOnSurface> sf_cv_tmp(new CurveOnSurface(surface_,pcvs[ki],
+							      spacecvs[ki], 
+							      prefer_parameter_,
+							      ccm_, constdir_,
+							      constval_, at_bd_,
+							      same_orientation_));
+      if (!pcvs[ki].get())
+	{
+	  sf_cv_tmp->ensureParCrvExistence(2.0*sf_dist);
+	  if (!sf_cv_tmp->hasParameterCurve())
+	    sf_cv_tmp->setParameterCurve(pcvs_copy[ki]);
+	}
+      sub_cvs[ki] = sf_cv_tmp; 
     }
       
 

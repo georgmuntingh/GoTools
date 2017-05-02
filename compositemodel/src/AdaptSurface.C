@@ -940,7 +940,13 @@ namespace Go
     // Preparatory computations
     // Get estimated length of surface sides
     double len_u, len_v;
+    try {
     surf->estimateSfSize(len_u, len_v);
+    }
+    catch (...)
+      {
+	len_u = len_v = 1.0;
+      }
 
     int cv_dir = 0;
     int pt_dir = 1;

@@ -198,7 +198,13 @@ public:
 		while(!finished) {
 		  en[0] = e[0]->next();
 		  en[1] = e[1]->next();
-		  if (e[0]->boundingBox().overlaps(e[1]->boundingBox(),
+		  if (e[0]->twin() && e[0]->twin() == e[1] &&
+		      e[1]->twin() && e[1]->twin() == e[0])
+		    {
+		      // Already tested in the context of edge split
+		      ;
+		    }
+		  else if (e[0]->boundingBox().overlaps(e[1]->boundingBox(),
 						   tol_.neighbour)) {
 #ifdef DEBUG
 		  std::ofstream debug("top_debug.g2");
@@ -515,6 +521,11 @@ public:
 		{
 		  kj++;
 		  continue;  // Same edge
+		}
+	      if (edges[kj]->face() == edges[ki]->face())
+		{
+		  ++kj;
+		  continue;  
 		}
 
 	      if (boxes[kj].overlaps(boxes[ki], tol_.neighbour))

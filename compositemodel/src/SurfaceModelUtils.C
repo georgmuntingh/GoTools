@@ -1524,15 +1524,15 @@ SurfaceModelUtils::sortTrimmedSurfaces(vector<vector<shared_ptr<CurveOnSurface> 
 	      if (inside)
 		{
 		  groups[0].push_back(trim_sfs[kr]);
-		  if (fabs(pt_dist) < eps && M_PI-ang < angtol)
-		    groups[1].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
+		  // if (fabs(pt_dist) < eps && M_PI-ang < angtol)
+		  //   groups[1].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
 		}
 			      
 	      else
 		{
 		  groups[1].push_back(trim_sfs[kr]);
-		  if (fabs(pt_dist) < eps && ang < angtol)
-		    groups[0].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
+		  // if (fabs(pt_dist) < eps && ang < angtol)
+		  //   groups[0].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
 		}
 	    }
 	}
@@ -1625,14 +1625,14 @@ SurfaceModelUtils::sortTrimmedSurfaces(vector<vector<shared_ptr<CurveOnSurface> 
 	      if (inside)
 		{
 		  groups[2].push_back(trim_sfs[kr]);
-		  if (fabs(pt_dist) < eps && M_PI-ang < angtol)
-		    groups[3].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
+		  // if (fabs(pt_dist) < eps && M_PI-ang < angtol)
+		  //   groups[3].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
 		}			      
 	      else
 		{
 		  groups[3].push_back(trim_sfs[kr]);
-		  if (fabs(pt_dist) < eps && ang < angtol)
-		    groups[2].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
+		  // if (fabs(pt_dist) < eps && ang < angtol)
+		  //   groups[2].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
 		}
 	    }
 	}

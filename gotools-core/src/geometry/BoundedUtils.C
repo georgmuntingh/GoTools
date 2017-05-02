@@ -48,6 +48,7 @@
 #include "GoTools/geometry/SplineUtils.h"
 #include "GoTools/geometry/LineCloud.h"
 #include "GoTools/utils/Values.h"
+#include "GoTools/utils/DirectionCone.h"
 #include "GoTools/geometry/CurveOnSurface.h"
 #include "GoTools/geometry/GeometryTools.h"
 #include "GoTools/geometry/SplineDebugUtils.h"
@@ -1450,6 +1451,21 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 	  shared_ptr<SplineCurve>(part_bd_cvs[ki]->geometryCurve());
 	tmp1->write(out1);
       }
+    std::ofstream out1_2("loop_cvs_par.g2");
+    for (ki=0; ki<(int)old_loop_cvs.size(); ++ki)
+      {
+	out1_2 << "100 1 0 4 255 0 0 255" << std::endl;
+	shared_ptr<ParamCurve> tmp1 = 
+	  shared_ptr<ParamCurve>(old_loop_cvs[ki]->parameterCurve());
+	tmp1->write(out1_2);
+      }
+    for (ki=0; ki<(int)part_bd_cvs.size(); ++ki)
+      {
+	out1_2 << "100 1 0 4 0 255 0 255" << std::endl;
+	shared_ptr<ParamCurve> tmp1 = 
+	  shared_ptr<ParamCurve>(part_bd_cvs[ki]->parameterCurve());
+	tmp1->write(out1_2);
+      }
 #endif // DEBUG1
 
     if (part_bd_cvs.size() == 0)
@@ -2245,7 +2261,9 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
 	opp_dir = true;
     }
 
-	 // We run through the parallell vectors extracting parts lying on sf.
+    // We run through the parallell vectors extracting parts lying on sf.
+    double fac = 1.5;
+    double angtol = 0.1;
     vector<shared_ptr<CurveOnSurface> > new_cvs1, new_cvs2; //(cvs2.size());
     for (ki = 0; ki < int(cvs1.size()); ++ki) {
       // First make sure that the parameteriazation of geometry curves and
@@ -2256,13 +2274,35 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
 	{
 	  if (cvs1[ki]->parPref())
 	    {
+	      shared_ptr<ParamCurve> tmp_cv = cvs1[ki]->spaceCurve();
 	      cvs1[ki]->unsetSpaceCurve();
 	      cvs1[ki]->ensureSpaceCrvExistence(epsge);
+	      DirectionCone cone1 = tmp_cv->directionCone();
+	      DirectionCone cone2 = cvs1[ki]->spaceCurve()->directionCone();
+	      if (cone2.greaterThanPi() ||
+		  (cone2.angle() > fac*cone1.angle() && cone2.angle() > angtol))
+		{
+#ifdef DEBUG
+		  std::cout << "Check curve" << std::endl;
+#endif
+		  cvs1[ki]->setSpaceCurve(tmp_cv);
+		}
 	    }
 	  else
 	    {
+	      shared_ptr<ParamCurve> tmp_cv = cvs1[ki]->parameterCurve();
 	      cvs1[ki]->unsetParameterCurve();
 	      cvs1[ki]->ensureParCrvExistence(epsge);
+	      DirectionCone cone1 = tmp_cv->directionCone();
+	      DirectionCone cone2 = cvs1[ki]->parameterCurve()->directionCone();
+	      if (cone2.greaterThanPi() ||
+		  (cone2.angle() > fac*cone1.angle() && cone2.angle() > angtol))
+		{
+#ifdef DEBUG
+		  std::cout << "Check curve" << std::endl;
+#endif
+		  cvs1[ki]->setParameterCurve(tmp_cv);
+		}
 	    }
 	}
 	vector<shared_ptr<CurveOnSurface> > new_cvs = 
@@ -2276,13 +2316,35 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
 	{
 	  if (cvs2[other_ind]->parPref())
 	    {
+	      shared_ptr<ParamCurve> tmp_cv = cvs2[other_ind]->spaceCurve();
 	      cvs2[other_ind]->unsetSpaceCurve();
 	      cvs2[other_ind]->ensureSpaceCrvExistence(epsge);
+	      DirectionCone cone1 = tmp_cv->directionCone();
+	      DirectionCone cone2 = cvs2[other_ind]->spaceCurve()->directionCone();
+	      if (cone2.greaterThanPi() ||
+		  (cone2.angle() > fac*cone1.angle() && cone2.angle() > angtol))
+		{
+#ifdef DEBUG
+		  std::cout << "Check curve" << std::endl;
+#endif
+		  cvs2[other_ind]->setSpaceCurve(tmp_cv);
+		}
 	    }
 	  else
 	    {
+	      shared_ptr<ParamCurve> tmp_cv = cvs2[other_ind]->parameterCurve();
 	      cvs2[other_ind]->unsetParameterCurve();
 	      cvs2[other_ind]->ensureParCrvExistence(epsge);
+	      DirectionCone cone1 = tmp_cv->directionCone();
+	      DirectionCone cone2 = cvs1[ki]->parameterCurve()->directionCone();
+	      if (cone2.greaterThanPi() ||
+		  (cone2.angle() > fac*cone1.angle() && cone2.angle() > angtol))
+		{
+#ifdef DEBUG
+		  std::cout << "Check curve" << std::endl;
+#endif
+		  cvs2[other_ind]->setParameterCurve(tmp_cv);
+		}
 	    }
 	}
 	new_cvs = intersectWithSurface(*cvs2[other_ind], *bd_sf2, 0.1*epsge);

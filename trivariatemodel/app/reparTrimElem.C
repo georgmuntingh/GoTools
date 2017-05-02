@@ -254,6 +254,15 @@ int main( int argc, char* argv[] )
 		continue;
 	      if (sub_elem[kj]->getOuterShell()->nmbBoundaries() > 0)
 		{
+		  std::ofstream of9("tmp9.g2");
+		  shared_ptr<SurfaceModel> mod = sub_elem[kj]->getOuterShell();
+		  int nmb = mod->nmbEntities();
+		  for (int kr=0; kr<nmb; ++kr)
+		    {
+		      shared_ptr<ParamSurface> sf = mod->getSurface(kr);
+		      sf->writeStandardHeader(of9);
+		      sf->write(of9);
+		    }
 		  std::cout << "Open shell. Check" << std::endl;
 		  continue;  
 		}

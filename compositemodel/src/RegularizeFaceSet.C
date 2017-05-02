@@ -1039,7 +1039,8 @@ RegularizeFaceSet::divideInTjoint(shared_ptr<ftSurface>& face,
 						model_->getTolerances().neighbour,
 						model_->getTolerances().kink,
 						model_->getTolerances().bend,
-						non_corner, dummy, dummy);
+						non_corner, dummy, dummy,
+						true);
 	  if (faces.size() > 1)
 	    break;  // T-joints resolved
 	  else
@@ -1074,7 +1075,58 @@ RegularizeFaceSet::selectCandidateSplit(shared_ptr<ftSurface> face,
       size_t kj;
       for (kj=0; kj<other_vx.size(); ++kj)
 	if (vx[ki]->sameEdge(other_vx[kj].get()))
-	  break;
+	  {
+	    // Check face configuration. If there is a face connected to
+	    // the candidate vertex and the other vertex
+	    // which has the same underlying surface as this face, the
+	    // vertex is allowed as a split candidate
+	    vector<ftSurface*> faces1 = select_vx->faces();
+	    vector<ftSurface*> faces2 = vx[ki]->faces();
+	    vector<ftSurface*> faces3 = other_vx[kj]->faces();
+	    for (size_t kr=0; kr<faces2.size();)
+	      {
+		size_t kh;
+		for (kh=0; kh<faces3.size(); ++kh)
+		  if (faces2[kr] == faces3[kh])
+		    break;
+		if (kh == faces3.size())
+		  faces2.erase(faces2.begin()+kr);
+		else
+		  ++kr;
+	      }
+	    for (size_t kr=0; kr<faces2.size(); )
+	      {
+		size_t kh;
+		for (kh=0; kh<faces1.size(); ++kh)
+		  if (faces1[kh] == faces2[kr])
+		    break;
+		if (kh < faces1.size())
+		  faces2.erase(faces2.begin()+kr);
+		else 
+		  ++kr;
+	      }
+	    shared_ptr<ParamSurface> sf1 = face->surface();
+	    shared_ptr<BoundedSurface> bd_sf1 = 
+	      dynamic_pointer_cast<BoundedSurface, ParamSurface>(sf1);
+	    size_t kr;
+	    for (kr=0; kr<faces2.size(); ++kr)
+	      {
+		shared_ptr<ParamSurface> sf2 = faces2[kr]->surface();
+		shared_ptr<BoundedSurface> bd_sf2 = 
+		  dynamic_pointer_cast<BoundedSurface, ParamSurface>(sf2);
+		if (bd_sf1.get() && bd_sf2.get() &&
+		    bd_sf1->underlyingSurface().get() == bd_sf2->underlyingSurface().get())
+		  {
+		    // Check if the adjacent face has three corners
+		    vector<shared_ptr<Vertex> > corner = 
+		      faces2[kr]->getCornerVertices(model_->getTolerances().bend);
+		    if (corner.size() == 3)
+		      break;
+		  }
+	      }
+	    if (kr == faces2.size())
+	      break;
+	  }
 
       if (kj >= other_vx.size())
 	cand_vx.push_back(vx[ki]);
