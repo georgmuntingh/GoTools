@@ -8617,6 +8617,38 @@ shared_ptr<BoundedSurface> ftVolume::replaceBdCvs(shared_ptr<BoundedSurface> sur
 	      of << start_pos << std::endl;
 	      of << end_pos << std::endl;
 #endif
+
+	      // Check if the start/end curve is too long
+	      double par2, dist2;
+	      Point close2;
+	      if (first_cv)
+		boundary_cvs[ix]->closestPoint(start_pos, boundary_cvs[ix]->startparam(),
+					       boundary_cvs[ix]->endparam(), par2, 
+					       close2, dist2);
+	      else
+		boundary_cvs[0]->closestPoint(end_pos, boundary_cvs[0]->startparam(),
+					      boundary_cvs[0]->endparam(), par2, 
+					      close2, dist2);
+	      double dist3 = (first_cv) ? end_pos.dist(close) : start_pos.dist(close);
+	      if (dist2 < tol && dist3 >= tol)
+		{
+		  // Reduce curve length
+		  if (first_cv)
+		    {
+		      shared_ptr<CurveOnSurface> sub(boundary_cvs[ix]->subCurve(boundary_cvs[ix]->startparam(),
+										par2));
+		      boundary_cvs[ix] = sub;
+		      end_pos = close2;
+		    }
+		  else
+		    {
+		      shared_ptr<CurveOnSurface> sub(boundary_cvs[0]->subCurve(par2,
+									       boundary_cvs[0]->endparam()));
+		      boundary_cvs[0] = sub;
+		      start_pos = close2;
+		    }
+		}
+
 	      if (start_pos.dist(end_pos) < tol)
 		break;
 	    }
