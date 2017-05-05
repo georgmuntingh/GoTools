@@ -1501,6 +1501,24 @@ void ftVolume::removeSliverFaces(double len_tol)
 	  vector<shared_ptr<Vertex> > corners = 
 		  face->getCornerVertices(toptol.bend);
 
+	  vector<ftSurface*> adj_faces;
+	  face->getAdjacentFaces(adj_faces);
+	  vector<vector<shared_ptr<ftEdge> > > edges(adj_faces.size());
+	  vector<double> edges_len(adj_faces.size());
+	  for (size_t ki=0; ki<adj_faces.size(); ++ki)
+	    {
+	      vector<shared_ptr<ftEdge> > tmp_edg = 
+		face->getCommonEdges(adj_faces[ki]);
+	      edges[ki] = tmp_edg;
+	      double len = 0.0;
+	      for (size_t kr=0; kr<edges[ki].size(); ++kr)
+		{
+		  len += edges[ki][kr]->estimatedCurveLength();
+		}
+	      edges_len[ki] = len;
+	    }
+	      
+
 	  // Start simple
 	  if (edg.size() == corners.size() && edg.size() == 4)
 	    {
@@ -2130,7 +2148,7 @@ shared_ptr<ParamVolume> ftVolume::getRegParVol(int degree, bool accept_degen)
   
   if ((shells_[0]->nmbEntities() < 4 && shells_[0]->nmbEntities() > 6) ||
       (accept_degen == false && shells_[0]->nmbEntities() != 6))
-    return false;  // Not regular or trimmed
+    return result;  // Not regular or trimmed
 
 #ifdef DEBUG_VOL1
   bool isOK = shells_[0]->checkShellTopology();
@@ -2143,7 +2161,7 @@ shared_ptr<ParamVolume> ftVolume::getRegParVol(int degree, bool accept_degen)
   vector<std::pair<int,double> > classification(6);
   bool sorted = sortRegularSurfaces(sorted_sfs, classification);
   if (!sorted)
-    return false;  // Sorting failed
+    return result;  // Sorting failed
 
 #ifdef DEBUG_VOL1
   std::ofstream of0("sorted_sfs.g2");

@@ -1245,7 +1245,10 @@ void CompositeModelFileHandler::readFaces(const char* filein)
 
 	      // Check for identity of curves
 	      for (kd=kj+1; kd<curves.size(); ++kd)
-		if (curves[kj].first.get() != curves[kd].first.get())
+		if ((curves[kj].first.get() &&
+		    curves[kj].first.get() != curves[kd].first.get()) ||
+		    (curves[kj].second.get() &&
+		     curves[kj].second.get() != curves[kd].second.get()))
 		  break;   // Assumes parallelity of different curve identificators.
 
 	      for (size_t ka=kj+1; ka<kd; ++ka)
