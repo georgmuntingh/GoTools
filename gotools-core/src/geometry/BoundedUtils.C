@@ -196,6 +196,8 @@ BoundedUtils::intersectWithSurface(CurveOnSurface& curve,
     }
 
     // We extract parts of curve inside trimmed domain.
+    // First mark segments
+    vector<int> int_seg_type(all_int_params.size()-1, -1);
     vector<shared_ptr<CurveOnSurface> > inside_segments;
     shared_ptr<const ParamSurface> under_sf = bounded_surf.underlyingSurface();
     double knot_diff_tol = 0.01*getParEps(epsge, under_sf.get()); // We may not trust pcv to repr space_cv.
@@ -207,9 +209,11 @@ BoundedUtils::intersectWithSurface(CurveOnSurface& curve,
 	Point tmp3 = first_curve->ParamCurve::point(to_par);
 	double len = tmp1.dist(tmp2) + tmp2.dist(tmp3);
 	if (to_par - from_par < knot_diff_tol || len < epsge) {
-	    all_int_params.erase(all_int_params.begin() + j + 1);
-	    --j;
-	    continue;
+	    // all_int_params.erase(all_int_params.begin() + j + 1);
+	    // --j;
+	    // continue;
+	  int_seg_type[j] = 0;  // Short curve
+	  continue;
 	}
 	if (from_par < curve.startparam())
 	  from_par = curve.startparam();
@@ -230,10 +234,88 @@ BoundedUtils::intersectWithSurface(CurveOnSurface& curve,
 	      is_in_domain = false;
 	  }
 	if (is_in_domain)
-	  inside_segments.push_back(shared_ptr<CurveOnSurface>
-				    (dynamic_cast<CurveOnSurface*>
-				     (curve.subCurve(from_par, to_par))));
+	  {
+	    // inside_segments.push_back(shared_ptr<CurveOnSurface>
+	    // 			    (dynamic_cast<CurveOnSurface*>
+	    // 			     (curve.subCurve(from_par, to_par))));
+	    int_seg_type[j] = 2;  // Inside segment
+	  }
+	else
+	  int_seg_type[j] = 1;    // Outside segment
     }
+
+    // Simplify segmentation by joining segments of the same type (inside/outside)
+    for (j=0; j<int(int_seg_type.size()); ++j)
+      {
+	int k;
+	for (k=j+1; k<int(int_seg_type.size()); ++k)
+	  if (int_seg_type[k] != int_seg_type[j])
+	    break;
+	if (k > j+1)
+	  {
+	    // Simplify
+	    int type = int_seg_type[j];
+	    if (int_seg_type[j] == 0)
+	      {
+		// Check if the segment is still small
+		double from_par = all_int_params[j];
+		double to_par = all_int_params[k];
+		Point tmp1 = first_curve->ParamCurve::point(from_par);
+		Point tmp2 = first_curve->ParamCurve::point(0.5*(from_par+to_par));
+		Point tmp3 = first_curve->ParamCurve::point(to_par);
+		double len = tmp1.dist(tmp2) + tmp2.dist(tmp3);
+		if (to_par - from_par > knot_diff_tol && len > epsge) 
+		  {
+		    Point med_pt = first_curve->ParamCurve::point(0.5*(from_par+to_par));
+		    bool is_in_domain = false;
+		    try {
+		      is_in_domain = domain.isInDomain(Vector2D(med_pt[0], med_pt[1]), 
+						       knot_diff_tol);
+		    }
+		    catch (...)
+		      {
+			if (len > 10.0*epsge)
+			  THROW("Could not trim intersection curve with surface boundary");
+			else
+			  is_in_domain = false;
+		      }
+		    type = (is_in_domain) ? 2 : 1;
+		  }
+	      }
+	    else
+	      {
+		all_int_params.erase(all_int_params.begin()+j+1, all_int_params.begin()+k);
+		int_seg_type.erase(int_seg_type.begin()+j+1, int_seg_type.begin()+k);
+	      }
+	    int_seg_type[j] = type;
+	  }
+      }
+
+    for (j=1; j<int(int_seg_type.size()-1); ++j)
+      {
+	if (int_seg_type[j] == 0)
+	  {
+	    if (int_seg_type[j-1] == int_seg_type[j+1])
+	      {
+		// Remove small segment
+		all_int_params.erase(all_int_params.begin()+j, all_int_params.begin()+j+2);
+		int_seg_type.erase(int_seg_type.begin()+j, int_seg_type.begin()+j+1);
+		--j;
+	      }
+	  }
+      }
+
+    // Extract segments
+    for (j=1; j<int(all_int_params.size()); ++j)
+      {
+	if (int_seg_type[j-1] == 2)
+	  {
+	    inside_segments.push_back(shared_ptr<CurveOnSurface>
+				      (dynamic_cast<CurveOnSurface*>
+				       (curve.subCurve(all_int_params[j-1], 
+						       all_int_params[j]))));
+	  }
+      }
 
     return inside_segments;
 }
@@ -2306,7 +2388,7 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
 	    }
 	}
 	vector<shared_ptr<CurveOnSurface> > new_cvs = 
-	  intersectWithSurface(*cvs1[ki], *bd_sf1, 0.1*epsge);
+	  intersectWithSurface(*cvs1[ki], *bd_sf1, /*0.1**/epsge);
 	new_cvs1.insert(new_cvs1.end(), new_cvs.begin(), new_cvs.end());
 	int other_ind = opp_dir ? (int)cvs1.size() - 1 - ki : ki;
 
@@ -2347,7 +2429,7 @@ void BoundedUtils::intersectWithSurfaces(vector<shared_ptr<CurveOnSurface> >& cv
 		}
 	    }
 	}
-	new_cvs = intersectWithSurface(*cvs2[other_ind], *bd_sf2, 0.1*epsge);
+	new_cvs = intersectWithSurface(*cvs2[other_ind], *bd_sf2, /*0.1**/epsge);
 	new_cvs2.insert(new_cvs2.end(), new_cvs.begin(), new_cvs.end());
     }
 

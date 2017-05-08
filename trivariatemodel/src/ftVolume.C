@@ -1571,6 +1571,8 @@ void ftVolume::removeSliverFaces(double len_tol)
 			      shared_ptr<ftSurface> mod_face(new ftSurface(modified_sfs[ki], -1));
 			      shell->append(mod_face, false);
 			    }
+			  nmb = shell->nmbEntities();
+			  --kj;
 			}
 		    }
 		}
