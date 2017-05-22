@@ -1479,80 +1479,126 @@ void ftVolume::removeSliverFaces(double len_tol)
     return;  // Nothing to do
   if (shell->nmbBoundaries() > 0)
     return;  // Expecting a closed shell
+  if (shell->nmbEntities() <= 6)
+    return;
 
   tpTolerances toptol = shell->getTolerances();
 
-  double tol1 = 2.0*len_tol;
-    double tol2 = 10.0*len_tol;
-  int nmb = shell->nmbEntities();
-  // if (nmb <= 6)
-  // 	continue;   // Not prioritized
-  for (int kj=0; kj<nmb; ++kj)
+  double tol1 = 3.0*len_tol;  // Needs further tuning
+  double tol2 = 10.0*len_tol;
+
+  bool changed = true;
+  while (changed)
     {
-      shared_ptr<ftSurface> face = shell->getFace(kj);
-      shared_ptr<ParamSurface> surf = face->surface();
-
-      double len_u, len_v, min_u, max_u, min_v, max_v;
-      surf->estimateSfSize(len_u, min_u, max_u, len_v, min_v, max_v);
-      if (len_u < tol2 || len_v < tol2)
+      changed = false;
+      int nmb = shell->nmbEntities();
+      for (int kj=0; kj<nmb; ++kj)
 	{
-	  // Candidate sliver face
-	  vector<shared_ptr<ftEdge> > edg = face->getAllEdges(0);
-	  vector<shared_ptr<Vertex> > corners = 
-		  face->getCornerVertices(toptol.bend);
+	  shared_ptr<ftSurface> face = shell->getFace(kj);
+	  shared_ptr<ParamSurface> surf = face->surface();
 
-	  vector<ftSurface*> adj_faces;
-	  face->getAdjacentFaces(adj_faces);
-	  vector<vector<shared_ptr<ftEdge> > > edges(adj_faces.size());
-	  vector<double> edges_len(adj_faces.size());
-	  for (size_t ki=0; ki<adj_faces.size(); ++ki)
+	  double len_u, len_v, min_u, max_u, min_v, max_v;
+	  surf->estimateSfSize(len_u, min_u, max_u, len_v, min_v, max_v);
+	  if (len_u < tol2 || len_v < tol2)
 	    {
-	      vector<shared_ptr<ftEdge> > tmp_edg = 
-		face->getCommonEdges(adj_faces[ki]);
-	      edges[ki] = tmp_edg;
-	      double len = 0.0;
-	      for (size_t kr=0; kr<edges[ki].size(); ++kr)
+	      // Candidate sliver face
+	      vector<shared_ptr<ftEdge> > edg = face->getAllEdges(0);
+	      vector<shared_ptr<Vertex> > corners = 
+		      face->getCornerVertices(toptol.bend);
+
+	      vector<ftSurface*> adj_faces;
+	      face->getAdjacentFaces(adj_faces);
+	      vector<vector<shared_ptr<ftEdge> > > edges(adj_faces.size());
+	      vector<double> edges_len(adj_faces.size());
+	      for (size_t ki=0; ki<adj_faces.size(); ++ki)
 		{
-		  len += edges[ki][kr]->estimatedCurveLength();
+		  vector<shared_ptr<ftEdge> > tmp_edg = 
+		    face->getCommonEdges(adj_faces[ki]);
+		  edges[ki] = tmp_edg;
+		  double len = 0.0;
+		  for (size_t kr=0; kr<edges[ki].size(); ++kr)
+		    {
+		      len += edges[ki][kr]->estimatedCurveLength();
+		    }
+		  edges_len[ki] = len;
 		}
-	      edges_len[ki] = len;
-	    }
 	      
 
-	  // Start simple
-	  if (edg.size() == corners.size() && edg.size() == 4)
-	    {
-	      // Compute edge lengths
-	      vector<double> edg_len(edg.size());
-	      for (size_t ki=0; ki<edg.size(); ++ki)
-		edg_len[ki] = edg[ki]->estimatedCurveLength();
-
-	      if ((edg_len[0] < tol1 && edg_len[2] < tol1) ||
-		  (edg_len[1] < tol1 && edg_len[3] < tol1))
+	      // Start simple
+	      if (edg.size() == corners.size() && 
+		  (edg.size() == 3 || edg.size() == 4))
 		{
-		  // Sliver face, check possibility of removal
-		  int ix = (edg_len[0]+edg_len[2] < edg_len[1]+edg_len[3]) ? 1 : 0;
-		  shared_ptr<ParamSurface> sf1 = 
-		    edg[ix]->twin()->face()->asFtSurface()->surface();
-		  shared_ptr<ParamSurface> sf2 = 
-		    edg[ix+2]->twin()->face()->asFtSurface()->surface();
-		  shared_ptr<BoundedSurface> bd_sf1 = 
-		    dynamic_pointer_cast<BoundedSurface,ParamSurface>(sf1);
-		  shared_ptr<BoundedSurface> bd_sf2 = 
-		    dynamic_pointer_cast<BoundedSurface,ParamSurface>(sf2);
-		  shared_ptr<SurfaceOnVolume> vol_sf1 = (bd_sf1.get()) ? 
-		    dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bd_sf1->underlyingSurface()) :
-		    dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(sf1);		  
-		  shared_ptr<SurfaceOnVolume> vol_sf2 = (bd_sf2.get()) ? 
-		    dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bd_sf2->underlyingSurface()) :
-		    dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(sf2);
-		  if (vol_sf1.get() && vol_sf1->atBoundary() &&
-		      vol_sf2.get() && vol_sf2->atBoundary())
+		  // Compute edge lengths
+		  vector<double> edg_len(edg.size());
+		  int nmb_small = 0, nmb_small2 = 0;
+		  int ix1 = -1, ix2 = -1;
+		  for (size_t ki=0; ki<edg.size(); ++ki)
 		    {
-		      // Promising configuration for sliver face removal
+		      edg_len[ki] = edg[ki]->estimatedCurveLength();
+		      if (edg_len[ki] < tol1)
+			nmb_small++;
+		      else if (ix1 < 0)
+			ix1 = (int)ki;
+		      else
+			ix2 = (int)ki;
+		      if (edg_len[ki] < tol2)
+			nmb_small2++;
+		    }
+
+		  ftSurface *adj_face1 = edg[ix1]->twin()->face()->asFtSurface();
+		  ftSurface *adj_face2 = edg[ix2]->twin()->face()->asFtSurface();
+		  bool smooth;
+		  bool is_adjacent = adj_face1->isAdjacent(adj_face2, smooth);
+		  if (nmb_small == (int)edg.size()-2 &&
+		      nmb_small == nmb_small2 &&
+		      !(edg.size() == 4 && ix2-ix1 == 1) &&
+		      !is_adjacent)
+		    // (edg_len[0] < tol1 && edg_len[2] < tol1) ||
+		    // (edg_len[1] < tol1 && edg_len[3] < tol1))
+		    {
+		      // Sliver face, check possibility of removal
+		      shared_ptr<ParamSurface> sf1 = adj_face1->surface();
+		      shared_ptr<ParamSurface> sf2 = adj_face2->surface();
+		      shared_ptr<BoundedSurface> bd_sf1 = 
+			dynamic_pointer_cast<BoundedSurface,ParamSurface>(sf1);
+		      shared_ptr<BoundedSurface> bd_sf2 = 
+			dynamic_pointer_cast<BoundedSurface,ParamSurface>(sf2);
+		      shared_ptr<SurfaceOnVolume> vol_sf1 = (bd_sf1.get()) ? 
+			dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bd_sf1->underlyingSurface()) :
+			dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(sf1);		  
+		      shared_ptr<SurfaceOnVolume> vol_sf2 = (bd_sf2.get()) ? 
+			dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bd_sf2->underlyingSurface()) :
+			dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(sf2);
+#ifdef DEBUG_VOL1
+		      std::ofstream of0("sliver.g2");
+		      shared_ptr<ParamSurface> tmp = face->surface();
+		      tmp->writeStandardHeader(of0);
+		      tmp->write(of0);
+#endif
+		      bool removed;
 		      vector<shared_ptr<ParamSurface> > modified_sfs;
-		      bool removed = removeSliver1(face, edg, ix, ix+2, toptol.gap,
-						   modified_sfs);
+		      if (vol_sf1.get() && vol_sf1->atBoundary() &&
+			  vol_sf2.get() && vol_sf2->atBoundary())
+			{
+			  // Promising configuration for sliver face removal
+			  removed = removeSliver1(face, edg, ix1, ix2, toptol.gap,
+						  modified_sfs);
+			}
+		      else if (vol_sf1.get() && vol_sf2.get() && 
+			       (vol_sf1->atBoundary() || vol_sf2->atBoundary()))
+			{
+			  shared_ptr<ftEdge> not_changed;
+			  removed = removeSliver2(face, edg, ix1, ix2, toptol.gap,
+						  modified_sfs, not_changed);
+			  for (size_t ki=0; ki<edg.size(); ++ki)
+			    {
+			      if (edg[ki].get() == not_changed.get())
+				{
+				  edg.erase(edg.begin()+ki);
+				  break;
+				}
+			    }
+			}
 		      if (removed)
 			{
 			  // Update trimming shell
@@ -1571,13 +1617,32 @@ void ftVolume::removeSliverFaces(double len_tol)
 			      shared_ptr<ftSurface> mod_face(new ftSurface(modified_sfs[ki], -1));
 			      shell->append(mod_face, false);
 			    }
-			  nmb = shell->nmbEntities();
-			  --kj;
+#ifdef DEBUG_VOL1
+			  std::ofstream of("mod_sliver.g2");
+			  vector<shared_ptr<Vertex> > vx;
+
+			  int nmb_face = shell->nmbEntities();
+			  for (int ka=0; ka<nmb_face; ++ka)
+			    {
+			      shared_ptr<ParamSurface> tmp = shell->getSurface(ka);
+			      tmp->writeStandardHeader(of);
+			      tmp->write(of);
+			    }
+			  vector<shared_ptr<Vertex> > tmp_vx;
+			  shell->getAllVertices(tmp_vx);
+			  vx.insert(vx.end(), tmp_vx.begin(), tmp_vx.end());
+			  of << "400 1 0 4 255 0 0 255" << std::endl;
+			  of << vx.size() << std::endl;
+			  for (size_t ki=0; ki<vx.size(); ++ki)
+			    of << vx[ki]->getVertexPoint() << std::endl;
+#endif
+			  changed = true;
+			  break;
 			}
 		    }
 		}
+	      int stop_break = 1;
 	    }
-	  int stop_break = 1;
 	}
     }
 }
@@ -1988,8 +2053,10 @@ bool ftVolume::isRegularized(bool accept_degen) const
 	return false;  // Cannot be approximated by one spline surface
       int nmb_bd = face->nmbOuterBdCrvs(toptol_.gap, toptol_.neighbour,
 					toptol_.bend);
-      if ((nmb_bd != 4 && accept_degen == false) ||
-	  ((nmb > 4 && nmb < 3) && accept_degen))
+      vector<ftSurface*> adj_faces;
+      face->getAdjacentFaces(adj_faces);
+      if (adj_faces.size() > 4 || (nmb_bd != 4 && accept_degen == false) ||
+	  ((nmb_bd > 4 || nmb_bd < 3) && accept_degen))
 	{
 	  std::ofstream of("nonreg_face.g2");
 	  shared_ptr<ParamSurface> tmp_sf = face->surface();
@@ -2061,6 +2128,17 @@ bool ftVolume::untrimRegular(int degree, bool accept_degen)
   if (ki == 6)
     {
       // The non-trimmed volume can be achieved by subdivision
+      SplineVolume *vol = vol_->asSplineVolume();
+      if (vol)
+	{
+	  vol2 = 
+	    shared_ptr<ParamVolume>(vol->subVolume(classification[0].second,
+						   classification[2].second,
+						   classification[4].second,
+						   classification[1].second,
+						   classification[3].second,
+						   classification[5].second));
+	}
     }
   else
     {
@@ -4815,7 +4893,8 @@ ftVolume::getCoonsCurvePairs(vector<shared_ptr<ParamSurface> >& sfs,
 		    {
 		      ix1 = ix2;
 		      sf1 = sf2;
-		      sf0 = sf2;
+		      if (kj == 1)
+			sf0 = sf2;
 		    }
 		  deg1 = true;
 		  continue;
@@ -5624,7 +5703,7 @@ void ftVolume::makeSurfacePair(vector<ftEdge*>& loop,
     {
       while (cvs1.size() > 4)
 	{
-	  int min_ix;
+	  int min_ix = -1;
 	  double min_ang = HUGE;
 	  vector<Point> pts1 = 
 	    cvs1[cvs1.size()-1]->point(cvs1[cvs1.size()-1]->endparam(), 1);
@@ -7538,7 +7617,7 @@ void ftVolume::sortCoonsPatchBdCvs(vector<shared_ptr<ParamCurve> >& cvs,
 
   Point pos0 = cvs[0]->point(cvs[0]->startparam());
   Point pos1 = cvs[0]->point(cvs[0]->endparam());
-  size_t kr, kh;
+  size_t kh;
   for (kj=1; kj<cvs.size(); ++kj)
     {
       kh = kj;
@@ -8258,7 +8337,6 @@ shared_ptr<ParamCurve> ftVolume::makeMissingEdgeCv(shared_ptr<Vertex> vx1,
   Point vec = vx2_pt - vx1_pt;
   double len = vec.length();
   vec.normalize();
-  double fac = 0.9;
   double ang_tol = 0.05*M_PI;
   Point d1 = vec;
   Point d2 = -vec;
@@ -8360,7 +8438,7 @@ bool ftVolume::removeSliver1(shared_ptr<ftSurface> face,
 //===========================================================================
 {
   bool modified = false;
-  if (edg.size() != 4)
+  if (edg.size() < 3 || edg.size() > 4)
     return modified;  // Not correct configuration
 
   // Surfaces to extend to remove sliver face
@@ -8377,7 +8455,16 @@ bool ftVolume::removeSliver1(shared_ptr<ftSurface> face,
     dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bdsf[0]->underlyingSurface());
   volsf[1] =
     dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bdsf[1]->underlyingSurface());
-  
+  if (volsf[0].get() == NULL || volsf[1].get() == NULL)
+    return modified;
+#ifdef DEBUG
+  std::ofstream of0("adj_sliver.g2");
+  sf[0]->writeStandardHeader(of0);
+  sf[0]->write(of0);
+  sf[1]->writeStandardHeader(of0);
+  sf[1]->write(of0);
+#endif
+
   // Adjacent surfaces that must be modified
   vector<shared_ptr<ParamSurface> > adj_sf(edg.size()-2);
   vector<shared_ptr<BoundedSurface> > adj_bdsf(edg.size()-2);
@@ -8437,7 +8524,7 @@ bool ftVolume::removeSliver1(shared_ptr<ftSurface> face,
   // Modified curve between extended surfaces and ajdacent surfaces
   vector<shared_ptr<ParamCurve> > mod_all1, mod_all2;
   mod_all1.push_back(bd_cv);
-  mod_all2.push_back(bd_cv);
+  mod_all2.push_back(shared_ptr<ParamCurve>(bd_cv->clone()));
   for (ki=0; ki<(int)adj_bd.size(); ++ki)
     {
       vector<shared_ptr<ParamCurve> > mod_cvs(2);
@@ -8456,8 +8543,8 @@ bool ftVolume::removeSliver1(shared_ptr<ftSurface> face,
 	  geomcv2->write(of1);
 #endif
       }
-      mod_all1.push_back(mod_cvs[0]);
-      mod_all2.push_back(mod_cvs[1]);
+      mod_all1.push_back(shared_ptr<ParamCurve>(mod_cvs[0]->clone()));
+      mod_all2.push_back(shared_ptr<ParamCurve>(mod_cvs[1]->clone()));
 
       shared_ptr<BoundedSurface> mod_adj =
 	replaceBdCvs(adj_bdsf[ki], mod_cvs, tol);
@@ -8479,6 +8566,172 @@ bool ftVolume::removeSliver1(shared_ptr<ftSurface> face,
     }
 #endif
 
+  return modified;
+}
+
+//===========================================================================
+bool ftVolume::removeSliver2(shared_ptr<ftSurface> face, 
+			     vector<shared_ptr<ftEdge> >& edg, 
+			     int ix1, int ix2, double tol,
+			     vector<shared_ptr<ParamSurface> >& mod_sfs,
+			     shared_ptr<ftEdge>& not_changed)
+//===========================================================================
+{
+  bool modified = false;
+  if (edg.size() < 3 || edg.size() > 4)
+    return modified;  // Not correct configuration
+
+  shared_ptr<ParamSurface> sf[2];
+  shared_ptr<BoundedSurface> bdsf[2];
+  shared_ptr<SurfaceOnVolume> volsf[2];
+  sf[0] = edg[ix1]->twin()->face()->asFtSurface()->surface();
+  sf[1] = edg[ix2]->twin()->face()->asFtSurface()->surface();
+  bdsf[0] = dynamic_pointer_cast<BoundedSurface,ParamSurface>(sf[0]);
+  bdsf[1] = dynamic_pointer_cast<BoundedSurface,ParamSurface>(sf[1]);
+  if (bdsf[0].get() == NULL || bdsf[1].get() == NULL)
+    return modified;
+  volsf[0] = 
+    dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bdsf[0]->underlyingSurface());
+  volsf[1] =
+    dynamic_pointer_cast<SurfaceOnVolume,ParamSurface>(bdsf[1]->underlyingSurface());
+  if (volsf[0].get() == NULL || volsf[1].get() == NULL)
+    return modified;
+#ifdef DEBUG
+  std::ofstream of0("adj_sliver.g2");
+  sf[0]->writeStandardHeader(of0);
+  sf[0]->write(of0);
+  sf[1]->writeStandardHeader(of0);
+  sf[1]->write(of0);
+#endif
+
+  // Adjacent faces
+  vector<ftSurface*> adj_faces;
+  for (size_t ki=0; ki<edg.size(); ++ki)
+    {
+      if ((int)ki == ix1 || (int)ki == ix2)
+	continue;
+      adj_faces.push_back(edg[ki]->twin()->face()->asFtSurface());
+    }
+
+  // One adjacent surface is expected to be a volume boundary surface, the other not
+  // Merge the sliver surface with the free adjacent surface
+  int bd[2];
+  int orientation;
+  bool swap;
+  bd[0] = volsf[0]->whichBoundary(tol, orientation, swap);
+  bd[1] = volsf[1]->whichBoundary(tol, orientation, swap);
+
+  vector<shared_ptr<ParamSurface> > sfs_merge(2);
+  sfs_merge[0] = face->surface();
+  int adj_ix = -1;
+  if (bd[0] >= 0)
+    {
+      sfs_merge[1] = sf[1];
+      adj_ix = ix2;
+    }
+  else
+    {
+      sfs_merge[1] = sf[0];
+      adj_ix = ix1;
+    }
+
+  // Must tune the bend tolerance with respect to the actual angle between
+  // the surfaces
+  double angtol = toptol_.bend;
+  shared_ptr<Vertex> vx[2];
+  edg[adj_ix]->getVertices(vx[0], vx[1]);
+  for (int ki=0; ki<1; ++ki)
+    {
+      vector<pair<ftSurface*, Point> > vx_faces = vx[ki]->getFaces();
+      Point norm[2];
+      int kr;
+      size_t kj;
+      for (kr=0, kj=0; kj<vx_faces.size(); ++kj)
+	{
+	  if (vx_faces[kj].first == edg[adj_ix]->twin()->face())
+	    norm[kr++] = vx_faces[kj].first->normal(vx_faces[kj].second[0],
+						    vx_faces[kj].second[1]);
+	  else if (vx_faces[kj].first == face.get())
+	    norm[kr++] = face->normal(vx_faces[kj].second[0],
+				      vx_faces[kj].second[1]);
+	  if (kr == 2)
+	    break;
+	}
+
+      if (kr == 2)
+	{
+	  double ang = norm[0].angle(norm[1]);
+	  if (ang > angtol)
+	    angtol = ang + toptol_.kink;
+	}
+    }
+  
+  shared_ptr<SurfaceModel>tmp_model(new SurfaceModel(toptol_.neighbour,
+						     toptol_.gap,
+						     toptol_.neighbour,
+						     toptol_.kink,
+						     angtol,
+						     sfs_merge));
+  // Perform approximation
+  double error;
+  shared_ptr<ParamSurface> approx_surf = tmp_model->approxFaceSet(error);
+  if (approx_surf.get())
+    {
+      mod_sfs.push_back(approx_surf);
+      modified = true;
+      not_changed = (adj_ix == ix1) ? edg[ix2] : edg[ix1];
+
+      for (size_t ki=0; ki<adj_faces.size(); ++ki)
+	{
+	  // Adapt boundary curve towards adjacent surface with respect to
+	  // the new boundary curve
+	  // First identify curve
+	  vector<shared_ptr<ParamCurve> > bd_cv;
+	  CurveLoop loop = approx_surf->outerBoundaryLoop();
+	  int nmb_cv = loop.size();
+	  shared_ptr<Loop> adj_loop = adj_faces[ki]->getBoundaryLoop(0);
+	  int kr;
+	  for (kr=0; kr<nmb_cv; ++kr)
+	    {
+	      shared_ptr<ParamCurve> tmp_cv = loop[kr];
+	      Point pos1 = tmp_cv->point(tmp_cv->startparam());
+	      Point pos2 = tmp_cv->point(tmp_cv->endparam());
+
+	      int ind1, ind2;
+	      double par1, par2, dist1, dist2;
+	      Point close1, close2;
+	      adj_loop->closestPoint(pos1, ind1, par1, close1, dist1);
+	      adj_loop->closestPoint(pos2, ind2, par2, close2, dist2);
+	      if (dist1 < toptol_.gap && dist2 < toptol_.gap)
+		{
+		  bd_cv.push_back(tmp_cv);
+		  break;
+		}
+	    }
+
+	  if (bd_cv.size() > 0)
+	    {
+	      shared_ptr<ParamSurface> adj_sf = adj_faces[ki]->surface();
+	      shared_ptr<BoundedSurface> bd_sf = 
+		dynamic_pointer_cast<BoundedSurface,ParamSurface>(adj_sf);
+	      if (bd_sf.get())
+		{
+		  shared_ptr<ParamSurface> adj_mod = 
+		    replaceBdCvs(bd_sf, bd_cv, toptol_.gap);
+		  mod_sfs.push_back(adj_mod);
+		}
+	    }
+	}
+    }
+
+#ifdef DEBUG
+  std::ofstream of2("sliver_mod.g2");
+  for (size_t kr=0; kr<mod_sfs.size(); ++kr)
+    {
+      mod_sfs[kr]->writeStandardHeader(of2);
+      mod_sfs[kr]->write(of2);
+    }
+#endif
   return modified;
 }
 
@@ -8572,6 +8825,55 @@ shared_ptr<BoundedSurface> ftVolume::replaceBdCvs(shared_ptr<BoundedSurface> sur
 	}
     }
 
+  if (boundary_cvs.size() > 1)
+    {
+      // Check if any of the new boundary curves are too long
+      int kr;
+      size_t kj;
+      for (kj=0, kr=0; kr<2; kj=boundary_cvs.size()-1, ++kr)
+	{
+	  // Only check first and last boundary curve
+	  double t1 = boundary_cvs[kj]->startparam();
+	  double t2 = boundary_cvs[kj]->endparam();
+	  for (size_t ki=0; ki<loop_cvs.size(); ++ki)
+	    {
+	      Point pos1 = loop_cvs[ki]->point(loop_cvs[ki]->startparam());
+	      Point pos2 = loop_cvs[ki]->point(loop_cvs[ki]->endparam());
+	      double par1, par2, dist1, dist2;
+	      Point close1, close2;
+	      boundary_cvs[kj]->closestPoint(pos1, t1, t2, par1, close1, dist1);
+	      boundary_cvs[kj]->closestPoint(pos2, t1, t2, par2, close2, dist2);
+	      if (dist1 < tol && dist2 < tol)
+		{
+		  // Match. Check end parameter
+		  double len1 = (kr == 0) ? close1.dist(start_pos) : close1.dist(end_pos);
+		  double len2 = (kr == 0) ? close2.dist(start_pos) : close2.dist(end_pos);
+		  if (kr == 0 && len1 > tol && len2 > tol)
+		    {
+		      shared_ptr<CurveOnSurface> sub(boundary_cvs[kj]->subCurve((len1 > len2) ? par2 : par1, t2));
+		      boundary_cvs[kj] = sub;
+		      start_pos = (len1 > len2) ? close2 : close1;
+		    }
+		  else if (kr == 1 && len1 > tol && len2 > tol)
+		    {
+		      shared_ptr<CurveOnSurface> sub(boundary_cvs[kj]->subCurve(t1, (len1 > len2) ? par2 : par1));
+		      boundary_cvs[kj] = sub;
+		      end_pos = (len1 > len2) ? close2 : close1;
+		    }
+		  break;
+		}
+	    }
+	}
+    }
+#ifdef DEBUG
+  std::ofstream of3("loop_cvs2.g2");
+  for (size_t ki=0; ki<boundary_cvs.size(); ++ki)
+    {
+      boundary_cvs[ki]->writeStandardHeader(of3);
+      boundary_cvs[ki]->write(of3);
+    }
+#endif
+
   while (true)
     {
       if (start_pos.dist(end_pos) < tol)
@@ -8589,18 +8891,28 @@ shared_ptr<BoundedSurface> ftVolume::replaceBdCvs(shared_ptr<BoundedSurface> sur
 	  if (std::min(std::min(d1,d2), std::min(d3,d4)) < tol)
 	    {
 	      // Check that the loop does not turn back on itself
-	      double par, dist;
-	      Point close;
 	      bool first_cv = (std::min(d1,d2) < std::min(d3,d4));
 	      bool turn = ((first_cv && d1 < d2) || ((!first_cv) && d4 < d3));
-	      int ix = (int)boundary_cvs.size() - 1;
+	      Point pos;
 	      if (first_cv)
-		boundary_cvs[0]->closestPoint(turn ? pos2 : pos1, boundary_cvs[0]->startparam(),
-					      boundary_cvs[0]->endparam(), par, close, dist);
+		pos = turn ? pos2 : pos1;
 	      else
-		boundary_cvs[ix]->closestPoint(turn ? pos1 : pos2, boundary_cvs[ix]->startparam(),
-					       boundary_cvs[ix]->endparam(), par, close, dist);
-	      if (dist < tol)
+		pos = turn ? pos1 : pos2;
+	      size_t ix;
+	      for (ix=0; ix<boundary_cvs.size(); ++ix)
+		{
+		  double par, dist;
+		  Point close;
+		  boundary_cvs[ix]->closestPoint(pos, boundary_cvs[ix]->startparam(),
+					      boundary_cvs[ix]->endparam(), par, close, dist);
+		  if (dist < tol)
+		    {
+		      double len = first_cv ? close.dist(end_pos) : close.dist(start_pos);
+		      if (len > tol)
+			break;
+		    }
+		}
+	      if (ix < boundary_cvs.size())
 		{
 		  ++ki;
 		  continue;
@@ -8627,7 +8939,7 @@ shared_ptr<BoundedSurface> ftVolume::replaceBdCvs(shared_ptr<BoundedSurface> sur
 		boundary_cvs.insert(boundary_cvs.begin(), tmp_cv2);
 	      else
 		boundary_cvs.push_back(tmp_cv2);
-	      ++ix;
+	      ix = boundary_cvs.size() - 1;
 	      start_pos = boundary_cvs[0]->ParamCurve::point(boundary_cvs[0]->startparam());
 	      end_pos = boundary_cvs[ix]->ParamCurve::point(boundary_cvs[ix]->endparam());
 	      loop_cvs.erase(loop_cvs.begin()+ki);
@@ -8638,36 +8950,36 @@ shared_ptr<BoundedSurface> ftVolume::replaceBdCvs(shared_ptr<BoundedSurface> sur
 	      of << end_pos << std::endl;
 #endif
 
-	      // Check if the start/end curve is too long
-	      double par2, dist2;
-	      Point close2;
-	      if (first_cv)
-		boundary_cvs[ix]->closestPoint(start_pos, boundary_cvs[ix]->startparam(),
-					       boundary_cvs[ix]->endparam(), par2, 
-					       close2, dist2);
-	      else
-		boundary_cvs[0]->closestPoint(end_pos, boundary_cvs[0]->startparam(),
-					      boundary_cvs[0]->endparam(), par2, 
-					      close2, dist2);
-	      double dist3 = (first_cv) ? end_pos.dist(close) : start_pos.dist(close);
-	      if (dist2 < tol && dist3 >= tol)
-		{
-		  // Reduce curve length
-		  if (first_cv)
-		    {
-		      shared_ptr<CurveOnSurface> sub(boundary_cvs[ix]->subCurve(boundary_cvs[ix]->startparam(),
-										par2));
-		      boundary_cvs[ix] = sub;
-		      end_pos = close2;
-		    }
-		  else
-		    {
-		      shared_ptr<CurveOnSurface> sub(boundary_cvs[0]->subCurve(par2,
-									       boundary_cvs[0]->endparam()));
-		      boundary_cvs[0] = sub;
-		      start_pos = close2;
-		    }
-		}
+	      // // Check if the start/end curve is too long
+	      // double par2, dist2;
+	      // Point close2;
+	      // if (first_cv)
+	      // 	boundary_cvs[ix]->closestPoint(start_pos, boundary_cvs[ix]->startparam(),
+	      // 				       boundary_cvs[ix]->endparam(), par2, 
+	      // 				       close2, dist2);
+	      // else
+	      // 	boundary_cvs[0]->closestPoint(end_pos, boundary_cvs[0]->startparam(),
+	      // 				      boundary_cvs[0]->endparam(), par2, 
+	      // 				      close2, dist2);
+	      // double dist3 = (first_cv) ? end_pos.dist(close) : start_pos.dist(close);
+	      // if (dist2 < tol && dist3 >= tol)
+	      // 	{
+	      // 	  // Reduce curve length
+	      // 	  if (first_cv)
+	      // 	    {
+	      // 	      shared_ptr<CurveOnSurface> sub(boundary_cvs[ix]->subCurve(boundary_cvs[ix]->startparam(),
+	      // 									par2));
+	      // 	      boundary_cvs[ix] = sub;
+	      // 	      end_pos = close2;
+	      // 	    }
+	      // 	  else
+	      // 	    {
+	      // 	      shared_ptr<CurveOnSurface> sub(boundary_cvs[0]->subCurve(par2,
+	      // 								       boundary_cvs[0]->endparam()));
+	      // 	      boundary_cvs[0] = sub;
+	      // 	      start_pos = close2;
+	      // 	    }
+	      // 	}
 
 	      if (start_pos.dist(end_pos) < tol)
 		break;
@@ -8678,6 +8990,12 @@ shared_ptr<BoundedSurface> ftVolume::replaceBdCvs(shared_ptr<BoundedSurface> sur
     }
 
   shared_ptr<BoundedSurface> mod_sf(new BoundedSurface(under_sf, boundary_cvs, tol));
+#ifdef DEBUG
+   std::ofstream of2("bd_sf.g2");
+   mod_sf->writeStandardHeader(of2);
+   mod_sf->write(of2);
+#endif
+
   return mod_sf;
 }
 

@@ -90,9 +90,11 @@ namespace Go
 
    void sortTrimmedSurfaces(std::vector<std::vector<shared_ptr<CurveOnSurface> > >& cvs1,
 			    std::vector<shared_ptr<ParamSurface> >& sfs1,
+			    std::vector<bool>& at_bd1,
 			    Body *model1,
 			    std::vector<std::vector<shared_ptr<CurveOnSurface> > >& cvs2,
 			    std::vector<shared_ptr<ParamSurface> >& sfs2,
+			    std::vector<bool>& at_bd2,
 			    Body *model2, double eps, double angtol,
 			    std::vector<std::vector<shared_ptr<ParamSurface> > >& groups);
   }

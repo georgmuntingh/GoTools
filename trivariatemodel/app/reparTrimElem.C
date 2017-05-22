@@ -252,17 +252,19 @@ int main( int argc, char* argv[] )
 	    {
 	      if (!is_inside[kj])
 		continue;
+
+	      std::ofstream of9("tmp9.g2");
+	      shared_ptr<SurfaceModel> mod = sub_elem[kj]->getOuterShell();
+	      int nmb = mod->nmbEntities();
+	      for (int kr=0; kr<nmb; ++kr)
+		{
+		  shared_ptr<ParamSurface> sf = mod->getSurface(kr);
+		  sf->writeStandardHeader(of9);
+		  sf->write(of9);
+		}
+
 	      if (sub_elem[kj]->getOuterShell()->nmbBoundaries() > 0)
 		{
-		  std::ofstream of9("tmp9.g2");
-		  shared_ptr<SurfaceModel> mod = sub_elem[kj]->getOuterShell();
-		  int nmb = mod->nmbEntities();
-		  for (int kr=0; kr<nmb; ++kr)
-		    {
-		      shared_ptr<ParamSurface> sf = mod->getSurface(kr);
-		      sf->writeStandardHeader(of9);
-		      sf->write(of9);
-		    }
 		  std::cout << "Open shell. Check" << std::endl;
 		  continue;  
 		}
@@ -285,11 +287,14 @@ int main( int argc, char* argv[] )
 		    }
 
 		  // Create non-trimmed element
-		  sub_elem[kj]->untrimRegular(degree, true);
-		  shared_ptr<ParamVolume> tmp_vol = sub_elem[kj]->getVolume();
-		  tmp_vol->writeStandardHeader(of6);
-		  tmp_vol->write(of6);
-		  nmb_geom++;
+		  bool done = sub_elem[kj]->untrimRegular(degree, true);
+		  if (done)
+		    {
+		      shared_ptr<ParamVolume> tmp_vol = sub_elem[kj]->getVolume();
+		      tmp_vol->writeStandardHeader(of6);
+		      tmp_vol->write(of6);
+		      nmb_geom++;
+		    }
 		    // }
 		}
 	      else

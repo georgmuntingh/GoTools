@@ -163,9 +163,9 @@ void Curvature::curvatureRadiusPoints(const SplineCurve& curve,
 
 
 //===========================================================================
-void Curvature::minimalCurvatureRadius(const SplineCurve& curve,
-			    double& mincurv,
-			    double& pos)
+bool Curvature::minimalCurvatureRadius(const SplineCurve& curve,
+				       double& mincurv,
+				       double& pos)
 //===========================================================================
 {
   // Find the spline function for the numerator in the derivate of the square of the curvature
@@ -174,11 +174,11 @@ void Curvature::minimalCurvatureRadius(const SplineCurve& curve,
   int order = basis.order();
   int new_order = 6 * order - 14;
 
+  mincurv = MAXDOUBLE;
+  pos = (basis.startparam() + basis.endparam()) / 2.0;
   if (new_order < 0)    // Straight line
     {
-      mincurv = MAXDOUBLE;
-      pos = (basis.startparam() + basis.endparam()) / 2.0;
-      return;
+      return false;
     }
 
   vector<double> knots_simple;
@@ -316,6 +316,7 @@ void Curvature::minimalCurvatureRadius(const SplineCurve& curve,
 
 	}
     }
+  return (extremalParametervalues.size() > 0);
 }
 
 

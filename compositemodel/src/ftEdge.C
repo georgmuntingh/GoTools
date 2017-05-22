@@ -512,6 +512,10 @@ void ftEdge::closestPoint(const Point& pt,
 	  }
       }
 
+    split_vx->reOrganize();  // Maintain twin information in vertex
+    v1->reOrganize();
+    v2->reOrganize();
+
     if (all_edges_.get())
       {
 	all_edges_->addEdge(newedge);

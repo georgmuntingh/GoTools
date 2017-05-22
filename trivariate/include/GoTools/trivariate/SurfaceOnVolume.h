@@ -446,6 +446,11 @@ namespace Go
       return (at_bd_ >= 0);
     }
 
+    virtual bool isBoundarySurface() const
+    {
+      return (at_bd_ >= 0);
+    }
+
     /// Volume parameter corresponding to surface parameter
     Point volumeParameter(double u_par, double v_par) const;
 

@@ -1426,9 +1426,11 @@ int SurfaceModelUtils::mergeSituation(ftSurface* face1, ftSurface* face2,
 void 
 SurfaceModelUtils::sortTrimmedSurfaces(vector<vector<shared_ptr<CurveOnSurface> > >& cvs1,
 				       vector<shared_ptr<ParamSurface> >& sfs1,
+				       vector<bool>& at_bd1,
 				       Body *model1,
 				       vector<vector<shared_ptr<CurveOnSurface> > >& cvs2,
 				       vector<shared_ptr<ParamSurface> >& sfs2,
+				       vector<bool>& at_bd2,
 				       Body *model2, double eps, double angtol,
 				       vector<vector<shared_ptr<ParamSurface> > >& groups)
 //===========================================================================
@@ -1531,8 +1533,8 @@ SurfaceModelUtils::sortTrimmedSurfaces(vector<vector<shared_ptr<CurveOnSurface> 
 	      else
 		{
 		  groups[1].push_back(trim_sfs[kr]);
-		  // if (fabs(pt_dist) < eps && ang < angtol)
-		  //   groups[0].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
+		  if (at_bd1[ki] && fabs(pt_dist) < eps && ang < angtol)
+		    groups[0].push_back(shared_ptr<ParamSurface>(trim_sfs[kr]->clone()));
 		}
 	    }
 	}

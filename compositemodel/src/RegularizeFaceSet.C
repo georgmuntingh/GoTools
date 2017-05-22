@@ -270,11 +270,12 @@ shared_ptr<SurfaceModel> RegularizeFaceSet::getRegularModel(bool reverse_sequenc
 
       // Look for prioritized vertices
       vector<shared_ptr<Vertex> > vx_pri;
+      bool other_pri = false;
       for (size_t kh=0; kh<vx_pri_.size(); ++kh)
 	{
 	  if (vx_pri_[kh].second == perm[kj])
 	    vx_pri.push_back(vx_pri_[kh].first);
-	  else
+	  else if (other_pri)
 	    {
 	      vector<shared_ptr<Vertex> > vx = curr->vertices();
 	      size_t ka;
@@ -379,6 +380,21 @@ shared_ptr<SurfaceModel> RegularizeFaceSet::getRegularModel(bool reverse_sequenc
 			modified_models_.push_back(shell.get());
 		    }
 		      
+		}
+	    }
+
+	  // Check if we are finished
+	  for (kr=0; kr<faces2.size(); ++kr)
+	    {
+	      vector<shared_ptr<Vertex> > corners = 
+		faces2[kr]->getCornerVertices(tptol.bend);
+	      if (corners.size() > 4)
+		{
+		  faces.push_back(faces2[kr]);
+		  nmb_faces++;
+		  perm.insert(perm.begin()+kj+1, nmb_faces-1);
+		  vector<pair<pair<Point,int>, pair<Point,int> > > dummy;
+		  cand_split_.push_back(dummy);
 		}
 	    }
 	}
@@ -2207,67 +2223,93 @@ RegularizeFaceSet::defineSplitVx(vector<shared_ptr<ftSurface> >& faces,
 	      len[kj] = edgs[kj]->estimatedCurveLength();
  	    }
 	  
-	  // Select a long edge where the tangent at an end vertex is less perpendicular to
-	  // the tangent of the adjacent edge
-	  double bend = model_->getTolerances().bend;
-	  double tol = model_->getTolerances().neighbour;
-	  double minlen = 10.0*tol;
-	  int ix = 0;
-	  for (size_t kj=1; kj<edgs.size(); ++kj)
+	  int ix1 = -1;
+	  if (edgs.size() == 3)
 	    {
-	      if (len[ix] < minlen && len[kj] >= minlen)
-		ix = (int)kj;
-	      else if (ang[kj] > bend && ang[kj] < ang[ix])
-		ix = (int)kj;
-	      else if (len[kj] > len[ix])
-		ix = (int)kj;
-	    }
-
-	  // The edge to split is identified, select position
-	  double t1 = edgs[ix]->tMin();
-	  double t2 = edgs[ix]->tMax();
-	  double tpar;
-	  shared_ptr<SplineCurve> cv(edgs[ix]->geomCurve()->geometryCurve());
-	  if (cv.get())
-	    {
-	      // Choose point with highest curvature, provided it is not too close to
-	      // and end vertex
-	      // Analyse only the part of the curve belonging to the edge
-	      shared_ptr<SplineCurve> cv2(cv->subCurve(t1, t2));
-	      double mincur;
-	      Curvature::minimalCurvatureRadius(*cv2, mincur, tpar);
-	      tpar = std::max(tpar, t1 + 0.1*(t2-t1));
-	      tpar = std::min(tpar, t2 - 0.1*(t2-t1));
-	    }
-	  else
-	    tpar = 0.5*(t1 + t2);   // Choose mid point
-
-	  // Split selected edge
-	  shared_ptr<ftEdge> newedge = edgs[ix]->split2(tpar);
-
-	  // Prioritize associated face
-	  for (int ki=0; ki<(int)perm.size(); ++ki)
-	    {
-	      if (cand_faces[ix] == faces[perm[ki]].get() && ki > 0)
+	      // Select a long edge where the tangent at an end vertex is less perpendicular to
+	      // the tangent of the adjacent edge
+	      double bend = model_->getTolerances().bend;
+	      double tol = model_->getTolerances().neighbour;
+	      double minlen = 10.0*tol;
+	      ix1 = 0;
+	      for (size_t kj=1; kj<edgs.size(); ++kj)
 		{
-		  perm.insert(perm.begin(), perm[ki]);
-		  perm.erase(perm.begin()+ki+1);
+		  if (len[ix1] < minlen && len[kj] >= minlen)
+		    ix1 = (int)kj;
+		  else if (ang[kj] > bend && ang[kj] < ang[ix1])
+		    ix1 = (int)kj;
+		  else if (len[kj] > len[ix1])
+		    ix1 = (int)kj;
 		}
 	    }
 
-	  // Prioritize down the non-corresponding face
+	  size_t ix;
+	  int ix2;
+	  for (ix=0, ix2=0; ix<edgs.size(); ++ix)
+	    {
+	      if (ix1 >=0 && (int)ix != ix1)
+		continue;
+	      // The edge to split is identified, select position
+	      double t1 = edgs[ix]->tMin();
+	      double t2 = edgs[ix]->tMax();
+	      double tpar;
+	      shared_ptr<SplineCurve> cv(edgs[ix]->geomCurve()->geometryCurve());
+	      if (cv.get())
+		{
+		  // Choose point with highest curvature, provided it is not too close to
+		  // and end vertex
+		  // Analyse only the part of the curve belonging to the edge
+		  shared_ptr<SplineCurve> cv2(cv->subCurve(t1, t2));
+		  double mincur;
+		  bool found = Curvature::minimalCurvatureRadius(*cv2, mincur, tpar);
+		  if (!found)
+		    continue;
+		  tpar = std::max(tpar, t1 + 0.1*(t2-t1));
+		  tpar = std::min(tpar, t2 - 0.1*(t2-t1));
+		}
+	      else
+		tpar = 0.5*(t1 + t2);   // Choose mid point
+
+	      // Split selected edge
+	      shared_ptr<ftEdge> newedge = edgs[ix]->split2(tpar);
+
+	      // Check
+	      shared_ptr<Vertex> tmp_vx = edgs[ix]->getCommonVertex(newedge.get());
+	      tmp_vx->checkVertexTopology();
+
+	      // Prioritize associated face
+	      for (int ki=0; ki<(int)perm.size(); ++ki)
+		{
+		  if (cand_faces[ix] == faces[perm[ki]].get() && ki > 0)
+		    {
+		      perm.insert(perm.begin()+ix2, perm[ki]);
+		      perm.erase(perm.begin()+ki+1);
+		    }
+		}
+
+	      // Store information
+	      shared_ptr<Vertex> vx = edgs[ix]->getCommonVertex(newedge.get());
+	      vx_pri_.push_back(make_pair(vx, perm[ix2++]));
+	    }
+
+	  // Reprioritize the non-corresponding face
 	  for (int ki=0; ki<(int)perm.size(); ++ki)
 	    {
 	      if (curr_face.get() == faces[perm[ki]].get())
 		{
-		  perm.push_back(perm[ki]);
-		  perm.erase(perm.begin()+ki);
+		  // if (edgs.size() == 1)
+		  //   {
+		      perm.push_back(perm[ki]);
+		      perm.erase(perm.begin()+ki);
+		  //   }
+		  // else
+		  //   {
+		  //     perm.insert(perm.begin(), perm[ki]);
+		  //     perm.erase(perm.begin()+ki+1);
+		  //   }
 		}
 	    }
 	  
-	  // Store information
-	  shared_ptr<Vertex> vx = edgs[ix]->getCommonVertex(newedge.get());
-	  vx_pri_.push_back(make_pair(vx, perm[0]));
 	}
     }
   else
@@ -2291,6 +2333,16 @@ RegularizeFaceSet::defineSplitVx(vector<shared_ptr<ftSurface> >& faces,
 	    }
 	}
     }
+#ifdef DEBUG_REG
+  if (vx_pri_.size() > 0)
+    {
+      std::ofstream of("vx_pri.g2");
+      of << "400 1 0 4 255 0 0 255" << std::endl;
+      of << vx_pri_.size() << std::endl;
+      for (size_t ki=0; ki<vx_pri_.size(); ++ki)
+	of << vx_pri_[ki].first->getVertexPoint() << std::endl;
+    }
+#endif
 }
 
 //==========================================================================
@@ -2300,7 +2352,7 @@ RegularizeFaceSet::removeExtraDiv()
 {
   int nmb_faces = model_->nmbEntities();
   tpTolerances tptol = model_->getTolerances();
-  for (int ki; ki<nmb_faces; ++ki)
+  for (int ki=0; ki<nmb_faces; ++ki)
     {
       shared_ptr<ftSurface> f1 = model_->getFace(ki);
       shared_ptr<ParamSurface> sf1 = model_->getSurface(ki);

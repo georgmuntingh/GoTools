@@ -501,7 +501,7 @@ public:
     /// values. Sequence of coordinates: x runs fastest, then y
     /// \param eps: Intersection tolerance
     /// \return -1: Not a spline surface or element index out of range
-    ///          0: Outside trimmed volume
+    ///          0: Outside trimmed surface
     ///          1: On boundary (intersection with boundary found)
     ///          2: Internal to trimmed surfaces
     /// Note that a touch with the boundaries of the underlying surface
@@ -510,6 +510,12 @@ public:
     virtual int ElementBoundaryStatus(int elem_ix, double eps)
     {
       return -1; // Is overridden for bounded surface and spline surface
+    }
+
+    /// Particular for trimming surfaces to a trimmed volume
+    virtual bool isBoundarySurface() const
+    {
+      return false;
     }
 
  protected:

@@ -872,6 +872,29 @@ std::vector<CurveLoop> BoundedSurface::absolutelyAllBoundaryLoops() const
 }
 
 //===========================================================================
+void BoundedSurface::getLoopCvInfo(int& nmb_loops, int& nmb_cvs, 
+				   double& min_cv_len, double& max_cv_len) const
+//===========================================================================
+{
+  nmb_loops = (int)boundary_loops_.size();
+  nmb_cvs = 0;
+  min_cv_len = HUGE;
+  max_cv_len = 0.0;
+  for (int ki=0; ki<nmb_loops; ++ki)
+    {
+      int nmb = boundary_loops_[ki]->size();
+      nmb_cvs += nmb;
+      for (int kj=0; kj<nmb; ++kj)
+	{
+	  shared_ptr<ParamCurve> cv = (*boundary_loops_[ki])[kj];
+	  double len = cv->estimatedCurveLength();
+	  min_cv_len = std::min(min_cv_len, len);
+	  max_cv_len = std::max(max_cv_len, len);
+	}
+    }
+}
+
+//===========================================================================
 void BoundedSurface::point(Point& pt, double upar, double vpar) const
 //===========================================================================
 {

@@ -250,6 +250,10 @@ public:
     ///         describe boundaries of interior holes (clockwise).
     std::vector<CurveLoop> absolutelyAllBoundaryLoops() const;
 
+    /// Fetch information about boundary loops: Number of loops, total
+    /// number of trimming curves, minimum and maximum curve length (estimate)
+    void getLoopCvInfo(int& nmb_loops, int& nmb_cvs, 
+		       double& min_cv_len, double& max_cv_len) const;
 
     /// Evaluates the surface's position for a given parameter pair.
     /// \param pt the result of the evaluation is written here 

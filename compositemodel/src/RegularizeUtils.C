@@ -183,13 +183,23 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 #endif
     }
 
+  // Compute tolerance for split curve checking
+  size_t kr, kh;
+  double tol3 = tol2;
+  for (kr=0; kr<corners.size(); ++kr)
+    {
+      if (corners[kr].get() == vx.get())
+	continue;
+      double dist = corners[kr]->getDist(vx);
+      tol3 = std::min(tol3, 0.9*dist);
+    }
+  
    // Fetch boundary curve information
   vector<shared_ptr<ftEdge> > all_edg = face->getAllEdges();
   vector<shared_ptr<ParamCurve> > all_cvs;
   getSourceCvs(all_edg, all_cvs);
 
    // Fetch boundary curve information related to selected split vertex
-  size_t kr, kh;
   vector<ftEdge*> vx_edg = vx->getFaceEdges(face.get());
   vector<shared_ptr<ParamCurve> > vx_cvs;
   for (kr=0; kr<vx_edg.size(); ++kr)
@@ -304,7 +314,7 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 	  // Remove intersections not connected with the initial point
 	  // Remove also segments going through an adjacent vertex
 	  Point dummy;
-	  checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol2 /*epsge*/);
+	  checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol3 /*epsge*/);
 	}
       if (trim_segments.size() == 0 && min_idx >= 0)
 	{
@@ -335,7 +345,7 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 	    }
 #endif
 	  // Check output
-	  checkTrimSeg2(trim_segments, vx_par, parval2, epsge);
+	  checkTrimSeg2(trim_segments, vx_par, parval2, tol3 /*epsge*/);
 	      
 	  // Remove intersections not connected with the initial point
 	  // Remove also segments going through an adjacent vertex
@@ -343,7 +353,7 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 	    {
 	      Point other_pt = prio_vx[min_idx]->getVertexPoint();
 	      checkTrimSeg(trim_segments, next_vxs, vx_point, 
-			   other_pt, tol2 /*epsge*/);
+			   other_pt, tol3 /*epsge*/);
 	    }
 	}
       if (trim_segments.size() == 0)
@@ -392,7 +402,7 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 	      // Remove intersections not connected with the initial point
 	      // Remove also segments going through an adjacent vertex
 	      Point dummy;
-	      checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol2 /*epsge*/);
+	      checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol3 /*epsge*/);
 	    }
 
 	  if (trim_segments.size() == 0 && min_idx >= 0)
@@ -416,7 +426,7 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 		}
 
 	      // Check output
-	      checkTrimSeg2(trim_segments, vx_par, parval2, epsge);
+	      checkTrimSeg2(trim_segments, vx_par, parval2, tol3 /*epsge*/);
 	      
 	      // Remove intersections not connected with the initial point
 	      // Remove also segments going through an adjacent vertex
@@ -424,7 +434,7 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 		{
 		  Point other_pt = cand_vx[min_idx]->getVertexPoint();
 		  checkTrimSeg(trim_segments, next_vxs, vx_point, 
-			       other_pt, tol2 /*epsge*/);
+			       other_pt, tol3 /*epsge*/);
 		}
 	    }
 	  if (trim_segments.size() == 0)
@@ -528,15 +538,15 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 
 	  // Adjust curves ending very close to a non-significant vertex
 	  adjustTrimSeg(trim_segments, NULL, NULL, face, bd_sf, non_corner,
-			tol2, epsge);
+			tol3, epsge);
 
 	  // Remove intersections not connected with the initial point
 	  // Remove also segments going through an adjacent vertex
 	  Point dummy;
-	  checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol2 /*epsge*/);
+	  checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol3 /*epsge*/);
 
 	  // Check configuration to avoid 3-sided surfaces
-	  checkTrimConfig(face, trim_segments, vx, corners, tol2 /*epsge*/);
+	  checkTrimConfig(face, trim_segments, vx, corners, tol3 /*epsge*/);
  	}
       if (trim_segments.size() == 0 && 
 	  ((ang2 < 0.25*ang1  && close_idx < 0) ||
@@ -553,15 +563,15 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 
 	  // Adjust curves ending very close to a non-significant vertex
 	  adjustTrimSeg(trim_segments, NULL, NULL, face, bd_sf, non_corner,
-			tol2, epsge);
+			tol3, epsge);
 
 	  // Remove intersections not connected with the initial point
 	  // Remove also segments going through an adjacent vertex
 	  Point dummy;
-	  checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol2 /*epsge*/);
+	  checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol3 /*epsge*/);
 
 	  // Check configuration to avoid 3-sided surfaces
-	  checkTrimConfig(face, trim_segments, vx, corners, tol2 /*epsge*/);
+	  checkTrimConfig(face, trim_segments, vx, corners, tol3 /*epsge*/);
  	}
     }
 
@@ -581,12 +591,12 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
  
       // Adjust curves ending very close to a non-significant vertex
       adjustTrimSeg(trim_segments, &vx_par, &face_par, face, bd_sf, non_corner,
-		    tol2, epsge);
+		    tol3, epsge);
 
       // Remove intersections not connected with the initial point
       // Remove also segments going through an adjacent vertex
       checkTrimSeg(trim_segments, next_vxs, vx_point, 
-		   opposite_point, tol2 /*epsge*/);
+		   opposite_point, tol3 /*epsge*/);
     }
       
   if (trim_segments.size() == 0)
@@ -598,11 +608,11 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 
       // Adjust curves ending very close to a non-significant vertex
       adjustTrimSeg(trim_segments, &vx_par, &close_par, face, bd_sf, non_corner,
-		    tol2, epsge);
+		    tol3, epsge);
 
       // Remove intersections not connected with the initial point
       // Remove also segments going through an adjacent vertex
-      checkTrimSeg(trim_segments, next_vxs, vx_point, close_pt, tol2 /*epsge*/);
+      checkTrimSeg(trim_segments, next_vxs, vx_point, close_pt, tol3 /*epsge*/);
     }
 
   if (trim_segments.size() == 0)
@@ -614,12 +624,12 @@ RegularizeUtils::findVertexSplit(shared_ptr<ftSurface> face,
 
       // Adjust curves ending very close to a non-significant vertex
       adjustTrimSeg(trim_segments, NULL, NULL, face, bd_sf, non_corner,
-		    tol2, epsge);
+		    tol3, epsge);
 
        // Remove intersections not connected with the initial point
       // Remove also segments going through an adjacent vertex
       Point dummy;
-      checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol2 /*epsge*/);
+      checkTrimSeg(trim_segments, next_vxs, vx_point, dummy, tol3 /*epsge*/);
     }
 
   if (trim_segments.size() == 0)
@@ -2297,6 +2307,7 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
   double fac = 0.9;
   Point d1(0.0, 0.0), d2(0.0, 0.0);
   
+  double angtol2 = 2.0*angtol;
   if (ang1 < angtol && 
       (std::max(ang2, ang3) < angtol || vec*invecp1 < 0.0))
     {
@@ -2313,8 +2324,8 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
       double fac2 = 0.5;
       d1 = (1.0-fac2)*d1 + fac*tmp;
     }
-  else if ((ang2 < angtol && vec*ptan[0] < 0.0) || 
-	   (ang3 < angtol && vec*ptan[1] > 0.0))
+  else if ((ang2 < angtol2 && vec*ptan[0] < 0.0) || 
+	   (ang3 < angtol2 && vec*ptan[1] > 0.0))
     {
       make_pcrv = true;
       Point tmp = 0.5*(ptan[0]+ptan[1]);
@@ -2342,8 +2353,8 @@ shared_ptr<ParamCurve> RegularizeUtils::checkStrightParCv(shared_ptr<ftSurface> 
       double fac2 = 0.5;
       d2 = (1.0-fac2)*d2 + fac2*tmp;
     }
-  else if ((ang5 < angtol && vec*ptan[2] > 0.0) || 
-	   (ang6 < angtol && vec*ptan[3] < 0.0))
+  else if ((ang5 < angtol2 && vec*ptan[2] > 0.0) || 
+	   (ang6 < angtol2 && vec*ptan[3] < 0.0))
     {
       make_pcrv = true;
       Point tmp = 0.5*(ptan[2]+ptan[3]);

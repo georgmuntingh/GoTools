@@ -532,6 +532,12 @@ namespace Go
 		      int ix1, int ix2, double tol,
 		      std::vector<shared_ptr<ParamSurface> >& mod_sfs);
 
+   bool removeSliver2(shared_ptr<ftSurface> face, 
+		      std::vector<shared_ptr<ftEdge> >& edg, 
+		      int ix1, int ix2, double tol,
+		      std::vector<shared_ptr<ParamSurface> >& mod_sfs,
+		      shared_ptr<ftEdge>& not_changed);
+
    shared_ptr<BoundedSurface> replaceBdCvs(shared_ptr<BoundedSurface> surf,
 					   std::vector<shared_ptr<ParamCurve> >& bd_cvs,
 					   double tol);

@@ -1297,16 +1297,16 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 		THROW("Only space curves, method uses parameter curves...");
 	    shared_ptr<SplineCurve> pcv =
 		dynamic_pointer_cast<SplineCurve, ParamCurve>(old_loop_cvs[kj]->parameterCurve());
+	    Point geom_start = 
+	      old_loop_cvs[kj]->ParamCurve::point(old_loop_cvs[kj]->startparam());
+	    Point geom_end = 
+	      old_loop_cvs[kj]->ParamCurve::point(old_loop_cvs[kj]->endparam());
+	    Point par_start = 
+	      old_loop_cvs[kj]->parameterCurve()->point(old_loop_cvs[kj]->startparam());
+	    Point par_end = 
+	      old_loop_cvs[kj]->parameterCurve()->point(old_loop_cvs[kj]->endparam());
 	    if (pcv->endparam() - pcv->startparam() < knot_diff_tol) {
 	      // Check length of curve in geometry space and parameter space
-	      Point geom_start = 
-		old_loop_cvs[kj]->ParamCurve::point(old_loop_cvs[kj]->startparam());
-	      Point geom_end = 
-		old_loop_cvs[kj]->ParamCurve::point(old_loop_cvs[kj]->endparam());
-	      Point par_start = 
-		old_loop_cvs[kj]->parameterCurve()->point(old_loop_cvs[kj]->startparam());
-	      Point par_end = 
-		old_loop_cvs[kj]->parameterCurve()->point(old_loop_cvs[kj]->endparam());
 	      if (geom_start.dist(geom_end) < min_loop_tol && 
 		  par_start.dist(par_end) < epspar)
 		{
@@ -1374,8 +1374,10 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 	      }
 
 	    if ((space_start_dist < min_loop_tol) &&
-		(start_t - knot_diff_tol > old_loop_cvs[kj]->startparam()) &&
-		(start_t + knot_diff_tol < old_loop_cvs[kj]->endparam())) 
+		((start_t - knot_diff_tol > old_loop_cvs[kj]->startparam() &&
+		  start_t + knot_diff_tol < old_loop_cvs[kj]->endparam()) ||
+		 (geom_start.dist(space_start_pt) > min_loop_tol &&
+		  geom_end.dist(space_start_pt) > min_loop_tol)))
 	      {
 		vector<shared_ptr<ParamCurve> > sub_cvs = 
 		  old_loop_cvs[kj]->split(start_t);
@@ -1432,8 +1434,10 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 		// ++kj;
 	    }
 	    if ((space_end_dist < min_loop_tol) &&
-		(end_t - knot_diff_tol > old_loop_cvs[kj]->startparam()) &&
-		(end_t + knot_diff_tol < old_loop_cvs[kj]->endparam())) 
+		((end_t - knot_diff_tol > old_loop_cvs[kj]->startparam() &&
+		  end_t + knot_diff_tol < old_loop_cvs[kj]->endparam()) ||
+		 (geom_start.dist(space_end_pt) > min_loop_tol &&
+		  geom_end.dist(space_end_pt) > min_loop_tol)))
 	      {
 		vector<shared_ptr<ParamCurve> > sub_cvs = 
 		  old_loop_cvs[kj]->split(end_t);
@@ -1608,7 +1612,7 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
       int part_ind = -1, old_ind = -1;
       int tmp_ind;
       tmp_ind = leftMostCurve(*curr_crv, tmp_vec, min_loop_tol2, tmp_ang);
-      if (fabs(2*M_PI-tmp_ang) < angtol)
+      if ((fabs(2*M_PI-tmp_ang) < angtol || tmp_ind < 0) && tmp_vec.size() > 0)
 	{
 	  // Try again with a larger space tolerance
 	  tmp_ind = leftMostCurve(*curr_crv, tmp_vec, 10.0*min_loop_tol2, tmp_ang);
@@ -1705,7 +1709,7 @@ BoundedUtils::getBoundaryLoops(const BoundedSurface& sf,
 	  } 
 	else if (part_ind == -1 && old_ind == -1) { // No new segment.
 	  if (space_end_dist < min_loop_tol2 /*&& par_end_dist < epspar*/ ||
-	      (space_end_dist < 10.0*min_loop_tol2 && par_end_dist < 0.1*epspar)) 
+	      (space_end_dist < 10.0*min_loop_tol2 && par_end_dist < epspar)) 
 	    {
 #ifdef DEBUG1
 		std::ofstream out2("loop_cvs2.g2");
@@ -2109,9 +2113,6 @@ BoundedUtils::getIntersectionCurve(shared_ptr<ParamSurface>& sf1,
     SISLIntcurve** intcurves = 0;
     int status = 0;
     int ki;
-    //double march_eps = std::min(0.01,100.0*epsgeo); //0.01;
-    double march_eps = /*0.75**/epsgeo; //std::min(0.001,10.0*epsgeo); //0.01;
-    //double march_eps = std::min(0.0005,5.0*epsgeo); //0.01;
     s1859(sisl_sf1, sisl_sf2, epsco, epsgeo, &nmb_int_pts,
 	  &pointpar1, &pointpar2, &nmb_int_cvs, &intcurves, &status);
     ALWAYS_ERROR_IF(status < 0,
@@ -2124,6 +2125,25 @@ BoundedUtils::getIntersectionCurve(shared_ptr<ParamSurface>& sf1,
     int makecurv = 2; // Make both geometric and parametric curves.
     int draw = 0;
     for (ki = 0; ki < nmb_int_cvs; ++ki) {
+      // Set marching tolerance
+      double march_eps = epsgeo;
+
+      // Allow for some slack if the distance in the guide points are
+      // close to the tolerance
+      int nmb_guide = intcurves[ki]->ipoint;
+      double max_dist = 0.0;
+      for (int kj=0; kj<nmb_guide; ++kj)
+	{
+	  Point pos1 = surf1->ParamSurface::point(intcurves[ki]->epar1[2*kj],
+						intcurves[ki]->epar1[2*kj+1]);
+	  Point pos2 = surf2->ParamSurface::point(intcurves[ki]->epar2[2*kj],
+						intcurves[ki]->epar2[2*kj+1]);
+	  double dist_guide = pos1.dist(pos2);
+	  max_dist = std::max(max_dist, dist_guide);
+	}
+      if (max_dist > 0.5*march_eps)
+	march_eps += 0.5*max_dist;
+ 
       if (intcurves[ki]->pgeom)
 	{
 	  // The geometry curve exists already. Use GoTools to create parameter curves

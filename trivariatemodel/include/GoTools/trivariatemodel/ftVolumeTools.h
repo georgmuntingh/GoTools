@@ -118,7 +118,7 @@ namespace Go
 
     bool
       checkIntCrvJoint(std::vector<shared_ptr<CurveOnSurface> > & int_cvs,
-		       double tol);
+		       double tol, double eps);
 
   }  // namespace ftVolumeTools
 } // namespace Go
