@@ -160,8 +160,8 @@ double ftSamplePoint::pntDist(ftSamplePoint* other) const
 	      triangles.push_back(index);
 	      break;
 	    }
-	if (kh<pnt->next_.size())
-	    break;
+	// if (kh<pnt->next_.size())
+	//     break;
       }
 	      
 }
@@ -403,8 +403,10 @@ double ftPointSet::reparInnerPoints(shared_ptr<ParamSurface> surf, bool use_seed
 	  double curr_dist = pt.dist(uv_pt);
 	  if (curr_dist < dist) {
 	      this->operator[]((int)ki)->setDist(curr_dist);
+#ifdef DEBUG
 	      std::cout << "Curr dist: " << this->operator[]((int)ki)->getDist() <<
 	      ", proj dist: " << dist << std::endl;
+#endif
 	  } else {
 	      this->operator[]((int)ki)->setPar(Vector2D(u, v));
 	      this->operator[]((int)ki)->setDist(dist);
@@ -1110,6 +1112,9 @@ void ftPointSet::identifyBdPnts(vector<Point>& points, vector<int>& pnt_ix)
 void ftPointSet::getTriangles(vector<vector<int> >& triangles) const
 //===========================================================================
 {
+#ifdef DEBUG
+  std::ofstream of("tri_ix.txt");
+#endif
   // For each point, get all triangles and make sure to store them only
   // once
   std::set<vector<int> > all_triangles;
@@ -1117,6 +1122,10 @@ void ftPointSet::getTriangles(vector<vector<int> >& triangles) const
     {
       vector<vector<int> > tri;
       index_to_iter_[ki]->getAttachedTriangles(tri);
+#ifdef DEBUG
+      for (size_t kj=0; kj<tri.size(); ++kj)
+	of << tri[kj][0] << " " << tri[kj][1] << "  " << tri[kj][2] << std::endl;
+#endif
       all_triangles.insert(tri.begin(), tri.end());
     }
 
